@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+enum AspectMode {
+    aspectNone = 0;
+    aspectFit = 1;
+    aspectFill = 2;
+}
+
+enum PictureOrigin {
+    originCenter = 0;
+    originTopLeft = 1;
+}
+
+enum PictureAnchor {
+    anchorTopLeft = 0;
+    anchorTopRight = 1;
+    anchorBottomLeft = 2;
+    anchorBottomRight =3;
+}
+
+message Vec2 {
+    float x = 1;
+    float y = 2;
+}
+
+message Vec3 {
+    float x = 1;
+    float y = 2;
+    float z = 3;
+}
+
+message Vec4 {
+    float x = 1;
+    float y = 2;
+    float z = 3;
+    float w = 4;
+}
+
+message ElementState {
+    Vec3 picPos = 1;
+    Vec2 size = 2;
+    Vec2 textureOffset = 3;
+    float rotation = 4;
+    float transparency = 5;
+    float audioGain = 6;
+    Vec2 audioPos = 7;
+    AspectMode picAspect = 8;
+    PictureOrigin picOrigin = 9;
+    Vec4 fillColor = 10; /* r g b a */
+    Vec4 borderSize = 11; /* l t r b */
+    bool hidden = 12;
+    bool muted = 13;
+    repeated PictureAnchor parentAnchor = 14;
+}
+
+message Element {
+    map<string, ElementState> states = 1;
+    string initialState = 2;
+    string parent =  3;
+}
+
+message Scene {
+    map<string, Element> elements = 1;
+}
+
+message Composition {
+    map<string, Scene> scenes = 1;
+    string initialScene = 3;
+}

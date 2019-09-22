@@ -236,10 +236,14 @@ public class Rtmp {
                         strongSelf.assets[conn.ident] = assetId
                     } else {
                         // disconnect
+                        guard let assetId = (publisher?.uuid() ?? subscriber?.assetId()) else {
+                            return
+                        }
                         if let val = fail.value() as? NetworkEvent {
                             _ = conn <<| val
                         }
                         conn.close()
+                        strongSelf.fnEnded(assetId)
                     }
                 }
             }
@@ -254,12 +258,13 @@ public class Rtmp {
 
             _ = fnConnection(publisher, subscriber).andThen { [weak self] result in
                 self?.queue.async {
+                    guard let assetId = (publisher?.uuid() ?? subscriber?.assetId()) else {
+                        return
+                    }
                     guard let strongSelf = self, let val = result.value, val == true else {
                         // disconnect
                         conn.close()
-                        return
-                    } 
-                    guard let assetId = (publisher?.uuid() ?? subscriber?.assetId()) else {
+                        self?.fnEnded(assetId)
                         return
                     }
                     strongSelf.assets[conn.ident] = assetId

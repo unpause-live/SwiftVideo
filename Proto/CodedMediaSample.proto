@@ -1,0 +1,73 @@
+syntax = "proto3";
+import "TimePoint.proto";
+
+enum MediaType {
+    video = 0;
+    audio = 1;
+    image = 2;
+    data = 3;
+    subtitle = 4;
+}
+
+enum MediaFormat {
+    avc = 0;
+    hevc = 1;
+    aac = 2;
+    opus = 3;
+    av1 = 4;
+    vp8 = 5;
+    vp9 = 6;
+    uncompressed = 7;
+    // image
+    png = 8;
+    jpg = 9;
+    gif = 10;
+    // data
+    klv = 11;
+    // subtitle
+    srt = 13; 
+    webvtt = 14;
+    utf8Text = 15;
+}
+
+enum MediaSourceType {
+    rtmp = 0;
+    webrtc = 1;
+    httpPut = 2;
+    protobuf = 3;
+    httpGet = 4;
+    transcode = 5;
+    composition = 6;
+    web = 7;
+    output = 8;
+    flavor = 9;
+    file = 10;
+    text = 11;
+}
+
+message CodedMediaSampleWire {
+    TimePoint pts = 1;
+    TimePoint dts = 2;
+    TimePoint eventTime = 3;
+    string idAsset = 4;
+    string idWorkspace = 5;
+    string tokenWorkspace = 6;
+    bytes buffer = 7;
+    map<string, bytes> side = 8;
+    MediaType mediatype = 9;
+    MediaFormat mediaformat = 10;
+    //map<string, string> eventInfo = 11;
+    string encoder = 12;
+    repeated MediaConstituent constituents = 14;
+}
+
+
+message MediaConstituent {
+    string idAsset = 1;
+    TimePoint pts = 3;
+    TimePoint dts = 4;
+    TimePoint duration = 5;
+    TimePoint normalizedPts = 6;
+    repeated MediaConstituent constituents = 7;
+
+}

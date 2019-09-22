@@ -1,0 +1,103 @@
+syntax = "proto3";
+import "TimePoint.proto";
+import "CodedMediaSample.proto";
+import "Composition.proto";
+
+message RpcAssetPermissionRequest {
+    MediaSourceType sourceType = 1;
+    MediaType mediaType = 2;
+    repeated MediaFormat formats = 3;
+    map<string,string> metadata = 4;
+    PermissionRequestType requestType = 5;
+
+    enum PermissionRequestType {
+        write = 0;
+        read = 1;
+    };
+}
+
+message RpcAssetPermissionResponse {
+    bool granted = 1;
+}
+
+
+message RpcComposerCommand {
+    message StateSet {
+        string elementId = 1;
+        TimePoint duration = 2;
+        string stateId = 3;
+    }
+    message Bind {
+        string assetId = 1;
+        string elementId = 2;
+    }
+    message Load {
+        string uri = 1;
+        string assetId = 2;
+        string workspaceToken = 3;
+        bool loop = 4;
+        bool autoplay = 5;
+    }
+    message Text {
+        string value = 1;
+        int32 fontSize = 2;
+        string fontUrl = 3;
+        string assetId = 4;
+        Vec4 color = 5;
+    }
+    message Command {
+        repeated Command after = 1;
+        int32 ident = 2;
+        oneof command {
+            string scene = 3;
+            StateSet elementState = 4;
+            Bind bind = 5;
+            Load loadFile = 6;
+            string playFile = 7;
+            string stopFile = 8;
+            Text setText = 9;
+        }
+    }
+    repeated Command commands = 1;
+}
+
+enum RpcFeatureType {
+    transcoder = 0;
+    compositor = 1;
+    subtractor = 2;
+    rtmpOutput = 3;
+    browser = 4;
+}
+
+
+message RpcEncodeConfig {
+    MediaFormat format = 1;
+    int32 bitrate = 2;
+    TimePoint keyframeInterval = 3;
+    int32 sampleRate = 4;
+    int32 channelCount = 5;
+    int32 bitDepth = 6;
+    map<string, string> options = 7; // eg. level, profile
+}
+
+message RpcMixerVideoConfig {
+    int32 width =  1;
+    int32 height = 2;
+    TimePoint frameDuration = 3;
+}
+
+message RpcMixerAudioConfig {
+    int32 sampleRate = 1;
+    int32 channels = 2;
+}
+
+message RpcMakeComposition {
+    string newAssetId = 1;
+    string chosenInstance = 2;
+    repeated RpcEncodeConfig outputConfigs = 3;
+    RpcMixerVideoConfig video = 4;
+    RpcMixerAudioConfig audio = 5;
+    repeated RpcFeatureType features = 6;
+    Composition composition = 7;
+    int64 epoch = 8;
+}

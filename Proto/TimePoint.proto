@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+message TimePoint {
+    int64 value = 1;
+    int64 scale = 2;
+}
+
+message EventError {
+    string source = 1;
+    int32 code = 2;
+    string desc = 3;
+    TimePoint time = 4;
+    string assetId = 5;
+}
