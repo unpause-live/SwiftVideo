@@ -4,6 +4,12 @@
 #include <assert.h>
 #include <inttypes.h>
 
+#if defined(linux)
+#include <bsd/stdlib.h>
+#else
+#include <stdlib.h>
+#endif
+
 static uint8_t clzlut[256] = {
   8,7,6,6,5,5,5,5,
   4,4,4,4,4,4,4,4,
@@ -129,6 +135,9 @@ private:
 };
 
 extern "C" {
+    void generateRandomBytes(void* buf, size_t size) {
+        arc4random_buf(buf, size);
+    }
     int aac_parse_asc(const void* data, int64_t size, int* channels, int* sample_rate) {
         if(!(data != nullptr && size >= 2)) {
             return 0;

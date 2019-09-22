@@ -3,11 +3,10 @@
 #warning ("macOS support is deprecated, this is only for development. Use Metal for production.")
 import OpenCL
 import CoreVideo
-import Logging
 #else 
 import CSwiftVideo
 #endif
-
+import Logging
 import VectorMath
 import Foundation
 

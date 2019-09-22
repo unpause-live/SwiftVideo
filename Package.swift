@@ -1,4 +1,4 @@
-// swift-tools-version:5.0
+// swift-tools-version:5.1
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -35,7 +35,7 @@ let package = Package(
             pkgConfig: "freetype2",
             providers: [.brew(["freetype2"]), .apt(["libfreetype6-dev"])]
         ),
-        .target(name: "CSwiftVideo", dependencies: []),
+        .target(name: "CSwiftVideo", dependencies: [], cxxSettings: [.define("linux", .when(platforms: [.linux]))]),
         .target(
             name: "SwiftVideo",
             dependencies: ["NIO", "CSwiftVideo", "NIOSSL", "NIOExtras", "NIOFoundationCompat","VectorMath", "BrightFutures", 
