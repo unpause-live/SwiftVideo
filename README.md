@@ -1,5 +1,7 @@
 ## SwiftVideo
 
+[![CircleCI](https://circleci.com/gh/unpause-live/SwiftVideo.svg?style=svg)](https://circleci.com/gh/unpause-live/SwiftVideo)
+
 Video streaming and processing framework for Linux, macOS, and iOS/iPadOS (maybe even tvOS).  Swift 5.1+ because I'm just opening this up and I really don't feel like dealing with older versions of Swift.
 
 This is very much a WIP.  Support is currently better for Linux than macOS and even less-so for iOS devices.  Work needs to be done on the Podfile for better Xcode interop (swift package manager doesn't do such a great job there).
