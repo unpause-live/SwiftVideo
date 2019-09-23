@@ -43,7 +43,9 @@ let package = Package(
             swiftSettings: [
                 .define("GPGPU_OCL", .when(platforms: [.linux, .macOS])),
                 .define("GPGPU_METAL", .when(platforms: [.iOS, .tvOS]))
-            ]),
+            ],
+            linkerSettings: [.linkedLibrary("OpenCL", .when(platforms: [.linux])), 
+                .linkedLibrary("bsd",.when(platforms: [.linux])]),
         .testTarget(
             name: "swiftVideoTests",
             dependencies: ["SwiftVideo"]),
