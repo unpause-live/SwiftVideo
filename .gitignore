@@ -1,3 +1,12 @@
 .DS_Store
 .build
 Package.resolved
+._*
+*.o
+*.a
+*~HEAD*
+*~master*
+*.profraw
+DerivedData/
+Packages/
+*.xcodeproj
