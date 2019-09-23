@@ -117,7 +117,7 @@ extension CodedMediaSample: Event {
         return wire.mediatype
     }
     
-    func mediaFormat() -> MediaFormat {
+    public func mediaFormat() -> MediaFormat {
         return wire.mediaformat
     }
 
@@ -226,7 +226,7 @@ func basicMediaDescription(_ sample: CodedMediaSample) throws -> BasicMediaDescr
     }
 }
 
-func isKeyframe(_ sample: CodedMediaSample) -> Bool {
+public func isKeyframe(_ sample: CodedMediaSample) -> Bool {
     guard sample.mediaType() == .video else {
         return true
     }

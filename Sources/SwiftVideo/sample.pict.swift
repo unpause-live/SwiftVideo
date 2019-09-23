@@ -44,6 +44,12 @@ public enum Component {
 }
 
 public struct Plane {
+    public init(size: Vector2, stride: Int, bitDepth: Int, components: [Component]) {
+        self.size = size
+        self.stride = stride
+        self.bitDepth = bitDepth
+        self.components = components
+    }
     let size : Vector2
     let stride : Int
     let bitDepth : Int
@@ -73,7 +79,7 @@ public protocol PictureEvent: Event {
     func opacity() -> Float
 }
 
-func componentsForPlane(_ pixelFormat: PixelFormat, _ idx: Int) -> [Component] {
+public func componentsForPlane(_ pixelFormat: PixelFormat, _ idx: Int) -> [Component] {
     switch(pixelFormat) {
         case .y420p, .y422p, .y444p:
             return [[.y], [.cb], [.cr]][idx]

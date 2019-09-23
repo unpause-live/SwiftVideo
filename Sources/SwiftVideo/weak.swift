@@ -16,10 +16,10 @@
 
 import Foundation
 
-class Weak<T: AnyObject> {
-  weak var value : T?
-  var uuid: String?
-  init (value: T, uuid: String? = nil) {
+public class Weak<T: AnyObject> {
+  public weak var value : T?
+  public var uuid: String?
+  public init (value: T, uuid: String? = nil) {
     self.value = value
     self.uuid = uuid
   }
@@ -37,7 +37,7 @@ enum ConversionError: Error {
 }
 
 extension String {
-    func toJSON<T: Decodable>(_ as: T.Type) throws -> T {
+    public func toJSON<T: Decodable>(_ as: T.Type) throws -> T {
         guard let data = self.data(using: .utf8, allowLossyConversion: false) else { throw ConversionError.cannotConvertToData }
         return try JSONDecoder().decode(T.self, from: data)
     }
