@@ -151,9 +151,11 @@ private:
 };
 
 extern "C" {
+#if defined(linux)
     void generateRandomBytes(void* buf, size_t size) {
         arc4random_buf(buf, size);
     }
+#endif
     int aac_parse_asc(const void* data, int64_t size, int* channels, int* sample_rate) {
         if(!(data != nullptr && size >= 2)) {
             return 0;
