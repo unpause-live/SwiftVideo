@@ -15,6 +15,7 @@
 */
 
 syntax = "proto3";
+option java_package="com.unpause.proto";
 
 message TimePoint {
     int64 value = 1;

@@ -15,6 +15,7 @@
 */
 
 syntax = "proto3";
+option java_package="com.unpause.proto";
 
 enum AspectMode {
     aspectNone = 0;

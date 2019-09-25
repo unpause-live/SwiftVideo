@@ -19,6 +19,8 @@ import "TimePoint.proto";
 import "CodedMediaSample.proto";
 import "Composition.proto";
 
+option java_package="com.unpause.proto";
+
 message RpcAssetPermissionRequest {
     MediaSourceType sourceType = 1;
     MediaType mediaType = 2;

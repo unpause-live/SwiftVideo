@@ -16,6 +16,7 @@
 
 syntax = "proto3";
 import "TimePoint.proto";
+option java_package="com.unpause.proto";
 
 enum MediaType {
     video = 0;
