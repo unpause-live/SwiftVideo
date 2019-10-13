@@ -158,7 +158,7 @@ public class Rtmp {
                               ended: fnEnded).wait()
             }
             self.inflightConnections.insert(connIdent)
-        } catch (let error) {
+        } catch {
             return false
         }
         return true
@@ -546,7 +546,7 @@ enum rtmp {
                                data: nil)
         return states.onStatus(level, code: code, desc: description, ctx: ctx, chunk: chunk)
     }
-    #warning("TODO: Simplify serialize and deserialze classes")
+    
     class Serialize : Tx<CodedMediaSample, NetworkEvent> {
         init(_ ctx: Context) {
             self.ctx = ctx

@@ -296,7 +296,7 @@ public final class WebSocket: ChannelInboundHandler {
         var buffer = channel.allocator.buffer(capacity: data.utf8.count)
         buffer.writeString(data)
         let frame = WebSocketFrame(fin: true, opcode: .text, data: buffer)
-        channel.writeAndFlush(self.wrapOutboundOut(frame))
+        _ = channel.writeAndFlush(self.wrapOutboundOut(frame))
     }
 
     public func handlerAdded(context: ChannelHandlerContext) {

@@ -570,7 +570,6 @@ fileprivate class FlavorSession {
                             return
                         }
                         let formats = self.fnFormatQuery(parts[2], parts[0])
-                        print("formats=\(formats)")
                         self.makePublisher(parts[2], parts[0], workspaceToken: parts[1], callId: callId, streamId: streamId, formats: formats ?? [MediaFormat]())
                     } catch {
                         print("caught error \(error)")
@@ -659,7 +658,7 @@ fileprivate class FlavorSession {
             accumulator = nil
         } catch let error as flavor.FlavorError {
             switch error {
-                case .unknownAtom(let name, let size):
+                case .unknownAtom(_, let size):
                     data.moveReaderIndex(forwardBy: Int(size))
                     accumulator = data
                     return .nothing(event.info())

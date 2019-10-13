@@ -455,7 +455,7 @@ extension rtmp {
             return ctx.publishToPeer ? createPublish(ctx) : createPlay(ctx)
         }
         private static func createPlay(_ ctx: Context) -> (EventBox<Event>, Context) {
-            #warning("TODO: Implement Play")
+// TODO: Implement Play
             return (.error(EventError(ctx.assetId, -99, "Play Not Implemented", nil)), ctx)
         }
         private static func createPublish(_ ctx: Context) -> (EventBox<Event>, Context) {

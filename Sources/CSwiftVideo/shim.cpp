@@ -156,7 +156,7 @@ extern "C" {
         arc4random_buf(buf, size);
     }
 #endif
-    int aac_parse_asc(const void* data, int64_t size, int* channels, int* sample_rate) {
+    int aac_parse_asc(const void* data, int64_t size, int* channels, int* sample_rate, int* samples_per_frame) {
         if(!(data != nullptr && size >= 2)) {
             return 0;
         }
@@ -164,7 +164,8 @@ extern "C" {
         const uint8_t* ptr = (const uint8_t*)data;
         const int sr_idx = ((ptr[0] & 0x7) << 1) | ((ptr[1] >> 7) & 0x1);
         int cct = (ptr[1] >> 3) & 0x3;
-
+        int fl = (ptr[1] >> 2) & 0x1;
+        
         if(sr_idx < 13 && sample_rate != nullptr) {
             *sample_rate = sr[sr_idx];
         } else if(sr_idx == 15 && sample_rate != nullptr && size > 4) {
@@ -175,6 +176,11 @@ extern "C" {
         if(channels != nullptr) {
             *channels = cct;
         }
+        
+        if(samples_per_frame != nullptr) {
+            *samples_per_frame = (fl > 0 ? 960 : 1024);
+        }
+        
         return 1;
     }    
 

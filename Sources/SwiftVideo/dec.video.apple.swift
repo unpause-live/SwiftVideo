@@ -80,7 +80,7 @@ public class AppleVideoDecoder : Tx<CodedMediaSample, PictureSample> {
         }
 
         do {
-            #warning("needs to support HEVC as well")
+            // TODO: HEVC Support
             let paramSets = parameterSetsFromAVCC(dcr)
             let formatDesc = try videoFormatFromAVCParameterSets(paramSets)
             let pts = rescale(sample.pts(), 90000).value
