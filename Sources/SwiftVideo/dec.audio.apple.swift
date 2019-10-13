@@ -41,12 +41,11 @@ public class AppleAudioDecoder : Tx<CodedMediaSample, AudioSample> {
                                         packetDesc: [AudioStreamPacketDescription(mStartOffset: 0,
                                                                                   mVariableFramesInPacket: 0,
                                                                                   mDataByteSize: UInt32(sample.data().count))])
-                var packetSize = UInt32(MemoryLayout<PacketData>.size)
-                var audioBufferList = AudioBufferList(mNumberBuffers: 1, mBuffers: AudioBuffer(mNumberChannels: asbd.mChannelsPerFrame,
-                                                                                                mDataByteSize: UInt32(dataLength),
-                                                                                                mData: buffer.baseAddress))
-                let result = AudioConverterFillComplexBuffer(converter, ioProc, &packet, &packetSize, &audioBufferList, nil)
-                return (result, audioBufferList.mBuffers.mDataByteSize)
+                var packetSize = UInt32(self.samplesPerPacket)
+                let audioBufferList = AudioBufferList.allocate(maximumBuffers: 1)
+                audioBufferList[0] = AudioBuffer(mNumberChannels: asbd.mChannelsPerFrame, mDataByteSize: UInt32(dataLength), mData: buffer.baseAddress)
+                let result = AudioConverterFillComplexBuffer(converter, ioProc, &packet, &packetSize, audioBufferList.unsafeMutablePointer, nil)
+                return (result, audioBufferList[0].mDataByteSize)
             }
         }
         if result == noErr {
@@ -62,8 +61,6 @@ public class AppleAudioDecoder : Tx<CodedMediaSample, AudioSample> {
                                      workspaceToken: sample.workspaceToken(),
                                      eventInfo: sample.info())
             return .just(output)
-        } else {
-            print("err=\(result)")
         }
         return .error(EventError("dec.sound.apple", -4, "Decoder error: \(result)", assetId: sample.assetId()))
     }
@@ -135,7 +132,6 @@ fileprivate func ioProc(_ converter: AudioConverterRef,
     let packet = userData.bindMemory(to: PacketData.self, capacity: MemoryLayout<PacketData>.size)
     guard let buf = packet.pointee.buffer else {
         ioNumDataPackets.pointee = 0
-        print("done")
         return -1
     }
     

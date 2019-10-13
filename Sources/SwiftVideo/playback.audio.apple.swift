@@ -1,3 +1,4 @@
+#if os(macOS) || os(iOS) || os(tvOS)
 import Foundation
 import AudioToolbox
 
@@ -28,3 +29,4 @@ class AppleAudioPlayback : Terminal<AudioSample> {
     private var unit: AudioUnit?
     private var component: AudioComponent?
 }
+#endif
