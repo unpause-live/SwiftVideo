@@ -1,3 +1,4 @@
+#if os(macOS) || os(iOS) || os(tvOS)
 import Foundation
 import AudioToolbox
 import VectorMath
@@ -152,3 +153,4 @@ fileprivate func ioProc(_ converter: AudioConverterRef,
     packet.pointee.buffer = nil
     return noErr;
 }
+#endif
