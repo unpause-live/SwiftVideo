@@ -94,7 +94,8 @@ fileprivate func ioProc(inRefCon: UnsafeMutableRawPointer,
         }
         memset(ptr, 0, Int($0.mDataByteSize))
     }
-    me.samples.forEach { sample in
+    let samples = Array(me.samples)
+    samples.forEach { sample in
         let sampleStart = rescale(sample.pts(), me.pts.scale)
         let sampleEnd = sampleStart + TimePoint(Int64(sample.numberSamples()), me.pts.scale)
         if windowEnd > sampleStart && windowStart < sampleEnd {
