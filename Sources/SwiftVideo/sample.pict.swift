@@ -17,7 +17,7 @@
 import VectorMath
 
 
-#warning("TODO: Higher bit-depth color formats")
+// TODO: Higher bit-depth formats
 public enum PixelFormat {
     case nv12
     case nv21

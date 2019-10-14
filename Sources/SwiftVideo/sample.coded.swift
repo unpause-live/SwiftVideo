@@ -57,6 +57,7 @@ public struct BasicVideoDescription {
 public struct BasicAudioDescription {
     let sampleRate: Float
     let channelCount: Int
+    let samplesPerPacket: Int
 }
 
 public enum BasicMediaDescription {
@@ -214,13 +215,14 @@ func basicMediaDescription(_ sample: CodedMediaSample) throws -> BasicMediaDescr
             guard let asc = sample.sideData()["config"] else {
                 throw MediaDescriptionError.invalidMetadata
             }
-            let (channels, sampleRate): (Int32, Int32) = asc.withUnsafeBytes {
+            let (channels, sampleRate, samplesPerPacket): (Int32, Int32, Int32) = asc.withUnsafeBytes {
                 var channels: Int32 = 0
                 var sampleRate: Int32 = 0
-                aac_parse_asc($0.baseAddress, Int64($0.count), &channels, &sampleRate)
-                return (channels, sampleRate)
+                var samplesPerPacket: Int32 = 0
+                aac_parse_asc($0.baseAddress, Int64($0.count), &channels, &sampleRate, &samplesPerPacket)
+                return (channels, sampleRate, samplesPerPacket)
             }
-            return .audio(BasicAudioDescription(sampleRate: Float(sampleRate), channelCount: Int(channels)))
+            return .audio(BasicAudioDescription(sampleRate: Float(sampleRate), channelCount: Int(channels), samplesPerPacket: Int(samplesPerPacket)))
         default:
             throw MediaDescriptionError.unsupported
     }
@@ -240,7 +242,7 @@ public func isKeyframe(_ sample: CodedMediaSample) -> Bool {
     }
 }
 
-#warning("TODO: Add HEVC, make isKeyframeAVC more robust")
+// TODO: Add HEVC, VP8/VP9, AV1
 fileprivate func isKeyframeAVC(_ sample: CodedMediaSample) -> Bool {
     guard sample.data().count >= 5 else {
         return false
