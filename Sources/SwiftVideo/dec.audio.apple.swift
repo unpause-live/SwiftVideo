@@ -25,16 +25,19 @@ public class AppleAudioDecoder : Tx<CodedMediaSample, AudioSample> {
         guard let converter = self.converter, let asbd = self.asbdOut else {
             return .error(EventError("dec.sound.apple", -2, "No converter found", assetId: sample.assetId()))
         }
-        let dataLength = Int(asbd.mBytesPerPacket) * self.samplesPerPacket
+        let dataLength = Int(asbd.mBytesPerPacket * asbd.mChannelsPerFrame) * self.samplesPerPacket
         guard dataLength > 0 else {
             return .error(EventError("dec.sound.apple", -3, "Invalid decoder state", assetId: sample.assetId()))
         }
         
         var data = Data(count: dataLength)
         
-        let (result, bytesWritten) = data.withUnsafeMutableBytes { (buffer: UnsafeMutableRawBufferPointer) -> (OSStatus, UInt32) in
+        let result = data.withUnsafeMutableBytes { (buffer: UnsafeMutableRawBufferPointer) -> OSStatus in
             var sampleBuffer = sample.data()
             return sampleBuffer.withUnsafeMutableBytes {
+                guard let baseAddress = buffer.baseAddress else {
+                    return -1
+                }
                 var packet = PacketData(buffer: $0,
                                         bufferSize: $0.count,
                                         channelCount: asbd.mChannelsPerFrame,
@@ -42,20 +45,30 @@ public class AppleAudioDecoder : Tx<CodedMediaSample, AudioSample> {
                                                                                   mVariableFramesInPacket: 0,
                                                                                   mDataByteSize: UInt32(sample.data().count))])
                 var packetSize = UInt32(self.samplesPerPacket)
-                let audioBufferList = AudioBufferList.allocate(maximumBuffers: 1)
-                audioBufferList[0] = AudioBuffer(mNumberChannels: asbd.mChannelsPerFrame, mDataByteSize: UInt32(dataLength), mData: buffer.baseAddress)
-                let result = AudioConverterFillComplexBuffer(converter, ioProc, &packet, &packetSize, audioBufferList.unsafeMutablePointer, nil)
-                return (result, audioBufferList[0].mDataByteSize)
+                let audioBufferList = AudioBufferList.allocate(maximumBuffers: Int(asbd.mChannelsPerFrame))
+                for i in 0..<Int(asbd.mChannelsPerFrame) {
+                    audioBufferList[i] = AudioBuffer(mNumberChannels: 1,
+                                                     mDataByteSize: UInt32(dataLength/Int(asbd.mChannelsPerFrame)),
+                                                     mData: baseAddress+(i*self.samplesPerPacket*Int(asbd.mBytesPerPacket)))
+                }
+                return AudioConverterFillComplexBuffer(converter, ioProc, &packet, &packetSize, audioBufferList.unsafeMutablePointer, nil)
             }
         }
         if result == noErr {
-            let output = AudioSample([data],
+            let pts = self.pts ?? rescale(sample.pts(), Int64(asbd.mSampleRate))
+            let dur = TimePoint(Int64(self.samplesPerPacket), Int64(asbd.mSampleRate))
+            self.pts = pts + dur
+            let bufferSize = self.samplesPerPacket*Int(asbd.mBytesPerPacket)
+            let buffers = (0..<Int(asbd.mChannelsPerFrame)).map { idx in
+                data[idx*bufferSize..<idx*bufferSize+bufferSize]
+            }
+            let output = AudioSample(buffers,
                                      frequency: Int(asbd.mSampleRate),
                                      channels: Int(asbd.mChannelsPerFrame),
-                                     format: .s16i,
-                                     sampleCount: Int(bytesWritten / asbd.mBytesPerPacket),
+                                     format: .f32p,
+                                     sampleCount: self.samplesPerPacket,
                                      time: sample.time(),
-                                     pts: sample.pts(),
+                                     pts: pts,
                                      assetId: sample.assetId(),
                                      workspaceId: sample.workspaceId(),
                                      workspaceToken: sample.workspaceToken(),
@@ -85,19 +98,20 @@ public class AppleAudioDecoder : Tx<CodedMediaSample, AudioSample> {
                                                              mReserved: 0)
                     var asbdOut = AudioStreamBasicDescription(mSampleRate: Float64(desc.sampleRate),
                                                               mFormatID: kAudioFormatLinearPCM,
-                                                              mFormatFlags: 12,
-                                                              mBytesPerPacket: UInt32(desc.channelCount * 2),
+                                                              mFormatFlags: kAudioFormatFlagIsPacked | kAudioFormatFlagIsFloat | kAudioFormatFlagIsNonInterleaved,
+                                                              mBytesPerPacket: 4,
                                                               mFramesPerPacket: 1,
-                                                              mBytesPerFrame: UInt32(desc.channelCount * 2),
+                                                              mBytesPerFrame: 4,
                                                               mChannelsPerFrame: UInt32(desc.channelCount),
-                                                              mBitsPerChannel: 16,
+                                                              mBitsPerChannel: 32,
                                                               mReserved: 0)
                     self.asbdOut = asbdOut
                     var requiredCodecs = AudioClassDescription(mType: kAudioDecoderComponentType,
                                                                mSubType: kAudioFormatMPEG4AAC,
                                                                mManufacturer: kAudioUnitManufacturer_Apple)
                     var converter: AudioConverterRef? = nil
-                    AudioConverterNewSpecific(&asbdIn, &asbdOut, 1, &requiredCodecs, &converter)
+                    let result = AudioConverterNewSpecific(&asbdIn, &asbdOut, 1, &requiredCodecs, &converter)
+                    print("AudioConverterNewSpecific: \(result)")
                     self.converter = converter
                 }
             } catch {}
@@ -108,6 +122,7 @@ public class AppleAudioDecoder : Tx<CodedMediaSample, AudioSample> {
         }
         
     }
+    var pts: TimePoint?
     var samplesPerPacket: Int = 0
     var asbdOut: AudioStreamBasicDescription?
     var converter: AudioConverterRef?

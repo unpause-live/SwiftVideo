@@ -103,49 +103,52 @@ public class AudioSample : Event {
     }
 
     public func type() -> String { 
-        return "soun" 
+        "soun"
     }
     public func time() -> TimePoint {
-        return timePoint
+        timePoint
     }
     public func assetId() -> String {
-        return idAsset
+        idAsset
     }
     public func workspaceId() -> String {
-        return idWorkspace
+        idWorkspace
     }
     public func workspaceToken() -> String? {
-        return tokenWorkspace
+        tokenWorkspace
     }
     public func info() -> EventInfo? {
-        return eventInfo
+        eventInfo
     }
     public func data() -> [Data] {
-        return buffers
+        buffers
     }
     public func computeData() -> [ComputeBuffer] {
-        return computeBuffers
+        computeBuffers
     }
     public func pts() -> TimePoint {
-        return presentationTimestamp
+        presentationTimestamp
+    }
+    public func duration() -> TimePoint {
+        rescale(TimePoint(Int64(sampleCount), Int64(frequency)), presentationTimestamp.scale)
     }
     public func sampleRate() -> Int {
-        return frequency
+        frequency
     }
     public func numberSamples() -> Int {
-        return sampleCount
+        sampleCount
     }
     public func numberChannels() -> Int {
-        return channels
+        channels
     }
     public func format() -> AudioFormat {
-        return audioFormat
+        audioFormat
     }
     public func bufferType() -> BufferType {
-        return buffertype
+        buffertype
     }
     public func constituents() -> [MediaConstituent]? {
-        return self.mediaConstituents
+        self.mediaConstituents
     }
 
     let idAsset: String

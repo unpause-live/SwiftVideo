@@ -28,7 +28,8 @@ public class Weak<T: AnyObject> {
 public func bridge<T: AnyObject>(_ obj: T) -> UnsafeMutableRawPointer {
     return Unmanaged.passUnretained(obj).toOpaque()
 }
-public func bridge<T : AnyObject>(ptr : UnsafeMutableRawPointer) -> T {
+
+public func bridge<T : AnyObject>(from ptr: UnsafeMutableRawPointer) -> T {
     return Unmanaged<T>.fromOpaque(ptr).takeUnretainedValue()
 }
 
