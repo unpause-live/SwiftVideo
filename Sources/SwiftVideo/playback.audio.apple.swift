@@ -52,6 +52,7 @@ public class AppleAudioPlayback : Terminal<AudioSample> {
             if sample.pts() < strongSelf.pts {
                 strongSelf.pts = rescale(sample.pts(), Int64(sample.sampleRate()))
                 strongSelf.samples.removeAll(keepingCapacity: true)
+                strongSelf.ptsOffset = nil
             }
             strongSelf.samples.append(sample)
             strongSelf.samples = strongSelf.samples.filter { ($0.pts() + $0.duration()) > strongSelf.pts }
@@ -66,6 +67,7 @@ public class AppleAudioPlayback : Terminal<AudioSample> {
     private var unit: AudioUnit?
     fileprivate var samples: [AudioSample]
     fileprivate var pts: TimePoint
+    fileprivate var ptsOffset: TimePoint? = nil
 }
 
 fileprivate func ioProc(inRefCon: UnsafeMutableRawPointer,
@@ -78,7 +80,13 @@ fileprivate func ioProc(inRefCon: UnsafeMutableRawPointer,
         return -1
     }
     let me: AppleAudioPlayback = bridge(from: inRefCon)
-    let windowStart = me.pts
+    if me.ptsOffset == nil {
+        me.ptsOffset =  me.pts - TimePoint(Int64(audioTimestamp.pointee.mSampleTime), me.pts.scale)
+    }
+    guard let ptsOffset = me.ptsOffset else {
+        return -1
+    }
+    let windowStart = me.pts - ptsOffset
     let windowEnd = windowStart + TimePoint(Int64(inNumberFrames), windowStart.scale)
     buffers.forEach {
         guard let ptr = $0.mData else {
@@ -98,7 +106,10 @@ fileprivate func ioProc(inRefCon: UnsafeMutableRawPointer,
                     return
                 }
                 _ = $0.1.withUnsafeBytes {
-                    memcpy(ptr+writeOffset, $0.baseAddress, writeCount)
+                    guard let readPtr = $0.baseAddress else {
+                        return
+                    }
+                    memcpy(ptr+writeOffset, readPtr+readOffset, writeCount)
                 }
             }
         }
