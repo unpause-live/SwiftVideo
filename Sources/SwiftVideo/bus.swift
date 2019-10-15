@@ -238,7 +238,7 @@ extension EventBox {
 
 open class AsyncTx <T, U> : Tx<T, U> {
     public override init() {
-        super.init { $0 as? U <??> { .just($0) } <|> .error(EventError("asynctx", -1, "incorrect sample type")) }
+        super.init { ($0 as? U) <??> { .just($0) } <|> .error(EventError("asynctx", -1, "incorrect sample type")) }
     }
     public func setEmitFn(_ fun: @escaping (U) -> EventBox<Event>) { fnEmit = fun }
     public func emit(_ val: U) -> EventBox<Event> {
