@@ -20,12 +20,12 @@ import Foundation
 import Dispatch
 import BrightFutures
 
-public enum NoError : Error {}
+public enum NoError: Error {}
 
 public class Rtmp {
-    public init(_ clock: Clock, 
-        bufferSize: TimePoint = TimePoint(500, 1000), 
-        onEnded: @escaping LiveOnEnded, 
+    public init(_ clock: Clock,
+        bufferSize: TimePoint = TimePoint(500, 1000),
+        onEnded: @escaping LiveOnEnded,
         onConnection: @escaping LiveOnConnection) {
 
         self.clock = clock
@@ -40,9 +40,9 @@ public class Rtmp {
         self.queue = DispatchQueue(label: "rtmp")
     }
 
-    public func connect(url: URL, 
-                        publishToPeer: Bool, 
-                        group: EventLoopGroup, 
+    public func connect(url: URL,
+                        publishToPeer: Bool,
+                        group: EventLoopGroup,
                         workspaceId: String,
                         assetId: String? = nil,
                         uuid: String? = nil,
@@ -61,8 +61,8 @@ public class Rtmp {
 
         let port = url.port ?? 1935
 
-        let fnConnected = { [weak self] (conn: Connection) -> () in
-            self?.queue.async { 
+        let fnConnected = { [weak self] (conn: Connection) -> Void in
+            self?.queue.async {
                 guard let strongSelf = self else {
                     return
                 }
@@ -77,7 +77,7 @@ public class Rtmp {
                                        dialedOut: true,
                                        publishToPeer: publishToPeer,
                                        url: url.absoluteString)
-                
+
                 let handshake = rtmp.Handshake(ctx) {
                     [weak self] in
                     guard let strongSelf = self else {
@@ -88,23 +88,23 @@ public class Rtmp {
                 strongSelf.handshaking[conn.ident] = conn >>> mix() >>> handshake >>> filter() >>> conn
                 handshake.start()
             }
-            
+
         }
-        let fnEnded = { [weak self] (conn: Connection) -> () in
+        let fnEnded = { [weak self] (conn: Connection) -> Void in
             let ident = conn.ident
             guard let strongSelf = self, strongSelf.inflightConnections.contains(ident) else {
                 return
             }
-            
+
             strongSelf.clock.schedule(TimePoint(1000, 1000) + strongSelf.clock.current()) { _ in
-                self?.queue.async { 
+                self?.queue.async {
                     guard let strongSelf = self else {
                         return
                     }
                     let shouldReconnect = (strongSelf.publishers[ident]?.value != nil || strongSelf.handshaking[ident] != nil) && attempt < 30
                     if shouldReconnect && !strongSelf.inflightReconnects.contains(ident) {
                         strongSelf.inflightReconnects.insert(ident)
-                        strongSelf.clock.schedule(TimePoint(900000,100000) + strongSelf.clock.current()) { [weak self] _ in
+                        strongSelf.clock.schedule(TimePoint(900000, 100000) + strongSelf.clock.current()) { [weak self] _ in
                             self?.inflightReconnects.remove(ident)
                             guard let strongSelf = self,
                                 (strongSelf.publishers[ident]?.value != nil || strongSelf.handshaking[ident] != nil) else {
@@ -112,11 +112,11 @@ public class Rtmp {
                             }
                             strongSelf.handshaking.removeValue(forKey: ident)
                             strongSelf.publishers.removeValue(forKey: ident)
-                            _ = strongSelf.connect(url: url, 
-                                publishToPeer: publishToPeer, 
-                                group: group, 
-                                workspaceId: workspaceId, 
-                                assetId: assetId, 
+                            _ = strongSelf.connect(url: url,
+                                publishToPeer: publishToPeer,
+                                group: group,
+                                workspaceId: workspaceId,
+                                assetId: assetId,
                                 uuid: uuid,
                                 attempt: attempt + 1)
 
@@ -168,11 +168,11 @@ public class Rtmp {
         guard self.server == nil else {
             return false
         }
-        let fnConnected = { [weak self] (conn: Connection) -> () in
+        let fnConnected = { [weak self] (conn: Connection) -> Void in
             guard let strongSelf = self else {
                 return
             }
-            
+
             let handshake = rtmp.Handshake(rtmp.Context()) {
                 [weak self] in
                 guard let strongSelf = self else {
@@ -180,12 +180,12 @@ public class Rtmp {
                 }
                 return strongSelf.handleCompletion($0, conn: conn)
             }
-            strongSelf.queue.async { 
+            strongSelf.queue.async {
                 strongSelf.handshaking[conn.ident] = conn >>> mix() >>> handshake >>> filter() >>> conn
             }
         }
-        let fnEnded = { [weak self] (conn: Connection) -> () in
-            self?.queue.async { 
+        let fnEnded = { [weak self] (conn: Connection) -> Void in
+            self?.queue.async {
                 guard let strongSelf = self else {
                     return
                 }
@@ -206,7 +206,7 @@ public class Rtmp {
                                ended: fnEnded)
         return true
     }
-    
+
     public func wait() throws -> Bool {
         guard let server = self.server else {
             return false
@@ -237,7 +237,7 @@ public class Rtmp {
             let subscriber = !ctx.publishToPeer ? RtmpSubscriber(clock, conn: conn, ctx: ctx) : nil
 
             _ = fnConnection(publisher, subscriber).andThen { [weak conn, weak self] result in
-                self?.queue.async { 
+                self?.queue.async {
                     guard let strongSelf = self, let conn = conn else {
                         return
                     }
@@ -266,9 +266,9 @@ public class Rtmp {
         } else {
             let publisher = ctx.publishToPeer ? RtmpPublisher(clock, conn: conn, ctx: ctx, bufferSize: self.bufferSize, uuid: ctx.uuid) : nil
             let subscriber = !ctx.publishToPeer ? RtmpSubscriber(clock, conn: conn, ctx: ctx) : nil
-            
+
             if let pub = publisher {
-                let wkPublisher = Weak(value:pub)
+                let wkPublisher = Weak(value: pub)
                 self.publishers[conn.ident] = wkPublisher
             }
 
@@ -293,17 +293,17 @@ public class Rtmp {
     private let bufferSize: TimePoint
     private var channel: Channel?
     private let fnConnection: (LivePublisher?, LiveSubscriber?) -> Future<Bool, RpcError>
-    private let fnEnded: (String) -> ()
+    private let fnEnded: (String) -> Void
     private let clock: Clock
     private var server: EventLoopFuture<Channel>?
-    private var handshaking: [String:Tx<NetworkEvent,NetworkEvent>]
-    private var assets: [String:String]
+    private var handshaking: [String: Tx<NetworkEvent, NetworkEvent>]
+    private var assets: [String: String]
     private var publishers: [String: Weak<RtmpPublisher>]
     private var inflightConnections: Set<String>
     private var inflightReconnects: Set<String>
 }
 
-public class RtmpPublisher : Terminal<CodedMediaSample>, LivePublisher {
+public class RtmpPublisher: Terminal<CodedMediaSample>, LivePublisher {
     fileprivate init(_ clock: Clock, conn: Connection, ctx: rtmp.Context, bufferSize: TimePoint, uuid: String?) {
         self.conn = conn
         self.tx = nil
@@ -328,7 +328,7 @@ public class RtmpPublisher : Terminal<CodedMediaSample>, LivePublisher {
             if strongSelf.sentProps {
                 let scheduleTime = epoch + bufferSize + sample.dts()
                 clock.schedule(scheduleTime) { [weak self] _ in
-                    self?.queue.async { [weak self] in 
+                    self?.queue.async { [weak self] in
                         guard let strongSelf = self, let tx = strongSelf.tx else {
                             return
                         }
@@ -361,14 +361,14 @@ public class RtmpPublisher : Terminal<CodedMediaSample>, LivePublisher {
             }
         }
         let serialize = rtmp.Serialize(ctx)
-        self.tx = serialize >>> Tx { 
+        self.tx = serialize >>> Tx {
             $0.info()?.addSample("net.rtmp.write", $0.data().readableBytes)
             return .just($0)
         } >>> conn
         self.recv = conn >>> Tx<NetworkEvent, ResultEvent> {
             return .nothing($0.info())
         }
-        clock.schedule(clock.current() + TimePoint(200,1000)) { [weak self] _ in
+        clock.schedule(clock.current() + TimePoint(200, 1000)) { [weak self] _ in
             guard let strongSelf = self else {
                 return
             }
@@ -382,7 +382,7 @@ public class RtmpPublisher : Terminal<CodedMediaSample>, LivePublisher {
     public func assetId() -> String {
         return ctx.assetId
     }
-    
+
     public func uri() -> String? {
         return ctx.url
     }
@@ -414,11 +414,11 @@ public class RtmpPublisher : Terminal<CodedMediaSample>, LivePublisher {
     public func playPath() -> String? {
         return ctx.playPath
     }
-    
+
     public func tcUrl() -> String? {
         return ctx.tcUrl
     }
-    
+
     public func encoder() -> String? {
         return ctx.encoder
     }
@@ -455,8 +455,8 @@ public class RtmpPublisher : Terminal<CodedMediaSample>, LivePublisher {
         }
     }
     private let queue: DispatchQueue
-    private var result: EventBox<ResultEvent>? = nil
-    private var epoch: TimePoint? = nil
+    private var result: EventBox<ResultEvent>?
+    private var epoch: TimePoint?
     private var props: [BasicMediaDescription]
     private var sentProps: Bool
     private var ctx: rtmp.Context
@@ -466,7 +466,7 @@ public class RtmpPublisher : Terminal<CodedMediaSample>, LivePublisher {
     private var recv: Terminal<NetworkEvent>?
 }
 
-public class RtmpSubscriber : Source<CodedMediaSample>, LiveSubscriber {
+public class RtmpSubscriber: Source<CodedMediaSample>, LiveSubscriber {
     fileprivate init(_ clock: Clock, conn: Connection, ctx: rtmp.Context) {
         self.conn = conn
         self.tx = nil
@@ -478,10 +478,10 @@ public class RtmpSubscriber : Source<CodedMediaSample>, LiveSubscriber {
             guard let strongSelf = self else {
                 return .gone
             }
-            let result = $0.reduce(EventBox<Event>.nothing(nil)) { (acc, sample) in
+            let result = $0.reduce(EventBox<Event>.nothing(nil)) { (_, sample) in
                 strongSelf.statsReport.addSample("rtmp.\(sample.mediaFormat()).recv", sample.data().count)
                 let sample = CodedMediaSample(sample, eventInfo: strongSelf.statsReport)
-               
+
                 return strongSelf.emit(sample).flatMap { .just($0 as Event) }
             }
             return result
@@ -510,19 +510,19 @@ public class RtmpSubscriber : Source<CodedMediaSample>, LiveSubscriber {
     public func app() -> String? {
         return ctx.app
     }
-    
+
     public func playPath() -> String? {
         return ctx.playPath
     }
-    
+
     public func tcUrl() -> String? {
         return ctx.tcUrl
     }
-    
+
     public func dialedOut() -> Bool {
         return ctx.dialedOut
     }
-    
+
     public func encoder() -> String? {
         return ctx.encoder
     }
@@ -533,9 +533,9 @@ public class RtmpSubscriber : Source<CodedMediaSample>, LiveSubscriber {
 }
 
 enum rtmp {
-    
+
     typealias StateFunction = (ByteBuffer, Context) -> (EventBox<Event>, ByteBuffer?, Context, Bool)
-    
+
     static func buildStatus(_ level: String, _ code: String, _ description: String, _ ctx: rtmp.Context) -> (EventBox<Event>, rtmp.Context) {
         let chunk = rtmp.Chunk(msgStreamId: ctx.msgStreamId,
                                msgLength: 0,
@@ -546,8 +546,8 @@ enum rtmp {
                                data: nil)
         return states.onStatus(level, code: code, desc: description, ctx: ctx, chunk: chunk)
     }
-    
-    class Serialize : Tx<CodedMediaSample, NetworkEvent> {
+
+    class Serialize: Tx<CodedMediaSample, NetworkEvent> {
         init(_ ctx: Context) {
             self.ctx = ctx
             self.prevConfig = [MediaType: ByteBuffer]()
@@ -578,7 +578,7 @@ enum rtmp {
                         }
                         strongSelf.ctx = result.1
                         strongSelf.prevConfig = strongSelf.prevConfig.merging([mediaType: curConfig]) { $1 }
-                        return makeNetworkResult(sample, buffer.concat(header.0,result.0))
+                        return makeNetworkResult(sample, buffer.concat(header.0, result.0))
                     } else {
                         return .nothing(sample.info())
                     }
@@ -594,10 +594,9 @@ enum rtmp {
         private var prevConfig: [MediaType: ByteBuffer]
         private var sentFirstKeyframe: Bool
     }
-    
+
     fileprivate static func makeNetworkResult(_ sample: CodedMediaSample, _ buffer: ByteBuffer?) -> EventBox<NetworkEvent> {
-        return buffer <??>
-            { .just(NetworkEvent(time: sample.time(),
+        return buffer <??> { .just(NetworkEvent(time: sample.time(),
                                  assetId: sample.assetId(),
                                  workspaceId: sample.workspaceId(),
                                  workspaceToken: sample.workspaceToken(),
@@ -605,8 +604,8 @@ enum rtmp {
                                  info: sample.info())) } <|>
             .nothing(sample.info())
     }
-    
-    class Deserialize : Tx<NetworkEvent, [CodedMediaSample]> {
+
+    class Deserialize: Tx<NetworkEvent, [CodedMediaSample]> {
         init(_ clock: Clock, _ ctx: Context) {
             self.ctx = ctx
             self.clock = clock
@@ -652,8 +651,8 @@ enum rtmp {
         private var accumulator: ByteBuffer?
         private var ctx: Context
     }
-    
-    class Handshake : Source<Event> {
+
+    class Handshake: Source<Event> {
         public init(_ ctx: Context, completion: @escaping (Context) -> EventBox<Event>) {
             self.stages = ctx.dialedOut ? [states.s0s1, states.s2, states.establish] : [states.c0c1, states.c2, states.establish]
             self.stage = 0
@@ -686,7 +685,7 @@ enum rtmp {
         }
         private func impl(_ buf: ByteBuffer) -> EventBox<Event> {
             var buf = buf
-            var work: ByteBuffer? = nil
+            var work: ByteBuffer?
             process: repeat {
                 let readable = buf.readableBytes
                 guard let result = self.stages[safe: self.stage]?(buf, self.ctx) else {
@@ -706,7 +705,7 @@ enum rtmp {
                     return self.onComplete(result.2)
                 }
                 self.accumulator = result.1
-                
+
                 self.ctx = result.2
                 if let val = result.0.value() as? NetworkEvent {
                     work = buffer.concat(work, val.data())
@@ -719,7 +718,7 @@ enum rtmp {
                 }
                 buf = pBuf
             } while true
-            
+
             //self.accumulator?.discardReadBytes()
             self.accumulator = buffer.rebase(self.accumulator)
 
@@ -737,11 +736,11 @@ enum rtmp {
     }
 
     struct Context {
-        let inChunkSize : Int
-        let outChunkSize : Int
-        let inChunks : [Int:Chunk]
-        let outChunks: [Int:Chunk]
-        let lastChunk0: [Int:Int]
+        let inChunkSize: Int
+        let outChunkSize: Int
+        let inChunks: [Int: Chunk]
+        let outChunks: [Int: Chunk]
+        let lastChunk0: [Int: Int]
         let assetId: String
         let workspaceId: String?
         let app: String?
@@ -763,9 +762,9 @@ enum rtmp {
              uuid: String? = nil,
              inChunkSize: Int = 128,
              outChunkSize: Int = 128,
-             inChunks: [Int:Chunk] = [:],
-             outChunks: [Int:Chunk] = [:],
-             lastChunk0: [Int:Int] = [:],
+             inChunks: [Int: Chunk] = [:],
+             outChunks: [Int: Chunk] = [:],
+             lastChunk0: [Int: Int] = [:],
              app: String? = nil,
              tcUrl: String? = nil,
              playPath: String? = UUID().uuidString,
@@ -773,7 +772,7 @@ enum rtmp {
              started: Bool = false,
              dialedOut: Bool = false,
              publishToPeer: Bool = false,
-             sideData: [String: Data] = [String:Data](),
+             sideData: [String: Data] = [String: Data](),
              encoder: String? = nil,
              commandNumber: Int = 1,
              commandResponder: [Int: ([amf.Atom], Chunk, Context) -> (EventBox<Event>, Context)]? =
@@ -805,9 +804,9 @@ enum rtmp {
                        uuid: String? = nil,
                        inChunkSize: Int? = nil,
                        outChunkSize: Int? = nil,
-                       inChunks: [Int:Chunk]? = nil,
-                       outChunks: [Int:Chunk]? = nil,
-                       lastChunk0: [Int:Int]? = nil,
+                       inChunks: [Int: Chunk]? = nil,
+                       outChunks: [Int: Chunk]? = nil,
+                       lastChunk0: [Int: Int]? = nil,
                        app: String? = nil,
                        tcUrl: String? = nil,
                        playPath: String? = nil,
@@ -815,7 +814,7 @@ enum rtmp {
                        started: Bool? = nil,
                        dialedOut: Bool? = nil,
                        publishToPeer: Bool? = nil,
-                       sideData: [String:Data]? = nil,
+                       sideData: [String: Data]? = nil,
                        encoder: String? = nil,
                        commandNumber: Int? = nil,
                        commandResponder: [Int: ([amf.Atom], Chunk, Context) -> (EventBox<Event>, Context)]? = nil,
@@ -842,16 +841,16 @@ enum rtmp {
                            url: url ?? self.url)
         }
     }
-    
+
     struct Chunk {
-        let msgStreamId : Int
-        let msgLength : Int
-        let msgType : Int
-        let chunkStreamId : Int
-        let timestamp : Int
-        let timestampDelta : Int
-        let extended : Bool
-        let data : ByteBuffer?
+        let msgStreamId: Int
+        let msgLength: Int
+        let msgType: Int
+        let chunkStreamId: Int
+        let timestamp: Int
+        let timestampDelta: Int
+        let extended: Bool
+        let data: ByteBuffer?
         init(msgStreamId: Int,
              msgLength: Int,
              msgType: Int,

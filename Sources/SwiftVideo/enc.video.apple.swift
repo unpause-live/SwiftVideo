@@ -19,12 +19,12 @@ import VideoToolbox
 import Dispatch
 
 public class AppleVideoEncoder: Tx<PictureSample, [CodedMediaSample]> {
-    
+
     enum AppleVideoEncoderError: Error {
         case noSession
         case invalidSystemVersion
     }
-    
+
     public init(format: MediaFormat, frame: CGSize, bitrate: Int = 500000) {
         assert(format == .avc || format == .hevc, "AppleVideoEncoder only supports AVC and HEVC")
         self.queue = DispatchQueue.init(label: "cezium.encode.video")
@@ -38,7 +38,7 @@ public class AppleVideoEncoder: Tx<PictureSample, [CodedMediaSample]> {
                                    outputCallback: nil,
                                    refcon: nil,
                                    compressionSessionOut: &self.session)
-        
+
         self.format = format
         super.init()
         super.set {
@@ -61,7 +61,7 @@ public class AppleVideoEncoder: Tx<PictureSample, [CodedMediaSample]> {
             return .error(EventError("venc", -1000, "Encoder has gone away"))
         }
     }
-    
+
     func setBitrate(_ bitrate: Int) throws {
         guard let session = self.session else {
             throw AppleVideoEncoderError.noSession
@@ -69,7 +69,7 @@ public class AppleVideoEncoder: Tx<PictureSample, [CodedMediaSample]> {
         let val = bitrate as CFTypeRef
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AverageBitRate, value: val)
     }
-    
+
     func enc(_ sample: PictureSample) throws {
         guard let image = sample.imageBuffer() else {
             return
@@ -84,23 +84,23 @@ public class AppleVideoEncoder: Tx<PictureSample, [CodedMediaSample]> {
         let outputHandler: VTCompressionOutputHandler = { [weak self] (status, flags, sample) in
             if let strongSelf = self, let smp = sample {
                 if let buf = CMSampleBufferGetDataBuffer(smp) {
-                    var size : Int = 0
-                    var data : UnsafeMutablePointer<Int8>?
-                    
+                    var size: Int = 0
+                    var data: UnsafeMutablePointer<Int8>?
+
                     CMBlockBufferGetDataPointer(buf,
                                                 atOffset: 0,
                                                 lengthAtOffsetOut: nil,
                                                 totalLengthOut: &size,
                                                 dataPointerOut: &data)
-                    
+
                     if size > 0 {
                         let bytebuf = Data(buffer: UnsafeBufferPointer(start: data, count: size))
                         let pts = CMSampleBufferGetPresentationTimeStamp(smp)
                         let dts = CMSampleBufferGetDecodeTimeStamp(smp)
                         let fmt = CMSampleBufferGetFormatDescription(smp)
-                        var extradata: Data? = nil
+                        var extradata: Data?
                         if let fmt = fmt,
-                            let extensions = CMFormatDescriptionGetExtensions(fmt) as? [String:AnyObject],
+                            let extensions = CMFormatDescriptionGetExtensions(fmt) as? [String: AnyObject],
                             let sampleDesc = extensions["SampleDescriptionExtensionAtoms"] {
                             switch strongSelf.format {
                             case .avc:

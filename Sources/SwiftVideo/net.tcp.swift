@@ -40,30 +40,30 @@ public final class NetworkEvent: Event {
         self.tokenWorkspace = workspaceToken
         self.bytes = bytes
     }
-    private let timePoint : TimePoint
-    private let idAsset : String
-    private let idWorkspace : String
-    private let tokenWorkspace : String?
-    private let eventInfo : EventInfo?
+    private let timePoint: TimePoint
+    private let idAsset: String
+    private let idWorkspace: String
+    private let tokenWorkspace: String?
+    private let eventInfo: EventInfo?
     private let bytes: ByteBuffer
 }
 
 public final class Connection: Source<NetworkEvent>, ChannelInboundHandler {
     public typealias InboundIn = ByteBuffer
     public typealias OutboundOut = ByteBuffer
-    
+
     public let ident: String
-    
+
     private let connected: (_ ctx: Connection) -> Void
     private let ended: (_ ctx: Connection) -> Void
     private let clock: Clock
-    private weak var ctx: ChannelHandlerContext? = nil
-    
+    private weak var ctx: ChannelHandlerContext?
+
     public init(_ clock: Clock,
          uuid: String? = nil,
          connected: @escaping (_ ctx: Connection) -> Void,
          ended: @escaping (_ ctx: Connection) -> Void) {
-        
+
         self.ended = ended
         self.connected = connected
         self.clock = clock
@@ -101,15 +101,15 @@ public final class Connection: Source<NetworkEvent>, ChannelInboundHandler {
         self.ctx = context
         self.connected(self)
     }
-    
+
     // Invoked on client disconnect
     public func channelInactive(context: ChannelHandlerContext) {
         self.ended(self)
     }
-    
+
     public func close() {
         if let ctx = self.ctx {
-            ctx.pipeline.eventLoop.execute { ctx.close(promise:nil) }
+            ctx.pipeline.eventLoop.execute { ctx.close(promise: nil) }
         }
         print("tcp connection closed")
     }
@@ -131,12 +131,12 @@ public final class Connection: Source<NetworkEvent>, ChannelInboundHandler {
         default: ()
         }
     }
-    
+
     // Invoked when channelRead as processed all the read event in the current read operation
     public func channelReadComplete(context: ChannelHandlerContext) {
         context.flush()
     }
-    
+
     // Invoked when an error occurs
     public func errorCaught(context: ChannelHandlerContext, error: Error) {
         print("error: ", error)
@@ -144,15 +144,14 @@ public final class Connection: Source<NetworkEvent>, ChannelInboundHandler {
     }
 }
 
-
-public func tcpServe(group: EventLoopGroup, 
+public func tcpServe(group: EventLoopGroup,
                      host: String,
                      port: Int,
                      clock: Clock,
                      quiesce: ServerQuiescingHelper,
                      connected: @escaping (_ ctx: Connection) -> Void,
                      ended: @escaping (_ ctx: Connection) -> Void) -> EventLoopFuture<Channel> {
-    
+
     let res = ServerBootstrap(group: group)
         // Define backlog and enable SO_REUSEADDR options at the server level
         .serverChannelOption(ChannelOptions.backlog, value: 256)
@@ -166,11 +165,11 @@ public func tcpServe(group: EventLoopGroup,
         // processing through EchoHandler.
         // This is to protect the server from overload.
         .childChannelInitializer { channel in
-            channel.pipeline.addHandler(BackPressureHandler()).flatMap { _ in 
+            channel.pipeline.addHandler(BackPressureHandler()).flatMap { _ in
                 channel.pipeline.addHandler(Connection(clock, connected: connected, ended: ended))
             }
         }
-        
+
         // Enable common socket options at the channel level (TCP_NODELAY and SO_REUSEADDR).
         // These options are applied to accepted Channels
         .childChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
@@ -179,7 +178,7 @@ public func tcpServe(group: EventLoopGroup,
         // Let Swift-NIO adjust the buffer size, based on actual trafic.
         .childChannelOption(ChannelOptions.recvAllocator, value: AdaptiveRecvByteBufferAllocator())
         .bind(host: host, port: port)
-    
+
     return res
 }
 
@@ -197,7 +196,7 @@ public func tcpClient(group: EventLoopGroup,
         //.channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), TCP_NODELAY), value: 1)
         .channelOption(ChannelOptions.recvAllocator, value: AdaptiveRecvByteBufferAllocator())
         .channelInitializer { channel in
-            channel.pipeline.addHandler(BackPressureHandler()).flatMap { _ in 
+            channel.pipeline.addHandler(BackPressureHandler()).flatMap { _ in
                 channel.pipeline.addHandler(Connection(clock, uuid: uuid, connected: connected, ended: ended))
             }
         }

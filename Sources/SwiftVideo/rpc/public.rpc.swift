@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-public enum RpcError : Error {
+public enum RpcError: Error {
     case timedOut
     case gone
     case invalidConfiguration

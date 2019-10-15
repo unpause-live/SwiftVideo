@@ -20,8 +20,7 @@ import Foundation
 import VectorMath
 import CSwiftVideo
 
-
-enum EncodeError : Error {
+enum EncodeError: Error {
     case invalidMediaFormat
     case invalidPixelFormat
     case invalidImageBuffer
@@ -76,10 +75,10 @@ public func formatsFilter (_ formats: [MediaFormat]) -> Tx<CodedMediaSample, Cod
 }
 
 public func mediaTypeFilter(_ mediaType: MediaType) -> Tx<CodedMediaSample, CodedMediaSample> {
-    return Tx { sample in 
+    return Tx { sample in
         if sample.mediaType() == mediaType {
             return .just(sample)
-        }  else {
+        } else {
             return .nothing(sample.info())
         }
     }
@@ -107,7 +106,7 @@ extension CodedMediaSample: Event {
     }
 
     public func workspaceId() -> String {
-        return wire.idWorkspace;
+        return wire.idWorkspace
     }
 
     public func workspaceToken() -> String? {
@@ -117,7 +116,7 @@ extension CodedMediaSample: Event {
     public func mediaType() -> MediaType {
         return wire.mediatype
     }
-    
+
     public func mediaFormat() -> MediaFormat {
         return wire.mediaformat
     }
@@ -137,11 +136,11 @@ extension CodedMediaSample: Event {
     public func serializedData() throws -> Data {
         return try wire.serializedData()
     }
-    
+
     public func data() -> Data {
         return wire.buffer
     }
-    
+
     public func sideData() -> [String: Data] {
         return wire.side
     }
@@ -149,7 +148,7 @@ extension CodedMediaSample: Event {
     public func constituents() -> [MediaConstituent]? {
         return  wire.constituents
     }
-    
+
     public init(_ assetId: String,
                 _ workspaceId: String,
                 _ time: TimePoint,
@@ -195,36 +194,38 @@ extension CodedMediaSample: Event {
     }
 }
 
-enum MediaDescriptionError : Error {
+enum MediaDescriptionError: Error {
     case unsupported
     case invalidMetadata
 }
 
 func basicMediaDescription(_ sample: CodedMediaSample) throws -> BasicMediaDescription {
     switch sample.mediaFormat() {
-        case .avc:
-            let sps = try spsFromAVCDCR(sample)
-            let (width, height): (Int32, Int32) = sps.withUnsafeBytes {
-                var width: Int32 = 0
-                var height: Int32 = 0
-                h264_sps_frame_size($0.baseAddress, Int64($0.count), &width, &height)
-                return (width, height)
-            }
-            return .video(BasicVideoDescription(size: Vector2(Float(width), Float(height))))
-        case .aac:
-            guard let asc = sample.sideData()["config"] else {
-                throw MediaDescriptionError.invalidMetadata
-            }
-            let (channels, sampleRate, samplesPerPacket): (Int32, Int32, Int32) = asc.withUnsafeBytes {
-                var channels: Int32 = 0
-                var sampleRate: Int32 = 0
-                var samplesPerPacket: Int32 = 0
-                aac_parse_asc($0.baseAddress, Int64($0.count), &channels, &sampleRate, &samplesPerPacket)
-                return (channels, sampleRate, samplesPerPacket)
-            }
-            return .audio(BasicAudioDescription(sampleRate: Float(sampleRate), channelCount: Int(channels), samplesPerPacket: Int(samplesPerPacket)))
-        default:
-            throw MediaDescriptionError.unsupported
+    case .avc:
+        let sps = try spsFromAVCDCR(sample)
+        let (width, height): (Int32, Int32) = sps.withUnsafeBytes {
+            var width: Int32 = 0
+            var height: Int32 = 0
+            h264_sps_frame_size($0.baseAddress, Int64($0.count), &width, &height)
+            return (width, height)
+        }
+        return .video(BasicVideoDescription(size: Vector2(Float(width), Float(height))))
+    case .aac:
+        guard let asc = sample.sideData()["config"] else {
+            throw MediaDescriptionError.invalidMetadata
+        }
+        let (channels, sampleRate, samplesPerPacket): (Int32, Int32, Int32) = asc.withUnsafeBytes {
+            var channels: Int32 = 0
+            var sampleRate: Int32 = 0
+            var samplesPerPacket: Int32 = 0
+            aac_parse_asc($0.baseAddress, Int64($0.count), &channels, &sampleRate, &samplesPerPacket)
+            return (channels, sampleRate, samplesPerPacket)
+        }
+        return .audio(BasicAudioDescription(sampleRate: Float(sampleRate),
+                                            channelCount: Int(channels),
+                                            samplesPerPacket: Int(samplesPerPacket)))
+    default:
+        throw MediaDescriptionError.unsupported
     }
 }
 
@@ -243,16 +244,15 @@ public func isKeyframe(_ sample: CodedMediaSample) -> Bool {
 }
 
 // TODO: Add HEVC, VP8/VP9, AV1
-fileprivate func isKeyframeAVC(_ sample: CodedMediaSample) -> Bool {
+private func isKeyframeAVC(_ sample: CodedMediaSample) -> Bool {
     guard sample.data().count >= 5 else {
         return false
     }
     return sample.data()[4] & 0x1f == 5
 }
 
-
-fileprivate func spsFromAVCDCR(_ sample: CodedMediaSample) throws -> Data {
-    guard let record = sample.sideData()["config"], 
+private func spsFromAVCDCR(_ sample: CodedMediaSample) throws -> Data {
+    guard let record = sample.sideData()["config"],
           record.count > 8 else {
         throw MediaDescriptionError.invalidMetadata
     }

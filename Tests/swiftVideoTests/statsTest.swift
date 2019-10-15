@@ -41,7 +41,6 @@ final class statsTests: XCTestCase {
         XCTAssertEqual(json, reportJson)
     }
 
-
     static var allTests = [
         ("statsTest", statsTest)
         ]

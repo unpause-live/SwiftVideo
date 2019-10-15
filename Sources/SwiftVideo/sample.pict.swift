@@ -16,7 +16,6 @@
 
 import VectorMath
 
-
 // TODO: Higher bit-depth formats
 public enum PixelFormat {
     case nv12
@@ -50,10 +49,10 @@ public struct Plane {
         self.bitDepth = bitDepth
         self.components = components
     }
-    let size : Vector2
-    let stride : Int
-    let bitDepth : Int
-    let components : [Component]
+    let size: Vector2
+    let stride: Int
+    let bitDepth: Int
+    let components: [Component]
 }
 
 public enum BufferType {
@@ -71,8 +70,8 @@ public protocol PictureEvent: Event {
     func pixelFormat() -> PixelFormat
     func bufferType() -> BufferType
     func size() -> Vector2
-    func lock() -> ()
-    func unlock() -> ()
+    func lock()
+    func unlock()
     func revision() -> String
     func fillColor() -> Vector4
     func borderMatrix() -> Matrix4

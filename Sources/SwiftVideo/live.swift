@@ -26,15 +26,14 @@ public protocol LiveAsset {
     func dialedOut() -> Bool
 }
 
-public protocol LivePublisher : LiveAsset {
+public protocol LivePublisher: LiveAsset {
     func acceptedFormats() -> [MediaFormat]
     func uri() -> String?
 }
 
-public protocol LiveSubscriber : LiveAsset {
+public protocol LiveSubscriber: LiveAsset {
     func suppliedFormats() -> [MediaFormat]
 }
 
-
 public typealias LiveOnConnection = (LivePublisher?, LiveSubscriber?) -> Future<Bool, RpcError>
-public typealias LiveOnEnded = (String) -> ()
+public typealias LiveOnEnded = (String) -> Void

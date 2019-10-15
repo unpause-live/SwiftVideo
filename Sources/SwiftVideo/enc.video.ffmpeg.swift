@@ -17,12 +17,12 @@
 import SwiftFFmpeg
 import Foundation
 
-public class FFmpegVideoEncoder : Tx<PictureSample, CodedMediaSample> {
+public class FFmpegVideoEncoder: Tx<PictureSample, CodedMediaSample> {
     private let kTimebase: Int64 = 600600
-    public init(_ format: MediaFormat, 
+    public init(_ format: MediaFormat,
                 crf: Int? = nil,
                 bitrate: Int? = nil,
-                keyframeInterval: TimePoint = TimePoint(600600*2,600600),
+                keyframeInterval: TimePoint = TimePoint(600600*2, 600600),
                 frameDuration: TimePoint = TimePoint(1000, 60000),
                 settings: EncoderSpecificSettings? = nil) {
         self.codecContext = nil
@@ -45,7 +45,7 @@ public class FFmpegVideoEncoder : Tx<PictureSample, CodedMediaSample> {
             return strongSelf.handle($0)
         }
     }
-    
+
     deinit {
         print("VideoEncoder deinit")
     }
@@ -88,9 +88,9 @@ public class FFmpegVideoEncoder : Tx<PictureSample, CodedMediaSample> {
             } <|> nil
             let dts = self.timestamps[Int(packet.dts) % self.timestamps.count]
             let pts = self.timestamps[Int(packet.pts) % self.timestamps.count]
-            let sidedata: [String:Data]? = extradata <??> { ["config": $0] } <|> nil
-            let outsample = CodedMediaSample(sample.assetId(), 
-                                          sample.workspaceId(), 
+            let sidedata: [String: Data]? = extradata <??> { ["config": $0] } <|> nil
+            let outsample = CodedMediaSample(sample.assetId(),
+                                          sample.workspaceId(),
                                           sample.time(),        // incorrect, needs to be matched with packet
                                           pts,
                                           dts,
@@ -125,7 +125,7 @@ public class FFmpegVideoEncoder : Tx<PictureSample, CodedMediaSample> {
         frame.pts = self.frameNumber
         self.frameNumber = self.frameNumber &+ 1
         self.timestamps[Int(self.frameNumber) % self.timestamps.count] = pts
-        let nextKeyframe = (self.lastKeyframe + self.keyframeInterval) 
+        let nextKeyframe = (self.lastKeyframe + self.keyframeInterval)
         if pts >= nextKeyframe {
             self.lastKeyframe = pts
             frame.pictureType = .I
@@ -139,7 +139,7 @@ public class FFmpegVideoEncoder : Tx<PictureSample, CodedMediaSample> {
             sample.unlock()
         }
         for i in 0..<imageBuffer.planes.count {
-            try imageBuffer.withUnsafeMutableRawPointer(forPlane: i) { 
+            try imageBuffer.withUnsafeMutableRawPointer(forPlane: i) {
                 guard let ptr = frame.data[i], let src = $0 else {
                     throw AVError.tryAgain
                 }
@@ -185,15 +185,14 @@ public class FFmpegVideoEncoder : Tx<PictureSample, CodedMediaSample> {
             codecContext.bitRate = Int64(bitrate)
             codecContext.bitRateTolerance = 0
         }
-        try codecContext.openCodec(options: codecOptions(codecContext, 
-                                                         format: format, 
-                                                         settings: self.settings, 
-                                                         bitrate: self.bitrate, 
+        try codecContext.openCodec(options: codecOptions(codecContext,
+                                                         format: format,
+                                                         settings: self.settings,
+                                                         bitrate: self.bitrate,
                                                          crf: self.crf))
         self.codecContext = codecContext
     }
 
-    
     let keyframeInterval: TimePoint
     let format: MediaFormat
     let settings: EncoderSpecificSettings?
@@ -206,7 +205,7 @@ public class FFmpegVideoEncoder : Tx<PictureSample, CodedMediaSample> {
     var codecContext: AVCodecContext?
 }
 
-fileprivate func getAVPixelFormat(_ format : PixelFormat) throws -> AVPixelFormat {
+private func getAVPixelFormat(_ format: PixelFormat) throws -> AVPixelFormat {
     return try {
             switch format {
                 case .y420p: return .YUV420P
@@ -220,12 +219,12 @@ fileprivate func getAVPixelFormat(_ format : PixelFormat) throws -> AVPixelForma
             }
         }()
 }
-fileprivate func codecOptions(_ context: AVCodecContext, 
-        format: MediaFormat, 
+private func codecOptions(_ context: AVCodecContext,
+        format: MediaFormat,
         settings: EncoderSpecificSettings?,
-        bitrate: Int?, 
+        bitrate: Int?,
         crf: Int?) -> [String: String] {
-    switch format  {
+    switch format {
         case .avc:
             return x264opts(context, settings: settings, bitrate, crf)
         case .vp8, .vp9:
@@ -235,7 +234,7 @@ fileprivate func codecOptions(_ context: AVCodecContext,
     }
 }
 
-fileprivate func x264opts(_ context: AVCodecContext, settings: EncoderSpecificSettings?, _ bitrate: Int?, _ crf: Int?) -> [String: String] {
+private func x264opts(_ context: AVCodecContext, settings: EncoderSpecificSettings?, _ bitrate: Int?, _ crf: Int?) -> [String: String] {
     let avcSettings = settings <??> { if case .avc(let settings) = $0 { return settings }; return AVCSettings() } <|> AVCSettings()
     if avcSettings.useHWAccel {
         return [:]
@@ -257,7 +256,7 @@ fileprivate func x264opts(_ context: AVCodecContext, settings: EncoderSpecificSe
     return ["x264opts": x264str, "profile": avcSettings.profile, "preset": avcSettings.preset]
 }
 
-fileprivate func avcDecoderConfigurationRecord(_ config: Data) -> Data? {
+private func avcDecoderConfigurationRecord(_ config: Data) -> Data? {
     guard config.count > 4 else {
         return nil
     }
@@ -282,6 +281,6 @@ fileprivate func avcDecoderConfigurationRecord(_ config: Data) -> Data? {
     let headerBytes: [UInt8] = [0x1, config[5], config[6], config[7], 0xFF, 0xE1]
     let one: [UInt8] = [0x1]
     let bytes: [UInt8] = headerBytes + spsSizeBytes + spsBytes + one + ppsSizeBytes + ppsBytes
-    
+
     return Data(bytes)
 }

@@ -14,15 +14,14 @@
    limitations under the License.
 */
 
-
-public protocol Renameable : Event {
+public protocol Renameable: Event {
     static func make(_ other: Renameable, assetId: String, constituents: [MediaConstituent], eventInfo: EventInfo?) -> Renameable
     func pts() -> TimePoint
     func dts() -> TimePoint
     func constituents() -> [MediaConstituent]?
 }
 
-fileprivate class AssetRenamer<T>: Tx<T, T> where T: Renameable {
+private class AssetRenamer<T>: Tx<T, T> where T: Renameable {
     public init(_ assetId: String) {
         self.statsReport = nil
         super.init()
@@ -33,9 +32,9 @@ fileprivate class AssetRenamer<T>: Tx<T, T> where T: Renameable {
             if strongSelf.statsReport == nil {
                 strongSelf.statsReport = (sample.info() <??> { StatsReport(assetId: assetId, other: $0) } <|> StatsReport(assetId: assetId))
             }
-            return .just(T.make(sample, 
+            return .just(T.make(sample,
                                 assetId: assetId,
-                                constituents:[MediaConstituent.with { $0.idAsset = sample.assetId()
+                                constituents: [MediaConstituent.with { $0.idAsset = sample.assetId()
                                     $0.pts = sample.pts()
                                     $0.dts = sample.dts()
                                     $0.constituents = sample.constituents() ?? [MediaConstituent]() }],
@@ -74,9 +73,9 @@ public func assetRename<T>(_ assetId: String) -> Tx<T, T> where T: Renameable {
     return AssetRenamer(assetId)
 }
 
-public func makeVideoTranscoder(_ fmt: MediaFormat, 
-                                bitrate: Int, 
-                                keyframeInterval: TimePoint, 
+public func makeVideoTranscoder(_ fmt: MediaFormat,
+                                bitrate: Int,
+                                keyframeInterval: TimePoint,
                                 newAssetId: String,
                                 settings: EncoderSpecificSettings) throws -> Tx<CodedMediaSample, CodedMediaSample> {
     guard [.avc, .hevc, .vp8, .vp9, .av1].contains(where: { $0 == fmt }) else {
@@ -84,18 +83,18 @@ public func makeVideoTranscoder(_ fmt: MediaFormat,
     }
 
     if bitrate > 0 {
-        return assetRename(newAssetId) >>> FFmpegVideoDecoder() >>> FFmpegVideoEncoder(fmt, 
-            bitrate: bitrate, 
-            keyframeInterval: keyframeInterval, 
+        return assetRename(newAssetId) >>> FFmpegVideoDecoder() >>> FFmpegVideoEncoder(fmt,
+            bitrate: bitrate,
+            keyframeInterval: keyframeInterval,
             settings: settings)
     } else {
         return assetRename(newAssetId)
     }
 }
 
-public func makeAudioTranscoder(_ fmt: MediaFormat, 
-                                bitrate: Int, 
-                                sampleRate: Int, 
+public func makeAudioTranscoder(_ fmt: MediaFormat,
+                                bitrate: Int,
+                                sampleRate: Int,
                                 newAssetId: String) throws -> Tx<CodedMediaSample, [CodedMediaSample]> {
     guard [.aac, .opus].contains(where: { $0 == fmt }) else {
         throw EncodeError.invalidMediaFormat
@@ -108,8 +107,8 @@ public func makeAudioTranscoder(_ fmt: MediaFormat,
 }
 
 public class TranscodeContainer: AsyncTx<CodedMediaSample, CodedMediaSample> {
-    public init(_ videoTranscodes: [Tx<CodedMediaSample, CodedMediaSample>], 
-                _ audioTranscodes: [Tx<CodedMediaSample, [CodedMediaSample]>], _ bus : Bus<CodedMediaSample>) {
+    public init(_ videoTranscodes: [Tx<CodedMediaSample, CodedMediaSample>],
+                _ audioTranscodes: [Tx<CodedMediaSample, [CodedMediaSample]>], _ bus: Bus<CodedMediaSample>) {
         self.videoTranscoders = [Tx<CodedMediaSample, CodedMediaSample>]()
         self.audioTranscoders = [Tx<CodedMediaSample, [CodedMediaSample]>]()
         super.init()

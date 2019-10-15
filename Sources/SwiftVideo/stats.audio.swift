@@ -24,9 +24,9 @@ public func audioStats() -> Tx<AudioSample, AudioSample> {
             var rms: Array<Float> = Array(repeating: 0, count: channels)
             switch sample.format() {
             case .s16i, .s16p:
-                var accum: Array<Int> = Array(repeating: 0, count: channels) 
+                var accum: Array<Int> = Array(repeating: 0, count: channels)
                 var i16peak: Array<Int> = Array(repeating: 0, count: channels)
-                iterate(sample, as: Int16.self) { (channel, sample) in 
+                iterate(sample, as: Int16.self) { (channel, sample) in
                     let a = abs(Int(sample))
                     if a > i16peak[channel] {
                         i16peak[channel] = a
@@ -39,7 +39,7 @@ public func audioStats() -> Tx<AudioSample, AudioSample> {
                     rms[i] = sqrt(Float(accum[i])/Float(sample.numberSamples()))/Float(32768)
                 }
             case .f32i, .f32p:
-                iterate(sample, as: Float.self) { (channel, sample) in 
+                iterate(sample, as: Float.self) { (channel, sample) in
                     let a = abs(sample)
                     if a > peak[channel] {
                         peak[channel] = a
@@ -62,9 +62,8 @@ public func audioStats() -> Tx<AudioSample, AudioSample> {
     }
 }
 
-
 // Channel Index, Sample Data Type,
-fileprivate func iterate<T>(_ sample: AudioSample, as: T.Type, fn: (Int, T) -> ()){
+private func iterate<T>(_ sample: AudioSample, as: T.Type, fn: (Int, T) -> Void) {
     let planar = isPlanar(sample.format())
     let samples = sample.numberSamples()
     let channels = sample.numberChannels()
@@ -75,7 +74,7 @@ fileprivate func iterate<T>(_ sample: AudioSample, as: T.Type, fn: (Int, T) -> (
         guard count > 0 else {
             return
         }
-        buffer.withUnsafeBytes { ptr in 
+        buffer.withUnsafeBytes { ptr in
             let bound = ptr.bindMemory(to: T.self)
             for i in 0..<count {
                 let channel = planar ? idx : i % channels

@@ -19,7 +19,7 @@ import CoreMedia
 import VectorMath
 
 public struct ImageBuffer {
-    public init(_ pixelBuffer: CVPixelBuffer, 
+    public init(_ pixelBuffer: CVPixelBuffer,
                 computeTextures: [ComputeBuffer]? = nil) {
         self.pixelBuffer = pixelBuffer
         self.computeTextures = computeTextures ?? [ComputeBuffer]()
@@ -28,22 +28,26 @@ public struct ImageBuffer {
             let planeCount = CVPixelBufferGetPlaneCount(pixelBuffer)
 
             self.planes = ((0..<planeCount) as CountableRange).map { idx in
-                let size = Vector2(Float(CVPixelBufferGetWidthOfPlane(pixelBuffer, idx)), Float(CVPixelBufferGetHeightOfPlane(pixelBuffer, idx)))
+                let size = Vector2(Float(CVPixelBufferGetWidthOfPlane(pixelBuffer, idx)), 
+                                   Float(CVPixelBufferGetHeightOfPlane(pixelBuffer, idx)))
                 let stride = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, idx)
                 return  Plane(size: size, stride: stride, bitDepth: 8, components: componentsForPlane(pixelFormat, idx))
             }
         } else {
             let size = Vector2(Float(CVPixelBufferGetWidth(pixelBuffer)), Float(CVPixelBufferGetHeight(pixelBuffer)))
             let stride = CVPixelBufferGetBytesPerRow(pixelBuffer)
-            self.planes = [Plane(size: size, stride: stride, bitDepth: 8, components: componentsForPlane(pixelFormat, 0))]
+            self.planes = [Plane(size: size, 
+                                 stride: stride, 
+                                 bitDepth: 8, 
+                                 components: componentsForPlane(pixelFormat, 0))]
         }
     }
 
-   public init(pixelFormat: PixelFormat, 
-               bufferType: BufferType, 
-               size: Vector2, 
-               computeTextures: [ComputeBuffer] = [ComputeBuffer](), 
-               buffers: [Data] = [Data](), 
+   public init(pixelFormat: PixelFormat,
+               bufferType: BufferType,
+               size: Vector2,
+               computeTextures: [ComputeBuffer] = [ComputeBuffer](),
+               buffers: [Data] = [Data](),
                planes: [Plane] = [Plane]()) throws {
         let sample = try createPictureSample(size, pixelFormat, assetId: "", workspaceId: "")
         guard let pixelBuffer = sample.imageBuffer()?.pixelBuffer else {
@@ -58,10 +62,10 @@ public struct ImageBuffer {
                 let ptr = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, idx)
                 let stride = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, idx)
                 let inStride = planes[safe: idx]?.stride ?? 0
-                if stride == inStride || inStride == 0 { 
+                if stride == inStride || inStride == 0 {
                     let count = stride * CVPixelBufferGetHeightOfPlane(pixelBuffer, idx)
                     var data = buffer
-                    data.withUnsafeMutableBytes { 
+                    data.withUnsafeMutableBytes {
                         $0.baseAddress.map { ptr?.copyMemory(from: $0, byteCount: count) }
                     }
                 } else {
@@ -73,7 +77,7 @@ public struct ImageBuffer {
                             guard let baseAddress = $0.baseAddress else {
                                 return
                             }
-                            for i in 0..<CVPixelBufferGetHeightOfPlane(pixelBuffer, idx) { 
+                            for i in 0..<CVPixelBufferGetHeightOfPlane(pixelBuffer, idx) {
                                 let offset = inStride * i
                                 let toCopy = min(inStride, stride)
                                 (ptr + (stride * i)).copyMemory(from: (baseAddress+offset), byteCount: toCopy)
@@ -88,10 +92,10 @@ public struct ImageBuffer {
             let ptr = CVPixelBufferGetBaseAddress(pixelBuffer)
             let stride = CVPixelBufferGetBytesPerRow(pixelBuffer)
             let inStride = planes[safe: 0]?.stride ?? 0
-            if stride == inStride || inStride == 0 { 
+            if stride == inStride || inStride == 0 {
                 let count = stride * CVPixelBufferGetHeight(pixelBuffer)
                 var data = buffer
-                data.withUnsafeMutableBytes { 
+                data.withUnsafeMutableBytes {
                     $0.baseAddress.map { ptr?.copyMemory(from: $0, byteCount: count) }
                 }
             } else {
@@ -103,7 +107,7 @@ public struct ImageBuffer {
                         guard let baseAddress = $0.baseAddress else {
                             return
                         }
-                        for i in 0..<CVPixelBufferGetHeight(pixelBuffer) { 
+                        for i in 0..<CVPixelBufferGetHeight(pixelBuffer) {
                             let offset = inStride * i
                             let toCopy = min(inStride, stride)
                             (ptr + (stride * i)).copyMemory(from: (baseAddress+offset), byteCount: toCopy)
@@ -115,7 +119,7 @@ public struct ImageBuffer {
 
         self.init(pixelBuffer, computeTextures: computeTextures)
     }
-    
+
     public init(_ other: ImageBuffer, computeTextures: [ComputeBuffer]? = nil) {
         self.pixelBuffer = other.pixelBuffer
         self.computeTextures = computeTextures ?? other.computeTextures
@@ -123,116 +127,117 @@ public struct ImageBuffer {
     }
 
     let computeTextures: [ComputeBuffer]
-    public let pixelBuffer : CVPixelBuffer
+    public let pixelBuffer: CVPixelBuffer
     let planes: [Plane]
 }
 
 extension ImageBuffer {
-    public func withUnsafeMutableRawPointer<T>(forPlane plane: Int, fn: (UnsafeMutableRawPointer?) throws -> T) rethrows -> T {
-        let ptr = CVPixelBufferIsPlanar(self.pixelBuffer) ? 
-                        CVPixelBufferGetBaseAddressOfPlane(self.pixelBuffer, plane) : 
+    public func withUnsafeMutableRawPointer<T>(forPlane plane: Int, 
+                                               fn: (UnsafeMutableRawPointer?) throws -> T) rethrows -> T {
+        let ptr = CVPixelBufferIsPlanar(self.pixelBuffer) ?
+                        CVPixelBufferGetBaseAddressOfPlane(self.pixelBuffer, plane) :
                         CVPixelBufferGetBaseAddress(self.pixelBuffer)
         return try fn(ptr)
     }
 }
 
 public final class PictureSample: PictureEvent {
-    
+
     public func pts() -> TimePoint {
         return self.presentationTimestamp
     }
-    
+
     public func matrix() -> Matrix4 {
         return self.transform
     }
-    
+
     public func textureMatrix() -> Matrix4 {
         return self.texTransform
     }
-    
+
     public func size() -> Vector2 {
         guard let img = imgBuffer?.pixelBuffer else {
             return Vector2.zero
         }
         return Vector2(Float(CVPixelBufferGetWidth(img)), Float(CVPixelBufferGetHeight(img)))
     }
-    
+
     public func zIndex() -> Int {
-        return Int(round((Vector3(0,0,0) * self.transform).z))
+        return Int(round((Vector3(0, 0, 0) * self.transform).z))
     }
-    
+
     public func pixelFormat() -> PixelFormat {
         guard let img = imgBuffer?.pixelBuffer else {
             return .invalid
         }
         return fromCVPixelFormat(img)
     }
-    
+
     public func bufferType() -> BufferType {
         return .shared
     }
-    
-    public func lock() -> () {
+
+    public func lock() {
         guard let img = imgBuffer?.pixelBuffer else {
             return
         }
         CVPixelBufferLockBaseAddress(img, .init(rawValue: 0))
     }
-    
-    public func unlock() -> () {
+
+    public func unlock() {
         guard let img = imgBuffer?.pixelBuffer else {
             return
         }
         CVPixelBufferUnlockBaseAddress(img, .init(rawValue: 0))
     }
-    
+
     public func type() -> String {
         return "pict"
     }
-    
+
     public func time() -> TimePoint {
         return self.timePoint
     }
-    
+
     public func assetId() -> String {
         return self.idAsset
     }
-    
+
     public func workspaceId() -> String {
         return self.idWorkspace
     }
-    
+
     public func workspaceToken() -> String? {
         return self.tokenWorkspace
     }
-    
+
     public func info() -> EventInfo? {
         return eventInfo
     }
-    
+
     public func imageBuffer() -> ImageBuffer? {
         return imgBuffer
     }
     public func constituents() -> [MediaConstituent]? {
         return self.mediaConstituents
     }
-    
+
     public func revision() -> String {
         return idRevision
     }
-    
+
     public func borderMatrix() -> Matrix4 {
         return borderTransform
     }
-    
+
     public func fillColor() -> Vector4 {
         return bgColor
     }
-    
+
     public func opacity() -> Float {
         return alpha
     }
-    
+
     public init(_ buf: CMSampleBuffer,
                 assetId: String,
                 workspaceId: String,
@@ -261,8 +266,8 @@ public final class PictureSample: PictureEvent {
         self.borderTransform = borderMatrix ?? matrix
         self.alpha = opacity
     }
-    
-    public init( _ img: ImageBuffer,
+
+    public init(_ img: ImageBuffer,
                 assetId: String,
                 workspaceId: String,
                 workspaceToken: String? = nil,
@@ -290,8 +295,8 @@ public final class PictureSample: PictureEvent {
         self.borderTransform = borderMatrix ?? matrix
         self.alpha = opacity
     }
-    
-    public init(_ other: PictureSample, 
+
+    public init(_ other: PictureSample,
                 img: ImageBuffer? = nil,
                 assetId: String? = nil,
                 matrix: Matrix4? = nil,
@@ -336,7 +341,6 @@ public final class PictureSample: PictureEvent {
     let idRevision: String
 }
 
-
 // Create a PictureSample for the Apple platform backed by an IOSurface
 // Throws ComputeError:
 //   - badInputData if it's unable to create the CVPixelBuffer
@@ -349,7 +353,7 @@ func createPictureSample(_ size: Vector2,
     guard size.x > 0 && size.y > 0 else {
         throw ComputeError.invalidOperation
     }
-    
+
     let pixelFormat = try { () -> OSType in
         switch(format) {
         case .nv12:
@@ -366,8 +370,8 @@ func createPictureSample(_ size: Vector2,
             throw ComputeError.badInputData(description: "Invalid pixel format")
         }
         }()
-    
-    let options : CFDictionary = {
+
+    let options: CFDictionary = {
         if #available(iOS 9.0, macOS 10.11, tvOS 10.2, *) {
             return [
                   kCVPixelBufferMetalCompatibilityKey: true as CFBoolean,
@@ -385,8 +389,8 @@ func createPictureSample(_ size: Vector2,
             ] as CFDictionary
         }
         }()
-    
-    var pixelBuffer : CVPixelBuffer? = nil
+
+    var pixelBuffer: CVPixelBuffer?
     let err = CVPixelBufferCreate(kCFAllocatorDefault,
                                   Int(size.x),
                                   Int(size.y),
@@ -404,24 +408,24 @@ func createPictureSample(_ size: Vector2,
                          pts: TimePoint(0))
 }
 
-fileprivate func fromCVPixelFormat(_ pixelBuffer: CVPixelBuffer) -> PixelFormat {
+private func fromCVPixelFormat(_ pixelBuffer: CVPixelBuffer) -> PixelFormat {
     let format = CVPixelBufferGetPixelFormatType(pixelBuffer)
     switch(format) {
-        case kCVPixelFormatType_32BGRA:
-            return .BGRA
-        case kCVPixelFormatType_32RGBA:
-            return .RGBA
-        case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
-             kCVPixelFormatType_420YpCbCr8PlanarFullRange:
-            return .nv12
-        case kCVPixelFormatType_422YpCbCr8_yuvs:
-            return .yuvs
-        case kCVPixelFormatType_422YpCbCr8:
-            return .zvuy
-        case kCVPixelFormatType_420YpCbCr8Planar:
-            return .y420p
-        default:
-            return .invalid
+    case kCVPixelFormatType_32BGRA:
+        return .BGRA
+    case kCVPixelFormatType_32RGBA:
+        return .RGBA
+    case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+         kCVPixelFormatType_420YpCbCr8PlanarFullRange:
+        return .nv12
+    case kCVPixelFormatType_422YpCbCr8_yuvs:
+        return .yuvs
+    case kCVPixelFormatType_422YpCbCr8:
+        return .zvuy
+    case kCVPixelFormatType_420YpCbCr8Planar:
+        return .y420p
+    default:
+        return .invalid
     }
 }
 #endif

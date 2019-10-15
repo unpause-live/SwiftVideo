@@ -37,7 +37,7 @@ public struct ComputeContext {
         self.device = device
         self.defaultLibrary = device.makeDefaultLibrary()
         self.commandQueue = device.makeCommandQueue()
-        var textureCache : CVMetalTextureCache? = nil
+        var textureCache: CVMetalTextureCache?
         CVMetalTextureCacheCreate(kCFAllocatorDefault, nil, device, nil, &textureCache)
         self.textureCache = textureCache
         self.commandBuffer = nil
@@ -87,22 +87,21 @@ func createComputeContext(_ device: ComputeDevice) throws -> ComputeContext? {
     return ComputeContext(device: def)
 }
 
-func destroyComputeContext( _ context: ComputeContext) throws -> () {
+func destroyComputeContext( _ context: ComputeContext) throws {
     // no-op on Metal platforms
 }
 // Throws errors from MTLDevice.makeLibrary
 func buildComputeKernel(_ context: ComputeContext, name: String, source: String) throws -> ComputeContext {
     let library = try context.device.makeLibrary(source: source, options: nil)
-    return ComputeContext(other: context, customLibrary: (context.customLibrary ?? [String:MTLLibrary]()).merging([name:library]) { _, n in n })
+    return ComputeContext(other: context, customLibrary: (context.customLibrary ?? [String: MTLLibrary]()).merging([name: library]) { _, n in n })
 }
 
 // Creates a command buffer to be used for the current compute pass.
 func beginComputePass( _ context: ComputeContext ) -> ComputeContext {
     let commandBuffer = context.commandQueue?.makeCommandBuffer()
-    return ComputeContext(other:context,
+    return ComputeContext(other: context,
                           commandBuffer: commandBuffer)
 }
-
 
 // Used for multiple input images and an output target.
 // Useful for compute kernels such as motion estimation that
@@ -157,7 +156,7 @@ func runComputeKernel<T>(_ context: ComputeContext,
     }
     let (threadCount, threadgroupSize) = makeThreadgroup(pipelineState, MTLSize(width: Int(target.size().x),
                                                                                 height: Int(target.size().y),
-                                                                                depth:1),
+                                                                                depth: 1),
                                                          requiredStaticMemory: requiredMemory)
     setUniforms(context, commandEncoder, uniforms, 0)
     commandEncoder.setComputePipelineState(pipelineState)
@@ -167,7 +166,7 @@ func runComputeKernel<T>(_ context: ComputeContext,
     commandEncoder.endEncoding()
     return context
 }
-                               
+
 // applyComputeImage is a convenience function used for typical image compositing operations and
 // format conversion.  This has a standard set of useful uniforms for those
 // operations.  If you want to do something more custom, use runComputeKernel instead.
@@ -181,10 +180,10 @@ func applyComputeImage(_ context: ComputeContext,
                         image: PictureSample,
                         target: PictureSample,
                         kernel: ComputeKernel) throws -> ComputeContext {
-    
+
     let inputSize = Vector2([image.size().x, image.size().y])
     let outputSize = Vector2([target.size().x, target.size().y])
-    
+
     // since our coordinates are operating on the output rather than the input
     // as we normally would with vertex and fragment shaders we need to
     // invert the matrix.
@@ -197,7 +196,7 @@ func applyComputeImage(_ context: ComputeContext,
                             opacity: image.opacity(),
                             imageTime: seconds(image.time()),
                             targetTime: seconds(target.time()))
-    
+
     return try runComputeKernel(context,
                                 images: [image],
                                 target: target,
@@ -278,12 +277,11 @@ func downloadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlane
     return pict
 }
 
-
 // Creates a series of MTLTextures based on an ImageBuffer (one for each plane in the format)
 // Can throw ComputeError
 // - badContextState
 // - badInputData
-fileprivate func createTexture(_ ctx: ComputeContext, _ image: ImageBuffer, _ maxPlanes: Int = 3) throws -> [MTLTexture?] {
+private func createTexture(_ ctx: ComputeContext, _ image: ImageBuffer, _ maxPlanes: Int = 3) throws -> [MTLTexture?] {
     guard let textureCache = ctx.textureCache else {
         throw ComputeError.badContextState(description: "No texture cache")
     }
@@ -303,7 +301,7 @@ fileprivate func createTexture(_ ctx: ComputeContext, _ image: ImageBuffer, _ ma
             }
             return .rgba8Unorm
         }()
-        var texture: CVMetalTexture? = nil
+        var texture: CVMetalTexture?
         let ret = CVMetalTextureCacheCreateTextureFromImage(kCFAllocatorDefault,
                                                             textureCache,
                                                             image.pixelBuffer,
@@ -316,7 +314,7 @@ fileprivate func createTexture(_ ctx: ComputeContext, _ image: ImageBuffer, _ ma
         guard kCVReturnSuccess == ret else {
             throw ComputeError.badContextState(description: "Could not create texture \(ret)")
         }
-        
+
         return texture <??> { CVMetalTextureGetTexture($0) } <|> nil
     }
 }
@@ -324,8 +322,8 @@ fileprivate func createTexture(_ ctx: ComputeContext, _ image: ImageBuffer, _ ma
 // Retrieve a predefined or custom kernel from the library
 // Can throw ComputError.computeKernelNotFound
 //
-fileprivate func getComputeKernel( _ context: ComputeContext, _ kernel: ComputeKernel) throws -> MTLFunction {
-    var function: MTLFunction? = nil
+private func getComputeKernel( _ context: ComputeContext, _ kernel: ComputeKernel) throws -> MTLFunction {
+    var function: MTLFunction?
     switch (kernel) {
     case .custom(let name):
         function = (context.customLibrary <??> { $0[name]?.makeFunction(name: name) } <|> nil)
@@ -341,7 +339,7 @@ fileprivate func getComputeKernel( _ context: ComputeContext, _ kernel: ComputeK
 
 // Returns (threadCount, threadgroupSize)
 // requiredStaticMemory is a hint for the required memory per thread.
-fileprivate func makeThreadgroup(_ pipelineState: MTLComputePipelineState,
+private func makeThreadgroup(_ pipelineState: MTLComputePipelineState,
                                  _ bufferSize: MTLSize,
                                  requiredStaticMemory: Int? = nil) -> (MTLSize, MTLSize) {
     if let mem = requiredStaticMemory {
@@ -362,7 +360,7 @@ fileprivate func makeThreadgroup(_ pipelineState: MTLComputePipelineState,
 
 // Set uniforms at an index
 //
-fileprivate func setUniforms<T>( _ context: ComputeContext,
+private func setUniforms<T>( _ context: ComputeContext,
                                  _ commandEncoder: MTLComputeCommandEncoder,
                                  _ uniforms: T?,
                                  _ index: Int) {

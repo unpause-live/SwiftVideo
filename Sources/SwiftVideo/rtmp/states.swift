@@ -55,7 +55,7 @@ extension rtmp {
                 return (.error(EventError("rtmp", -1, "Serialization Error \(error)", assetId: ctx.assetId)), ctx)
             }
         }
-        
+
         static func establish(_ buf: ByteBuffer, ctx: Context) -> (EventBox<Event>, ByteBuffer?, Context, Bool) {
             let (buf, chk, ctx) = deserialize.parseChunk(buf, ctx: ctx)
             if let chunk = chk {
@@ -64,7 +64,7 @@ extension rtmp {
             }
             return (.nothing(nil), buf, ctx, false)
         }
-        
+
         // MARK: - Handshake Functions
         static func c0c1(_ buf: ByteBuffer, ctx: Context) -> (EventBox<Event>, ByteBuffer?, Context, Bool) {
             if let c1 = buffer.getSlice(buf, 1, 1536),
@@ -80,14 +80,14 @@ extension rtmp {
             return (.nothing(nil), buf, ctx, false)
         }
         static func writeC0c1( _ ctx: Context ) -> (EventBox<Event>, ByteBuffer?, Context, Bool) {
-            
+
             let bytes: [UInt8] = [0x3, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0]
             var randomBytes = Data(count: 1528)
-            _ = randomBytes.withUnsafeMutableBytes { (ptr: UnsafeMutableRawBufferPointer) -> () in generateRandomBytes(ptr.baseAddress, 1528) }
+            _ = randomBytes.withUnsafeMutableBytes { (ptr: UnsafeMutableRawBufferPointer) -> Void in generateRandomBytes(ptr.baseAddress, 1528) }
             guard let outBytes = buffer.concat(buffer.fromData(Data(bytes)), buffer.fromData(randomBytes)) else {
                 return (.error(EventError("c0c1", -1)), nil, ctx, false)
             }
-            
+
             let evt = NetworkEvent(time: nil,
                                    assetId: ctx.assetId,
                                    workspaceId: ctx.app ?? "",
@@ -114,7 +114,7 @@ extension rtmp {
             }
             return (.nothing(nil), buf, ctx, false)
         }
-        
+
         static func c2(_ buf: ByteBuffer, ctx: Context) -> (EventBox<Event>, ByteBuffer?, Context, Bool) {
             if buf.readableBytes >= 1536 {
                 return (.nothing(nil), buffer.advancingReader(buf, by: 1536), ctx, true)
@@ -160,7 +160,7 @@ extension rtmp {
                  return (.error(EventError(ctx.assetId, -1, "Serialization Error \(error)", assetId: ctx.assetId)), ctx)
             }
         }
-        
+
         // MARK: - Handle Messages
         static func handleChunk(_ chunk: Chunk, ctx: Context, clock: Clock? = nil) -> (EventBox<Event>, Context) {
             let chunkHandlers = [0x1: handleChunkSize,
@@ -254,7 +254,7 @@ extension rtmp {
                                    "onStatus": handleOnStatus]
             return commandHandlers[command] <??> { $0(data, chunk, ctx) } <|> (.nothing(nil), ctx)
         }
-        
+
         private static func genericResult(_ data: [amf.Atom], chunk: Chunk, ctx: Context) -> (EventBox<Event>, Context) {
             if let ident = data[safe: 1]?.number {
                 let result = [amf.Atom("_result"), amf.Atom(ident)]
@@ -319,14 +319,14 @@ extension rtmp {
             }
             return (.error(EventError("NetStream.Connection.Fail", 2, "Invalid connect")), ctx)
         }
-        
+
         private static func handlePublish(_ data: [amf.Atom], chunk: Chunk, ctx: Context) -> (EventBox<Event>, Context) {
             guard let playPath = data[safe: 3]?.string else {
                 return (.error(EventError("NetStream.Publish.Fail", 1, "No access")), ctx)
             }
             return (.nothing(nil), ctx.changing(playPath: playPath, started: true, publishToPeer: false))
         }
-        
+
         private static func handleOnStatus(_ data: [amf.Atom], chunk: Chunk, ctx: Context) -> (EventBox<Event>, Context) {
             guard let code = data[safe: 3]?.dict?["code"]?.string else {
                 return (.nothing(nil), ctx)
@@ -338,14 +338,14 @@ extension rtmp {
             }
             return (.error(EventError(ctx.assetId, -1, code, nil)), ctx)
         }
-        
+
         private static func netstreamResult(_ level: String, _ code: String, _ desc: String) -> amf.Atom {
             return amf.Atom(["level": amf.Atom(level),
                                 "code": amf.Atom(code),
                                 "description": amf.Atom(desc),
                                 "objectEncoding": amf.Atom(0.0)])
         }
-        
+
         private static func handleResult(_ data: [amf.Atom], chunk: Chunk, ctx: Context) -> (EventBox<Event>, Context) {
             guard let ident = data[safe:1]?.number, let fun = ctx.commandResponder?[Int(ident)] else {
                 return (.nothing(nil), ctx)
@@ -354,7 +354,7 @@ extension rtmp {
             let responders = result.1.commandResponder?.filter { $0.key != Int(ident) }
             return (result.0, result.1.changing(commandResponder: responders))
         }
-        
+
         private static func createSetChunkSize(_ ctx: Context, _ size: Int32) -> (EventBox<NetworkEvent>, Context) {
             let chunk = Chunk(msgStreamId: ctx.msgStreamId,
                               msgLength: 4,
@@ -365,9 +365,9 @@ extension rtmp {
                               data: buffer.fromData(Data(buffer.toByteArray(size.bigEndian))))
             let result = serialize.serializeChunk(chunk, ctx: ctx)
 
-            return (result.0 <??> { .just(NetworkEvent(time: nil, 
-                                                       assetId: ctx.assetId, 
-                                                       workspaceId:ctx.app ?? "",
+            return (result.0 <??> { .just(NetworkEvent(time: nil,
+                                                       assetId: ctx.assetId,
+                                                       workspaceId: ctx.app ?? "",
                                                        workspaceToken: ctx.playPath,
                                                        bytes: $0)) } <|> .nothing(nil),
                    result.1.changing(outChunkSize: Int(size)))
@@ -397,15 +397,15 @@ extension rtmp {
                 return (.error(EventError("rtmp", -1, "Serialization Error \(error)", assetId: ctx.assetId)), ctx)
             }
         }
-        
+
         private static func handleConnectResult(_ data: [amf.Atom], chunk: Chunk, ctx: Context) -> (EventBox<Event>, Context) {
             guard let response = data[safe: 3]?.dict?["code"]?.string, response == "NetConnection.Connect.Success" else {
                 return (.error(EventError("NetConnection.Connect.Fail", 1, "Access Error")), ctx)
             }
             return createCreateStream(ctx)
         }
-        
-        private static func createCreateStream( _ ctx : Context ) -> (EventBox<Event>, Context) {
+
+        private static func createCreateStream( _ ctx: Context ) -> (EventBox<Event>, Context) {
             let releaseStream = [amf.Atom("releaseStream"),
                                  amf.Atom(Float64(ctx.commandNumber)),
                                  amf.Atom(),
@@ -446,7 +446,7 @@ extension rtmp {
                  return (.error(EventError(ctx.assetId, -1, "Serialization Error \(error)", assetId: ctx.assetId)), ctx)
             }
         }
-        
+
         private static func handleCreateStreamResult(_ data: [amf.Atom], chunk: Chunk, ctx: Context) -> (EventBox<Event>, Context) {
             guard let streamId = data[safe: 3]?.number else {
                 return (.error(EventError("rtmp", -1, "Invalid create stream result.")), ctx)
@@ -459,7 +459,7 @@ extension rtmp {
             return (.error(EventError(ctx.assetId, -99, "Play Not Implemented", nil)), ctx)
         }
         private static func createPublish(_ ctx: Context) -> (EventBox<Event>, Context) {
-            
+
             let data = [amf.Atom("publish"),
                         amf.Atom(Float64(ctx.commandNumber)),
                         amf.Atom(),

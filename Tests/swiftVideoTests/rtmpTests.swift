@@ -47,7 +47,7 @@ final class rtmpTests: XCTestCase {
     func setupRtmp() {
         let bufferSize = TimePoint(0, 1000)
         let stepSize = TimePoint(16, 1000)
-        self.rtmp = Rtmp(self.clock, bufferSize: bufferSize, onEnded: { _ in () }) { [weak self] pub, sub in 
+        self.rtmp = Rtmp(self.clock, bufferSize: bufferSize, onEnded: { _ in () }) { [weak self] pub, sub in
             if let pub = pub as? Terminal<CodedMediaSample>, let strongSelf = self {
                 strongSelf.publish = pub
                 strongSelf.clock.schedule(strongSelf.currentTs) { [weak self] in
@@ -74,10 +74,10 @@ final class rtmpTests: XCTestCase {
                 self?.stx = sub >>> Tx { [weak self] in
                     self?.recv($0)
 
-                    return .nothing($0.info()) 
+                    return .nothing($0.info())
                 }
             }
-            return Future { $0(.success(true)) } 
+            return Future { $0(.success(true)) }
         }
     }
 
@@ -91,14 +91,14 @@ final class rtmpTests: XCTestCase {
         _ = rtmp?.serve(host: "0.0.0.0", port: port, quiesce: self.quiesce, group: self.group)
         rtmp?.connect(url: URL(string: "rtmp://localhost:\(port)/hi/hello")!, publishToPeer: true, group: self.group, workspaceId: "test", assetId: "test")
         let wallClock = WallClock()
-        
-        while(currentTs < end) { 
+
+        while(currentTs < end) {
             let currentReal = seconds(wallClock.current())
             let currentProgress = seconds(currentTs - start)
             let rate = currentProgress / currentReal
             let progress = currentProgress / seconds(end)
             print("[\(rate)x] progress: \(progress * 100)%")
-            sleep(1) 
+            sleep(1)
         }
         self.subscribe = nil
         self.publish = nil
@@ -114,27 +114,27 @@ final class rtmpTests: XCTestCase {
     }
 
     func extendedTimestampTest() {
-        let offset = TimePoint(16777216,1000)
+        let offset = TimePoint(16777216, 1000)
         let duration = TimePoint(60 * 5 * 1000, 1000)
         rtmpTest(5002, duration, offset: offset)
     }
 
     func rolloverTest() {
-        let offset = TimePoint(4294966296,1000)
+        let offset = TimePoint(4294966296, 1000)
         let duration = TimePoint(60 * 5 * 1000, 1000)
         rtmpTest(5003, duration, offset: offset)
     }
-    
+
     private func push(_ time: TimePoint) {
         guard let pub = publish else {
             return
         }
         self.currentTs = time
-        let idx = Int.random(in:0..<buffers.count)
+        let idx = Int.random(in: 0..<buffers.count)
         let pts = time + self.offset
         self.sampleInfo.append((pts, idx))
         currentIndex = idx
-        let sample = CodedMediaSample("test", "test", time, pts, nil, .video, .avc, buffers[idx], ["config":Data(count:48)], "test")
+        let sample = CodedMediaSample("test", "test", time, pts, nil, .video, .avc, buffers[idx], ["config": Data(count: 48)], "test")
         let result = .just(sample) >>- pub
     }
 
@@ -151,13 +151,12 @@ final class rtmpTests: XCTestCase {
             fatalError("buffers dont match")
         }
         self.sampleInfo.remove(at: 0)
-        
+
         self.clock.schedule(self.currentTs + self.stepSize) { [weak self] in
             self?.push($0.time())
         }
         self.clock.step()
     }
-
 
     static var allTests = [
         ("extendedTimestampTest", extendedTimestampTest),
@@ -169,16 +168,16 @@ final class rtmpTests: XCTestCase {
     let buffers: [Data]
     let stepSize: TimePoint
     var currentIndex: Int = 0
-    var currentTs: TimePoint 
+    var currentTs: TimePoint
     var shouldExit: Bool = false
     var rtmp: Rtmp?
     let clock: StepClock
     let group: EventLoopGroup
     let quiesce: ServerQuiescingHelper
-    var publish: Terminal<CodedMediaSample>? = nil
-    var subscribe: Source<CodedMediaSample>? = nil
-    var stx: Tx<CodedMediaSample, CodedMediaSample>? = nil
-#else 
+    var publish: Terminal<CodedMediaSample>?
+    var subscribe: Source<CodedMediaSample>?
+    var stx: Tx<CodedMediaSample, CodedMediaSample>?
+#else
     static var allTests: [(String, XCTestCaseClosure)] = []
 #endif
 }

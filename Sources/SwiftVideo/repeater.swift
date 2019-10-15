@@ -14,7 +14,6 @@
    limitations under the License.
 */
 
-
 // Repeats a sample at a specified interval if a new one is not provided.
 public class Repeater<T>: AsyncTx<T, T> {
     public init(_ clock: Clock, interval: TimePoint) {

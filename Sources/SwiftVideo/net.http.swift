@@ -20,7 +20,6 @@ import NIOHTTP1
 import NIOExtras
 import Foundation
 
-
 let websocketResponse = """
 <!DOCTYPE html>
 <html>
@@ -50,13 +49,13 @@ public class Http {
         //self.ws = nil
         self.channel = nil
         self.clock = clock
-        self.handlers = [String:(WebSocket, String, String) -> String?]()
-        self.closeWatchers = [String:(WebSocket, String) -> ()]()
+        self.handlers = [String: (WebSocket, String, String) -> String?]()
+        self.closeWatchers = [String: (WebSocket, String) -> Void]()
     }
     public func serve(host: String, port: Int, quiesce: ServerQuiescingHelper, group: EventLoopGroup? = nil) throws -> Bool {
 
         let group = group ?? MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
-        let upgrader = NIOWebSocketServerUpgrader(shouldUpgrade: { (channel: Channel, head: HTTPRequestHead) in channel.eventLoop.makeSucceededFuture(HTTPHeaders()) },
+        let upgrader = NIOWebSocketServerUpgrader(shouldUpgrade: { (channel: Channel, _: HTTPRequestHead) in channel.eventLoop.makeSucceededFuture(HTTPHeaders()) },
                                  upgradePipelineHandler: { [weak self] (channel: Channel, _: HTTPRequestHead) in
                                     let ws = WebSocket(channel)
                                     let uuid = UUID().uuidString
@@ -115,15 +114,15 @@ public class Http {
         .childChannelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
 
         self.channel = try bootstrap.bind(host: host, port: port).wait()
-        
+
         return true
     }
     public func setHandler(_ command: String, handler: @escaping (WebSocket, String, String) -> String?) {
         self.handlers[command] = handler
     }
 
-    public func setCloseWatcher(_ name: String, _ handler: @escaping (WebSocket, String) -> ()) {
-        self.closeWatchers[name] = handler;
+    public func setCloseWatcher(_ name: String, _ handler: @escaping (WebSocket, String) -> Void) {
+        self.closeWatchers[name] = handler
     }
     public func removeCloseWatcher(_ name: String) {
         self.closeWatchers.removeValue(forKey: name)
@@ -145,13 +144,13 @@ public class Http {
     //var server: HTTPServer?
     var channel: Channel?
     let clock: Clock
-    var handlers: [String:(WebSocket, String, String) -> String?]
-    var closeWatchers: [String: (WebSocket, String) -> ()]
+    var handlers: [String: (WebSocket, String, String) -> String?]
+    var closeWatchers: [String: (WebSocket, String) -> Void]
 }
 
-private struct CheckJSON : Codable {
+private struct CheckJSON: Codable {
     let cmd: String
-    
+
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         cmd = try values.decode(String.self, forKey: .cmd)
@@ -204,7 +203,6 @@ private enum http {
         let d: RtcCommData
     }
 }
-
 
 private final class HTTPHandler: ChannelInboundHandler, RemovableChannelHandler {
     typealias InboundIn = HTTPServerRequestPart
@@ -267,17 +265,16 @@ private final class HTTPHandler: ChannelInboundHandler, RemovableChannelHandler 
     }
 }
 
-
 public final class WebSocket: ChannelInboundHandler {
     public typealias InboundIn = WebSocketFrame
     public typealias OutboundOut = WebSocketFrame
-    public typealias FnOnText = (WebSocket, String) -> ()
-    public typealias FnOnClose = (WebSocket) -> ()
+    public typealias FnOnText = (WebSocket, String) -> Void
+    public typealias FnOnClose = (WebSocket) -> Void
 
     private var awaitingClose: Bool = false
     private weak var channel: Channel?
-    private var onTextFn: FnOnText? = nil
-    private var onCloseFn: FnOnClose? = nil
+    private var onTextFn: FnOnText?
+    private var onCloseFn: FnOnClose?
 
     public init( _ channel: Channel ) {
         self.channel = channel

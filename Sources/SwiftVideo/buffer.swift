@@ -67,7 +67,7 @@ public enum buffer {
         }
         return nil
     }
-    
+
     public static func getSlice(_ buf: ByteBuffer?, _ length: Int) -> ByteBuffer? {
         if let buf = buf {
             return getSlice(buf, buf.readerIndex, length)
@@ -108,10 +108,12 @@ public enum buffer {
 
     public static func fromData(_ data: Data) -> ByteBuffer {
         return data.withUnsafeBytes {
-            buffer.fromUnsafeBytes($0.baseAddress.map { $0.bindMemory(to: Int8.self, capacity: data.count) }, data.count)
+            buffer.fromUnsafeBytes(
+                $0.baseAddress.map { $0.bindMemory(to: Int8.self, capacity: data.count) },
+                data.count)
         }
     }
-    
+
     public static func toData(_ buf: ByteBuffer?) -> Data? {
         return buf.flatMap { $0.getData(at: $0.readerIndex, length: $0.readableBytes) }
     }
@@ -124,7 +126,7 @@ public enum buffer {
         }
         return nil
     }
-    
+
     public static func toByteArray<T>(_ value: T) -> [UInt8] where T: FixedWidthInteger {
         var value = value
         return withUnsafePointer(to: &value) {

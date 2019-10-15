@@ -13,7 +13,6 @@ var subs: [String: Terminal<CodedMediaSample>] = [:]
 // onEnded is called when a publish or subscribe session ends. AssetID is the string value that's passed to the closure.
 let onEnded: LiveOnEnded = { print("\($0) ended") ; subs.removeValue(forKey: $0) }
 
-
 //
 // With the Rtmp system, onConnection is called after an RTMP publish or subscribe handshake occurs.  The workspaceToken contains the 
 // "playpath" (or stream key) portion of the URI and the "workspaceId" contains the "app" portion of the URI.
@@ -23,7 +22,7 @@ let onEnded: LiveOnEnded = { print("\($0) ended") ; subs.removeValue(forKey: $0)
 //
 // Asset ID is a generated UUIDv4 that can identify the asset in the system.
 //
-let onConnection: LiveOnConnection = { pub, sub in 
+let onConnection: LiveOnConnection = { pub, sub in
     if let pub = pub, let streamKey = pub.workspaceToken() {
         print("publisher asking for permission: \(pub.workspaceId())/\(streamKey)")
     }

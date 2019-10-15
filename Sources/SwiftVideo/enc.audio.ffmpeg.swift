@@ -17,9 +17,9 @@
 import SwiftFFmpeg
 import Foundation
 
-public class FFmpegAudioEncoder : Tx<AudioSample, [CodedMediaSample]> {
+public class FFmpegAudioEncoder: Tx<AudioSample, [CodedMediaSample]> {
     private let kTimebase: Int64 = 96000
-    public init(_ format: MediaFormat, 
+    public init(_ format: MediaFormat,
                 bitrate: Int) {
         self.codecContext = nil
         self.format = format
@@ -63,7 +63,7 @@ public class FFmpegAudioEncoder : Tx<AudioSample, [CodedMediaSample]> {
         do {
             //print("audio in \(seconds(sample.pts()))")
             var frames = try makeAVFrame(sample)
-            
+
             while frames.count > 0 {
                 do {
                     try codecContext.sendFrame(frames[0])
@@ -88,9 +88,9 @@ public class FFmpegAudioEncoder : Tx<AudioSample, [CodedMediaSample]> {
                         let extradata = codecContext.extradata.map { Data(bytes: $0, count: codecContext.extradataSize) }
                         let dts = pts
                         self.pts = pts + frameDuration
-                        let sidedata: [String:Data]? = extradata.map { ["config": $0] }
-                        let sample = CodedMediaSample(sample.assetId(), 
-                                                      sample.workspaceId(), 
+                        let sidedata: [String: Data]? = extradata.map { ["config": $0] }
+                        let sample = CodedMediaSample(sample.assetId(),
+                                                      sample.workspaceId(),
                                                       sample.time(),        // incorrect, needs to be matched with packet
                                                       pts,
                                                       dts,
@@ -105,7 +105,7 @@ public class FFmpegAudioEncoder : Tx<AudioSample, [CodedMediaSample]> {
                         samples.append(sample)
                     } while true
                 } catch let error as AVError where error == .tryAgain {}
-            } 
+            }
             return .just(samples)
         } catch let error {
             print("error enc.audio.ffmpeg \(error)")
@@ -130,7 +130,7 @@ public class FFmpegAudioEncoder : Tx<AudioSample, [CodedMediaSample]> {
                 frame.sampleCount = codecCtx.frameSize
                 frame.sampleFormat = codecCtx.sampleFormat
                 frame.channelLayout = codecCtx.channelLayout
-                
+
                 try frame.allocBuffer()
                 let isPlanar = sample.format() == .s16p || sample.format() == .f32p
                 try (0..<self.accumulators.count).forEach { offset in

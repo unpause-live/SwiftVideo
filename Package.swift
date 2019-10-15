@@ -26,7 +26,7 @@ let package = Package(
     products: [
         .library(
             name: "SwiftVideo",
-            targets:["SwiftVideo"]),
+            targets:["SwiftVideo"])
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.2.0"),
@@ -36,7 +36,7 @@ let package = Package(
         .package(url: "https://github.com/sunlubo/SwiftFFmpeg", .revision("d20af574b48dfdb66a8bb49861f263d235d60fcf")),
         .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.5.0"),
         .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.1.1"),
-        .package(url: "https://github.com/apple/swift-log.git", from: "1.1.1"),
+        .package(url: "https://github.com/apple/swift-log.git", from: "1.1.1")
     ],
     targets: [
         .systemLibrary(
@@ -48,17 +48,17 @@ let package = Package(
         .target(name: "CSwiftVideo", dependencies: [], cxxSettings: [.define("linux", .when(platforms: [.linux]))]),
         .target(
             name: "SwiftVideo",
-            dependencies: ["NIO", "CSwiftVideo", "NIOSSL", "NIOExtras", "NIOFoundationCompat","VectorMath", "BrightFutures", 
+            dependencies: ["NIO", "CSwiftVideo", "NIOSSL", "NIOExtras", "NIOFoundationCompat", "VectorMath", "BrightFutures",
                             "SwiftFFmpeg", "SwiftProtobuf", "NIOWebSocket", "NIOHTTP1", "CFreeType", "Logging"],
             swiftSettings: [
                 .define("GPGPU_OCL", .when(platforms: [.linux, .macOS])),
                 .define("GPGPU_METAL", .when(platforms: [.iOS, .tvOS]))
             ],
-            linkerSettings: [.linkedLibrary("OpenCL", .when(platforms: [.linux])), 
-                .linkedLibrary("bsd",.when(platforms: [.linux]))]),
+            linkerSettings: [.linkedLibrary("OpenCL", .when(platforms: [.linux])),
+                .linkedLibrary("bsd", .when(platforms: [.linux]))]),
         .testTarget(
             name: "swiftVideoTests",
-            dependencies: ["SwiftVideo"]),
+            dependencies: ["SwiftVideo"])
     ],
     swiftLanguageVersions: [.v5],
     cxxLanguageStandard: .cxx1z

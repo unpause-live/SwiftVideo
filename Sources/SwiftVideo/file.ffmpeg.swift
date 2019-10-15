@@ -17,18 +17,18 @@
 import SwiftFFmpeg
 import Foundation
 
-enum FileError : Error {
+enum FileError: Error {
     case unsupported
 }
 
-fileprivate struct StreamInfo {
+private struct StreamInfo {
     let format: MediaFormat
     let type: MediaType
     let timebase: TimePoint
     let startTime: TimePoint
     let extradata: Data?
 }
-public class FileSource : Source<CodedMediaSample> {
+public class FileSource: Source<CodedMediaSample> {
     public init(_ clock: Clock, url: String, assetId: String, workspaceId: String, workspaceToken: String? = nil, repeats: Bool = false) throws {
         let fmtCtx = try AVFormatContext(url: url)
         try fmtCtx.findStreamInfo()
@@ -50,7 +50,7 @@ public class FileSource : Source<CodedMediaSample> {
             //val.discard = .all
             let startTime = (val.startTime != AVTimestamp.noPTS) ? TimePoint(Int64(val.startTime), timebase.scale) : timebase
             return (idx, StreamInfo(format: codec, type: type, timebase: timebase, startTime: startTime, extradata: extradata))
-            } )
+            })
         if streams.count == 0 {
             throw FileError.unsupported
         }
@@ -87,9 +87,9 @@ public class FileSource : Source<CodedMediaSample> {
                     throw AVError.tryAgain
                 }
                 let buffer = Data(bytes: data, count: pkt.size)
-                let sideData: [String:Data]? = stream.extradata.map { return ["config": $0] }
-                let outsample = CodedMediaSample(assetId, 
-                                          workspaceId, 
+                let sideData: [String: Data]? = stream.extradata.map { return ["config": $0] }
+                let outsample = CodedMediaSample(assetId,
+                                          workspaceId,
                                           clock.current(),
                                           pts,
                                           dts,

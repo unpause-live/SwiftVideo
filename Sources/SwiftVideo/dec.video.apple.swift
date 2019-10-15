@@ -14,7 +14,6 @@
    limitations under the License.
 */
 
-
 #if os(iOS) || os(macOS) || os(tvOS)
 import Foundation
 import VideoToolbox
@@ -25,8 +24,8 @@ enum DecodeError: Error {
     case osstatus(Int32)
 }
 
-public class AppleVideoDecoder : Tx<CodedMediaSample, PictureSample> {
-    
+public class AppleVideoDecoder: Tx<CodedMediaSample, PictureSample> {
+
     public init(_ clock: Clock) {
         self.session = nil
         self.output =  [PictureSample]()
@@ -47,7 +46,7 @@ public class AppleVideoDecoder : Tx<CodedMediaSample, PictureSample> {
                     return .error(EventError("dec.video.apple", -5, "Error making decode session \(error)"))
                 }
             }
-            
+
             return strongSelf.handle(sample)
         }
     }
@@ -61,7 +60,7 @@ public class AppleVideoDecoder : Tx<CodedMediaSample, PictureSample> {
             return .error(EventError("dec.video.apple", -2, "No decode session"))
         }
         var payload = sample.data()
-        
+
         let dataBufferWk: CMBlockBuffer? = payload.withUnsafeMutableBytes {
             var buffer: CMBlockBuffer?
             CMBlockBufferCreateWithMemoryBlock(allocator: kCFAllocatorDefault,
@@ -88,7 +87,7 @@ public class AppleVideoDecoder : Tx<CodedMediaSample, PictureSample> {
             var videoSampleTimingInfo = CMSampleTimingInfo(duration: CMTimeMake(value: 1, timescale: 1),
                                                            presentationTimeStamp: CMTimeMake(value: pts, timescale: 90000),
                                                            decodeTimeStamp: CMTimeMake(value: dts, timescale: 90000))
-            var sampleBuffer: CMSampleBuffer? = nil
+            var sampleBuffer: CMSampleBuffer?
             var sampleSize = [sample.data().count]
             CMSampleBufferCreate(allocator: kCFAllocatorDefault,
                                  dataBuffer: dataBuffer,
@@ -103,11 +102,11 @@ public class AppleVideoDecoder : Tx<CodedMediaSample, PictureSample> {
                                  sampleSizeArray: &sampleSize,
                                  sampleBufferOut: &sampleBuffer)
             if let sampleBuffer = sampleBuffer {
-                let flags : VTDecodeFrameFlags = [._1xRealTimePlayback, ._EnableTemporalProcessing, ._EnableAsynchronousDecompression]
+                let flags: VTDecodeFrameFlags = [._1xRealTimePlayback, ._EnableTemporalProcessing, ._EnableAsynchronousDecompression]
                 let result = VTDecompressionSessionDecodeFrame(session,
                                                   sampleBuffer: sampleBuffer,
                                                   flags: flags,
-                                                  infoFlagsOut: nil) { [weak self] (status, flags, imgBuffer, pts, duration) in
+                                                  infoFlagsOut: nil) { [weak self] (_, _, imgBuffer, pts, _) in
                                                     guard let strongSelf = self, let imgBuffer = imgBuffer else {
                                                         return
                                                     }
@@ -143,13 +142,13 @@ public class AppleVideoDecoder : Tx<CodedMediaSample, PictureSample> {
             return
         }
         let pixelBufferOptions = [ kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
-                                   kCVPixelBufferWidthKey as String:  Int(videoDesc.size.x),
+                                   kCVPixelBufferWidthKey as String: Int(videoDesc.size.x),
                                    kCVPixelBufferHeightKey as String: Int(videoDesc.size.y)] as CFDictionary
         let paramSets = parameterSetsFromAVCC(dcr)
         let formatDesc = try videoFormatFromAVCParameterSets(paramSets)
-        
+
         if let format = formatDesc {
-            var session: VTDecompressionSession? = nil
+            var session: VTDecompressionSession?
             let decoderSpecification = [:] as CFDictionary
             let result = VTDecompressionSessionCreate(allocator: kCFAllocatorDefault,
                                           formatDescription: format,
@@ -169,7 +168,7 @@ public class AppleVideoDecoder : Tx<CodedMediaSample, PictureSample> {
     private let clock: Clock
 }
 
-fileprivate func videoFormatFromAVCParameterSets( _ paramSets: [[UInt8]]) throws -> CMVideoFormatDescription? {
+private func videoFormatFromAVCParameterSets( _ paramSets: [[UInt8]]) throws -> CMVideoFormatDescription? {
     let pmSetPtrs: [UnsafePointer<UInt8>] = try paramSets.map {
         try $0.withUnsafeBufferPointer {
             guard let baseAddress = $0.baseAddress else {
@@ -179,7 +178,7 @@ fileprivate func videoFormatFromAVCParameterSets( _ paramSets: [[UInt8]]) throws
         }
     }
     let sizes = paramSets.map { $0.count }
-    var formatDesc: CMVideoFormatDescription? = nil
+    var formatDesc: CMVideoFormatDescription?
     try sizes.withUnsafeBufferPointer { sizePtr in
         try pmSetPtrs.withUnsafeBufferPointer { pmPtrPtr in
             guard let pmBase = pmPtrPtr.baseAddress, let sizeBase = sizePtr.baseAddress else {
@@ -196,7 +195,7 @@ fileprivate func videoFormatFromAVCParameterSets( _ paramSets: [[UInt8]]) throws
     return formatDesc
 }
 
-fileprivate func parameterSetsFromAVCC(_ avcc: Data) -> [[UInt8]] {
+private func parameterSetsFromAVCC(_ avcc: Data) -> [[UInt8]] {
     var buf = buffer.fromData(avcc)
     var paramSets = [[UInt8]]()
     buf.moveReaderIndex(forwardBy: 5) // skip header
@@ -221,5 +220,5 @@ fileprivate func parameterSetsFromAVCC(_ avcc: Data) -> [[UInt8]] {
     }
     return paramSets
 }
- 
+
 #endif

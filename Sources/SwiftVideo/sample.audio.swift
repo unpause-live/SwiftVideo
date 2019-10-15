@@ -17,7 +17,7 @@
 import VectorMath
 import Foundation
 
-public enum AudioError : Error {
+public enum AudioError: Error {
     case invalidFormat
 }
 
@@ -34,14 +34,13 @@ public enum AudioFormat {
     case invalid
 }
 
-
 public enum AudioChannelLayout {
     case mono
     case stereo
 }
 
-public class AudioSample : Event {
-    public init(_ buffers: [Data], 
+public class AudioSample: Event {
+    public init(_ buffers: [Data],
                 frequency: Int,
                 channels: Int,
                 format: AudioFormat,
@@ -72,10 +71,10 @@ public class AudioSample : Event {
         self.mediaConstituents = constituents
     }
 
-    public init(_ other: AudioSample, 
-                  bufferType: BufferType? = nil, 
+    public init(_ other: AudioSample,
+                  bufferType: BufferType? = nil,
                   assetId: String? = nil,
-                  buffers: [Data]? = nil, 
+                  buffers: [Data]? = nil,
                   frequency: Int? = nil,
                   channels: Int? = nil,
                   format: AudioFormat? = nil,
@@ -102,7 +101,7 @@ public class AudioSample : Event {
         self.mediaConstituents = constituents ?? other.mediaConstituents
     }
 
-    public func type() -> String { 
+    public func type() -> String {
         "soun"
     }
     public func time() -> TimePoint {
@@ -159,11 +158,11 @@ public class AudioSample : Event {
     let buffers: [Data]
     let computeBuffers: [ComputeBuffer]
     let buffertype: BufferType
-    let frequency : Int
-    let channels : Int
+    let frequency: Int
+    let channels: Int
     let sampleCount: Int
     let audioFormat: AudioFormat
-    let presentationTimestamp : TimePoint
+    let presentationTimestamp: TimePoint
     let timePoint: TimePoint
     let transform: Matrix3          /// Position is represented by a single 2D circular plane.  Maybe  in the future we will add elevation, but not now.
                                     /// Gain is represented by the length of a line that starts as (0, 0) -> (0, 1).
@@ -212,5 +211,3 @@ func isPlanar(_ format: AudioFormat) -> Bool {
             return false
     }
 }
-
-

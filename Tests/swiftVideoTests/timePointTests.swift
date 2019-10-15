@@ -14,6 +14,7 @@
    limitations under the License.
 */
 
+// swiftlint:disable identifier_name
 import XCTest
 import Foundation
 import SwiftVideo
@@ -66,7 +67,7 @@ final class timePointTests: XCTestCase {
         XCTAssertEqual(c >= b, true)
         XCTAssertEqual(c <= b, true)
     }
-    
+
     func minTest() {
         let a = TimePoint(2957595, 30000)
         let b = TimePoint(9855316, 100000)
@@ -80,7 +81,7 @@ final class timePointTests: XCTestCase {
         let c = max(a, b)
         XCTAssertTrue(c == a)
     }
-    
+
     static var allTests = [
         ("rescaleTest", rescaleTest),
         ("greaterThanTest", greaterThanTest),

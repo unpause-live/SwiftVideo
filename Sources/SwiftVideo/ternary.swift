@@ -20,7 +20,7 @@ precedencegroup Group { associativity: right }
 
 infix operator <??>: Group
 func <??> <I, O>(_ input: I?,
-               _ handler: (lhs: (I) -> O, rhs: () -> O)) -> O {
+                 _ handler: (lhs: (I) -> O, rhs: () -> O)) -> O {
     guard let input = input else {
         return handler.rhs()
     }
@@ -29,7 +29,7 @@ func <??> <I, O>(_ input: I?,
 
 infix operator <|>: Group
 func <|> <I, O>(_ lhs: @escaping (I) -> O,
-              _ rhs: @autoclosure @escaping () -> O) -> ((I) -> O, () -> O) {
+                _ rhs: @autoclosure @escaping () -> O) -> ((I) -> O, () -> O) {
     return (lhs, rhs)
 }
 

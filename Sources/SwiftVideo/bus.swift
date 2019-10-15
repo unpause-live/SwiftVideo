@@ -37,7 +37,9 @@ public class Bus<EventType> {
     private var eventsIn = 0
     private var eventsOut = 0
 
-    public init(ident: String? = nil, poolSize: Int = System.coreCount, logger: Logging.Logger = Logger(label: "SwiftVideo")) {
+    public init(ident: String? = nil,
+                poolSize: Int = System.coreCount,
+                logger: Logging.Logger = Logger(label: "SwiftVideo")) {
         self.clock = WallClock()
         let uuid = ident ?? UUID().uuidString
         self.ident = uuid
@@ -49,7 +51,10 @@ public class Bus<EventType> {
         self.listQueue = DispatchQueue(label: "bus.events.\(uuid)")
     }
 
-    public init(_ clock: Clock, ident: String? = nil, poolSize: Int = System.coreCount, logger: Logging.Logger = Logger(label: "SwiftVideo")) {
+    public init(_ clock: Clock,
+                ident: String? = nil,
+                poolSize: Int = System.coreCount,
+                logger: Logging.Logger = Logger(label: "SwiftVideo")) {
         self.clock = clock
         let uuid = ident ?? UUID().uuidString
         self.ident = uuid
@@ -62,7 +67,7 @@ public class Bus<EventType> {
     }
 
     public func getClock() -> Clock { return clock }
-    
+
     public func addObserver(_ obs: @escaping (EventType) -> EventBox<Event>) {
         let observer = (obs, Int.random(in: 0..<self.runner.count), UUID().uuidString)
         self.listQueue.sync(flags: .barrier) {
@@ -102,7 +107,7 @@ public class Bus<EventType> {
             }
         }
     }
-    
+
     func fireBusEvents() {
         var evts = [EventBox<EventType>]()
         let count = self.events.count
@@ -114,7 +119,7 @@ public class Bus<EventType> {
                     return
                 }
                 strongSelf.eventsOut += evts.count
-                var observers: [((EventType) -> EventBox<Event>, Int, String)]? = nil
+                var observers: [((EventType) -> EventBox<Event>, Int, String)]?
                 strongSelf.listQueue.sync(flags: .barrier) {
                     observers = strongSelf.observers
                 }
@@ -122,7 +127,7 @@ public class Bus<EventType> {
                     let futureResults: [Future<(EventBox<Event>, String), Never>] = evts.flatMap { event in
                         return observers.map { observer in
                             let (fun, idx, ident) = observer
-                            return Future<(EventBox<Event>, String), Never> { [weak self] complete in 
+                            return Future<(EventBox<Event>, String), Never> { [weak self] complete in
                                 guard let strongSelf = self, let runner = strongSelf.runner[safe:idx] else {
                                     complete(.success((.gone, ident)))
                                     return
@@ -145,9 +150,9 @@ public class Bus<EventType> {
                     }
                 }
             }
-        } 
+        }
     }
-    
+
     public func setDigestReceiver(_ fun: @escaping ([EventBox<Event>]) -> Void) {
         self.fnDigest = fun
     }
@@ -167,7 +172,7 @@ public final class Digest: Event {
         self.events = [Event?]()
         self.timePoint = TimePoint(0)
     }
-    
+
     public func type() -> String {
         return "digest"
     }
@@ -179,15 +184,15 @@ public final class Digest: Event {
     public func workspaceId() -> String {
         return "bus"
     }
-    
+
     public func workspaceToken() -> String? {
         return nil
     }
-    
+
     public func time() -> TimePoint {
         return timePoint
     }
-    
+
     public func info() -> EventInfo? {
         return self.events.reduce(nil) {
             guard let acc = $0 else {
@@ -199,7 +204,7 @@ public final class Digest: Event {
             return acc.merging(info)
         }
     }
-    
+
     init(_ evt: [Event?], time: TimePoint) {
         self.events = evt
         self.timePoint = time
@@ -217,8 +222,8 @@ open class Tx <T, U> {
 }
 
 extension EventBox {
-    public func flatMap <U> ( _ fun: Tx<T,U> ) -> EventBox<U> {
-        switch(self) {
+    public func flatMap <U> ( _ fun: Tx<T, U> ) -> EventBox<U> {
+        switch self {
         case .just(let payload):
             return fun.fun <??> { $0(payload) } <|> .nothing(((payload as? Event) <??> { $0.info() } <|> nil))
         case .error(let error):
@@ -232,7 +237,9 @@ extension EventBox {
 }
 
 open class AsyncTx <T, U> : Tx<T, U> {
-    public override init() { super.init { .just($0 as! U) } }
+    public override init() {
+        super.init { $0 as? U <??> { .just($0) } <|> .error(EventError("asynctx", -1, "incorrect sample type")) }
+    }
     public func setEmitFn(_ fun: @escaping (U) -> EventBox<Event>) { fnEmit = fun }
     public func emit(_ val: U) -> EventBox<Event> {
         guard let emit = fnEmit else {
@@ -251,7 +258,7 @@ open class AsyncTx <T, U> : Tx<T, U> {
     private var fnDigest: (([EventBox<Event>]) -> Void)?
 }
 
-open class Source<U> : AsyncTx<U, U> {}
+open class Source<U>: AsyncTx<U, U> {}
 
 public typealias Terminal<T> = Tx<T, ResultEvent> where T: Event
 
@@ -264,7 +271,6 @@ public func filter <U> () -> Tx<Event, U> where U: Event {
         }
     }
 }
-
 
 public func assetFilter <U> (_ assetId: String) -> Tx<U, U> where U: Event {
     return Tx {
@@ -287,11 +293,11 @@ infix operator >>> : PipeGroup
 infix operator |>> : PipeGroup
 infix operator <<| : WrapGroup
 
-public func >>-<T, U>(box: EventBox<T>, fun: Tx<T, U>) -> EventBox<U> {
+public func >>- <T, U> (box: EventBox<T>, fun: Tx<T, U>) -> EventBox<U> {
     return box.flatMap(fun)
 }
 
-public func >>-<T>(box: EventBox<T>, bus: Bus<T>) -> EventBox<ResultEvent> {
+public func >>- <T> (box: EventBox<T>, bus: Bus<T>) -> EventBox<ResultEvent> {
     return bus.append(box)
 }
 
@@ -318,16 +324,16 @@ public func >>> <T, U>(left: AsyncTx<T, U>, right: Tx<U, Event>) -> Tx<T, Event>
 }
 
 public func |>> <T, U, V>(left: Tx<T, [U]>, right: Tx<U, V>) -> Tx<T, [V]> {
-    return Tx { event in 
+    return Tx { event in
         let lres = (.just(event) >>- left)
-        let result = lres.value()?.compactMap { .just($0) >>- right } 
+        let result = lres.value()?.compactMap { .just($0) >>- right }
 
         return result <??> { EventBox<[V]>.just($0.compactMap { $0.value() }) } <|> .nothing(nil)
     }
 }
 public func |>> <T, U>(left: Tx<T, [U]>, right: Bus<U>) -> Tx<T, ResultEvent> {
-    return Tx { 
-        let result = (.just($0) >>- left).value()?.compactMap { right.append(.just($0)) } 
+    return Tx {
+        let result = (.just($0) >>- left).value()?.compactMap { right.append(.just($0)) }
                      .compactMap { $0.value() }
         return result?.last <??> { .just($0) } <|> .nothing(nil)
     }

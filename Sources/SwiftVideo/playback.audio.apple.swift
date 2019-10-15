@@ -2,7 +2,7 @@
 import Foundation
 import AudioToolbox
 
-public class AppleAudioPlayback : Terminal<AudioSample> {
+public class AppleAudioPlayback: Terminal<AudioSample> {
     public override init() {
         self.unit = nil
         self.samples = []
@@ -25,14 +25,14 @@ public class AppleAudioPlayback : Terminal<AudioSample> {
                                                        mChannelsPerFrame: UInt32(sample.numberChannels()),
                                                        mBitsPerChannel: 32,
                                                        mReserved: 0)
-                
+
                 var desc = AudioComponentDescription(componentType: kAudioUnitType_Output,
                                                      componentSubType: kAudioUnitSubType_HALOutput,
                                                      componentManufacturer: kAudioUnitManufacturer_Apple,
                                                      componentFlags: 0,
                                                      componentFlagsMask: 0)
-                var unit: AudioUnit? = nil
-                
+                var unit: AudioUnit?
+
                 if let component = AudioComponentFindNext(nil, &desc),
                      AudioComponentInstanceNew(component, &unit) == noErr {
                     if let unit = unit {
@@ -67,10 +67,10 @@ public class AppleAudioPlayback : Terminal<AudioSample> {
     private var unit: AudioUnit?
     fileprivate var samples: [AudioSample]
     fileprivate var pts: TimePoint
-    fileprivate var ptsOffset: TimePoint? = nil
+    fileprivate var ptsOffset: TimePoint?
 }
 
-fileprivate func ioProc(inRefCon: UnsafeMutableRawPointer,
+private func ioProc(inRefCon: UnsafeMutableRawPointer,
                       ioActionFlags: UnsafeMutablePointer<AudioUnitRenderActionFlags>,
                       audioTimestamp: UnsafePointer<AudioTimeStamp>,
                       inBusNumber: UInt32,

@@ -58,8 +58,8 @@ public class Composer {
                                   assetId: assetId,
                                   statsReport: statsReport,
                                   epoch: epoch)
-        let videoMixer = VideoMixer(clock, 
-                                  workspaceId: workspaceId, 
+        let videoMixer = VideoMixer(clock,
+                                  workspaceId: workspaceId,
                                   frameDuration: frameDuration,
                                   outputSize: canvasSize,
                                   outputFormat: outputFormat,
@@ -76,8 +76,7 @@ public class Composer {
         self.curScene = ""
         self.scenes = composition.composition.scenes
         self.elements = Dictionary(uniqueKeysWithValues: composition.composition.scenes.reduce(Set<String>())
-          { $0.union($1.value.elements.keys) }.map
-            { ($0, ElementAnimator(PictureAnimator(clock, canvasSize: canvasSize), SoundAnimator(clock), [:])) })
+          { $0.union($1.value.elements.keys) }.map { ($0, ElementAnimator(PictureAnimator(clock, canvasSize: canvasSize), SoundAnimator(clock), [:])) })
         // setup complete, set default scene
         self.setScene(composition.composition.initialScene)
     }
@@ -125,7 +124,7 @@ public class Composer {
               }
           }
         //}
-        
+
     }
 
     public func currentScene() -> String {
@@ -135,7 +134,7 @@ public class Composer {
         return elements[elementId]?.currentState
     }
 
-    private func runCommand(_ command: RpcComposerCommand.Command, 
+    private func runCommand(_ command: RpcComposerCommand.Command,
       action: @escaping (RpcComposerCommand.Command.OneOf_Command) -> Future<[Bool], Never>?) {
         guard let oneof = command.command else {
           return
@@ -174,7 +173,7 @@ public class Composer {
             runCommand(command, action: action)
         }
     }
-    
+
     public func setState(_ elementId: String, _ stateId: String, _ duration: TimePoint = TimePoint(0, 1000)) -> Future<[Bool], Never>? {
         if let element = elements[elementId],
            let state = element.states[stateId] {
@@ -184,11 +183,11 @@ public class Composer {
         }
         return nil
     }
-    
+
     public func mixers() -> (AudioMixer, VideoMixer) {
         return (audioMixer, videoMixer)
     }
-    
+
     public func clockEpoch() -> Int64 { return epoch }
 
     private func connectElement(_ elementId: String, setInitialState: Bool = false) {
@@ -198,7 +197,7 @@ public class Composer {
           // We have an asset bound to the element, so create two transforms: audio and video
           let pictureAnim = element.picAnimator
           let audioAnim = element.sounAnimator
-          let pic = self.pictureBus <<| (assetFilter(assetId) >>> GPUBarrierUpload(computeContext)  
+          let pic = self.pictureBus <<| (assetFilter(assetId) >>> GPUBarrierUpload(computeContext)
                 >>> Repeater(self.clock, interval: videoMixer.frameDuration) >>> pictureAnim >>> self.videoMixer)
           let soun = self.audioBus <<| (assetFilter(assetId) >>> AudioSampleRateConversion(
             audioMixer.getSampleRate(), audioMixer.getChannels(), audioMixer.getAudioFormat()) >>> audioAnim  >>> self.audioMixer)
@@ -238,7 +237,7 @@ public class Composer {
         init(_ picAnimator: PictureAnimator,
              _ sounAnimator: SoundAnimator,
              _ states: [String: ElementState],
-             picTx: Tx<PictureSample, PictureSample>? = nil, 
+             picTx: Tx<PictureSample, PictureSample>? = nil,
              audioTx: Tx<AudioSample, AudioSample>? = nil,
              assetId: String? = nil) {
           self.picAnimator = picAnimator

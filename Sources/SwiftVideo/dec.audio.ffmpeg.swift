@@ -18,8 +18,8 @@ import SwiftFFmpeg
 import Foundation
 import VectorMath
 
-public class FFmpegAudioDecoder : Tx<CodedMediaSample, AudioSample> {
-    private let kTimebase : Int64 = 96000
+public class FFmpegAudioDecoder: Tx<CodedMediaSample, AudioSample> {
+    private let kTimebase: Int64 = 96000
     public override init() {
         self.codec = nil
         self.codecContext = nil
@@ -53,7 +53,7 @@ public class FFmpegAudioDecoder : Tx<CodedMediaSample, AudioSample> {
             return try decode(sample)
         } catch(let error) {
             print("decode error \(error)")
-            return .error(EventError("dec.sound.ffmpeg", -3, "Error decoding bitstream \(error)", assetId: sample.assetId()))    
+            return .error(EventError("dec.sound.ffmpeg", -3, "Error decoding bitstream \(error)", assetId: sample.assetId()))
         }
     }
 
@@ -75,24 +75,24 @@ public class FFmpegAudioDecoder : Tx<CodedMediaSample, AudioSample> {
         try packet.makeWritable()
 
         data.withUnsafeMutableBytes {
-            guard let buffer = packet.buffer, 
+            guard let buffer = packet.buffer,
                   let baseAddress = $0.baseAddress else {
                 return
             }
-            buffer.realloc(size:size)
+            buffer.realloc(size: size)
             memcpy(buffer.data, baseAddress, size)
         }
         packet.data = packet.buffer?.data
         packet.size = size
         packet.pts = pts.value
         packet.dts = dts.value
-        
+
         if(packet.size > 0) {
             try codecCtx.sendPacket(packet)
             do {
                 let frame = AVFrame()
                 try codecCtx.receiveFrame(frame)
-                
+
                 let channelCt = codecCtx.channelCount
                 let sampleCt = frame.sampleCount
                 let sampleRate = codecCtx.sampleRate
@@ -110,7 +110,7 @@ public class FFmpegAudioDecoder : Tx<CodedMediaSample, AudioSample> {
                             return (.f64i, codecCtx.sampleFormat.bytesPerSample * channelCt)
                         case .dblp:
                             return (.f64p, codecCtx.sampleFormat.bytesPerSample)
-                        default: 
+                        default:
                             return (.invalid, 0)
                     }
                 }()
@@ -126,10 +126,10 @@ public class FFmpegAudioDecoder : Tx<CodedMediaSample, AudioSample> {
                         return Data(bytesNoCopy: data, count: bytesPerSample * sampleCt, deallocator: .none)
                     }
                 }
-                let pts = self.pts ?? rescale(TimePoint(frame.pts,kTimebase), Int64(sampleRate))
+                let pts = self.pts ?? rescale(TimePoint(frame.pts, kTimebase), Int64(sampleRate))
                 let dur = TimePoint(Int64(sampleCt), Int64(sampleRate))
                 self.pts = pts + dur
-                let sample = AudioSample(data, 
+                let sample = AudioSample(data,
                                          frequency: sampleRate,
                                          channels: channelCt,
                                          format: format,

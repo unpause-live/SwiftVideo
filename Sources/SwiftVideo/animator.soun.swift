@@ -18,7 +18,7 @@ import Foundation
 import VectorMath
 import BrightFutures
 
-public class SoundAnimator : Tx<AudioSample, AudioSample>, Animator {
+public class SoundAnimator: Tx<AudioSample, AudioSample>, Animator {
     public init(_ clock: Clock, parent: SoundAnimator? = nil) {
         self.clock = clock
         self.currentState = nil
@@ -34,7 +34,7 @@ public class SoundAnimator : Tx<AudioSample, AudioSample>, Animator {
             return strongSelf.impl($0)
         }
     }
-    
+
     public func setState(_ state: ElementState, _ duration: TimePoint) -> Future<Bool, Never> {
         return Future { completion in
             if self.currentState == nil || duration.value <= 0 {
@@ -55,7 +55,7 @@ public class SoundAnimator : Tx<AudioSample, AudioSample>, Animator {
             }
         }
     }
-    
+
     func computedState() throws -> ComputedAudioState {
         guard let currentState = self.currentState else {
             throw AnimatorError.noCurrentState
@@ -69,16 +69,16 @@ public class SoundAnimator : Tx<AudioSample, AudioSample>, Animator {
         let pct = seconds(now - currentStartTime) / seconds(transitionDuration)
         return computeAudioState(currentState, next: nextState, pct: pct)
     }
-    
+
     func setParent( _ parent: SoundAnimator? ) {
         self.parent = parent
     }
-    
+
     private func impl(_ sample: AudioSample) -> EventBox<AudioSample> {
         guard currentState?.muted == false else {
             return .nothing(sample.info())
         }
-        
+
         do {
             let computedState = try self.computedState()
             let parentState = try self.parent?.computedState()
@@ -111,7 +111,7 @@ func computeAudioState( _ current: ElementState, next: ElementState?, pct: Float
             $0.audioPos = interpolate(current.audioPos, next.audioPos, pct)
         }
         } ?? current
-    
+
     return ComputedAudioState(matrix: Matrix3(translation: Vector2(state.audioPos)) * Matrix3(scale: Vector2(state.audioGain, state.audioGain)),
                               gain: state.audioGain)
 }

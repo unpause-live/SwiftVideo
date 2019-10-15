@@ -18,8 +18,8 @@ import SwiftFFmpeg
 import Foundation
 import VectorMath
 
-public class FFmpegVideoDecoder : Tx<CodedMediaSample, PictureSample> {
-    private let kTimebase : Int64 = 600600
+public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
+    private let kTimebase: Int64 = 600600
     public override init() {
         self.codec = nil
         self.codecContext = nil
@@ -53,7 +53,7 @@ public class FFmpegVideoDecoder : Tx<CodedMediaSample, PictureSample> {
             return try decode(sample)
         } catch(let error) {
             print("decode error \(error)")
-            return .error(EventError("dec.video.ffmpeg", -3, "Error decoding bitstream \(error)", assetId: sample.assetId()))    
+            return .error(EventError("dec.video.ffmpeg", -3, "Error decoding bitstream \(error)", assetId: sample.assetId()))
         }
     }
 
@@ -75,18 +75,18 @@ public class FFmpegVideoDecoder : Tx<CodedMediaSample, PictureSample> {
         try packet.makeWritable()
 
         data.withUnsafeMutableBytes {
-            guard let buffer = packet.buffer, 
+            guard let buffer = packet.buffer,
                   let baseAddress = $0.baseAddress else {
                 return
             }
-            buffer.realloc(size:size)
+            buffer.realloc(size: size)
             memcpy(buffer.data, baseAddress, size)
         }
         packet.data = packet.buffer?.data
         packet.size = size
         packet.pts = pts.value
         packet.dts = dts.value
-        
+
         if(packet.size > 0) {
             try codecCtx.sendPacket(packet)
             do {
@@ -127,42 +127,42 @@ public class FFmpegVideoDecoder : Tx<CodedMediaSample, PictureSample> {
                 default: return .invalid
             }
         }()
-        
-        let planes = (0..<3).compactMap { idx -> Plane? in 
+
+        let planes = (0..<3).compactMap { idx -> Plane? in
             guard frame.linesize[idx] > 0 else {
                 return nil
             }
             let size: Vector2 = {
                 switch(pixelFormat) {
-                    case .y420p, .nv12, .nv21: 
+                    case .y420p, .nv12, .nv21:
                         return idx == 0 ? Vector2(Float(frame.width), Float(frame.height)) : Vector2(Float(frame.width/2), Float(frame.height/2))
                     case .yuvs, .zvuy, .y444p:
                         return Vector2(Float(frame.width), Float(frame.height))
                     case .y422p:
                         return idx == 0 ? Vector2(Float(frame.width), Float(frame.height)) : Vector2(Float(frame.width/2), Float(frame.height))
-                    default: return Vector2(0,0)
+                    default: return Vector2(0, 0)
                 }
             }()
             let components: [Component] = componentsForPlane(pixelFormat, idx)
             return Plane(size: size, stride: Int(frame.linesize[idx]), bitDepth: 8, components: components)
         }
         do {
-            let image = try ImageBuffer(pixelFormat: pixelFormat, 
+            let image = try ImageBuffer(pixelFormat: pixelFormat,
                                 bufferType: .cpu,
                                 size: Vector2(Float(frame.width), Float(frame.height)),
                                 buffers: data,
                                 planes: planes)
             let pts = TimePoint(frame.pts, kTimebase)
-            return .just(PictureSample(image, 
-                                 assetId: sample.assetId(), 
-                                 workspaceId: sample.workspaceId(), 
-                                 workspaceToken: sample.workspaceToken(), 
+            return .just(PictureSample(image,
+                                 assetId: sample.assetId(),
+                                 workspaceId: sample.workspaceId(),
+                                 workspaceToken: sample.workspaceToken(),
                                  time: sample.time(),
                                  pts: pts))
         } catch (let error) {
             return .error(EventError("dec.video.ffmpeg", -5, "Error creating image \(error)", assetId: sample.assetId()))
         }
-        
+
     }
 
     private func setupContext(_ sample: CodedMediaSample) throws {

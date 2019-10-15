@@ -26,7 +26,7 @@ public protocol Animator {
     func setState(_ state: ElementState, _ duration: TimePoint) -> Future<Bool, Never>
 }
 
-public class PictureAnimator : Tx<PictureSample, PictureSample>, Animator {
+public class PictureAnimator: Tx<PictureSample, PictureSample>, Animator {
 
     public init(_ clock: Clock, canvasSize: Vector2, parent: PictureAnimator? = nil, parentAnchors: [PictureAnchor] = [.anchorTopLeft]) {
         self.clock = clock
@@ -47,7 +47,7 @@ public class PictureAnimator : Tx<PictureSample, PictureSample>, Animator {
             return strongSelf.impl($0)
         }
     }
-    
+
     public func setState(_ state: ElementState, _ duration: TimePoint) -> Future<Bool, Never> {
         return Future { completion in
             if self.currentState == nil || duration.value <= 0 {
@@ -75,7 +75,7 @@ public class PictureAnimator : Tx<PictureSample, PictureSample>, Animator {
             }
         }
     }
-    
+
     func computedState(_ sample: PictureSample, parentState: ComputedPictureState? = nil) throws -> ComputedPictureState {
         guard let currentState = self.currentState else {
             throw AnimatorError.noCurrentState
@@ -87,10 +87,10 @@ public class PictureAnimator : Tx<PictureSample, PictureSample>, Animator {
             }
             return seconds(now - currentStartTime) / seconds(transitionDuration)
         }()
-        
+
         return computePictureState(sample, parentState?.matrix, currentState, next: self.nextState, pct: pct, anchors: self.anchors, initialParentState: self.initialParentState)
     }
-    
+
     func setParent( _ parent: PictureAnimator? ) {
         self.parent = parent
     }
@@ -136,7 +136,7 @@ struct ComputedPictureState {
     let opacity: Float
 }
 
-fileprivate func computePositionSize(_ basePos: Vector3, _ baseSize: Vector3, _ parentPos: Vector3, _ parentSizeDelta: Vector3, _ anchors: [PictureAnchor]) -> (Vector3, Vector3) {
+private func computePositionSize(_ basePos: Vector3, _ baseSize: Vector3, _ parentPos: Vector3, _ parentSizeDelta: Vector3, _ anchors: [PictureAnchor]) -> (Vector3, Vector3) {
     let relPos = basePos + Vector3(parentPos.x, parentPos.y, 0)
     var verts = [ relPos, relPos+Vector3(baseSize.x, 0, 0), relPos+Vector3(0, baseSize.y, 0) ]
     let anchors = Set(anchors)
@@ -172,7 +172,7 @@ fileprivate func computePositionSize(_ basePos: Vector3, _ baseSize: Vector3, _ 
             verts[0] = verts[0] + Vector3(0, parentSizeDelta.y, 0)
         }
     }
-   
+
    return (verts[0], Vector3(verts[1].x-verts[0].x, verts[2].y-verts[0].y, 1.0))
 }
 
@@ -199,15 +199,15 @@ func computePictureState(_ sample: PictureSample,
             $0.borderSize = interpolate(current.borderSize, next.borderSize, pct)
         }
     } ?? current
-    
+
     let (parentPos, parentSize) = parent.map {
-        (Vector3($0.m41, $0.m42, $0.m43), Vector3(sqrt($0.m11 * $0.m11 + $0.m12 * $0.m12), sqrt($0.m21 * $0.m21 + $0.m22 * $0.m22),0))
-    } ?? (Vector3(0,0,0), Vector3(0,0,0))
+        (Vector3($0.m41, $0.m42, $0.m43), Vector3(sqrt($0.m11 * $0.m11 + $0.m12 * $0.m12), sqrt($0.m21 * $0.m21 + $0.m22 * $0.m22), 0))
+    } ?? (Vector3(0, 0, 0), Vector3(0, 0, 0))
     let initialParentSize = initialParentState.map {
         Vector3(sqrt($0.matrix.m11 * $0.matrix.m11 + $0.matrix.m12 * $0.matrix.m12), sqrt($0.matrix.m21 * $0.matrix.m21 + $0.matrix.m22 * $0.matrix.m22), 0)
-    } ?? Vector3(0,0,0)
+    } ?? Vector3(0, 0, 0)
     let parentSizeDelta = (parentSize - initialParentSize)
-    let add = state.picOrigin == .originTopLeft ? Vector3(0,0,0) : -Vector3(state.size.x / 2, state.size.y / 2,0)
+    let add = state.picOrigin == .originTopLeft ? Vector3(0, 0, 0) : -Vector3(state.size.x / 2, state.size.y / 2, 0)
 
     let (relPos, size) = computePositionSize(Vector3(state.picPos), Vector3(state.size, 0), parentPos, parentSizeDelta, anchors)
     let pos = relPos + add
@@ -230,7 +230,7 @@ func computePictureState(_ sample: PictureSample,
             return Matrix4.identity
         }
     }()
-    
+
     let computedState = ComputedPictureState(
         matrix: Matrix4(translation: pos) * Matrix4(rotation: Vector4(0, 0, 1, state.rotation)) * Matrix4(scale: size),
         textureMatrix: textureMatrix,
@@ -242,7 +242,7 @@ func computePictureState(_ sample: PictureSample,
 }
 
 func distance(_ lhs: Vector4, _ rhs: Vector4) -> Float {
-    return sqrt(pow((rhs.x - lhs.x),2) + pow((rhs.y - lhs.y), 2))
+    return sqrt(pow((rhs.x - lhs.x), 2) + pow((rhs.y - lhs.y), 2))
 }
 
 func interpolate(_ lhs: Vec2, _ rhs: Vec2, _ pct: Float) -> Vec2 {
@@ -306,7 +306,7 @@ extension ElementState {
             return fillColor
         }
         return Vec4.with {
-            $0.x = 0; $0.y = 0; $0.z = 0; $0.w = 0;
+            $0.x = 0; $0.y = 0; $0.z = 0; $0.w = 0
         }
     }
 }

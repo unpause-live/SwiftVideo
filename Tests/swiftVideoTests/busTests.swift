@@ -21,12 +21,12 @@ import CSwiftVideo
 
 final class busTests: XCTestCase {
 
-    struct TestEvent : Event {
+    struct TestEvent: Event {
         func type() -> String {
             return "test"
         }
         func time() -> TimePoint {
-            return TimePoint(0,1000)
+            return TimePoint(0, 1000)
         }
         func assetId() -> String {
             return "assetId"
@@ -46,12 +46,12 @@ final class busTests: XCTestCase {
         let idx: Int
     }
 
-    struct TestEvent2 : Event {
+    struct TestEvent2: Event {
         func type() -> String {
             return "test2"
         }
         func time() -> TimePoint {
-            return TimePoint(0,1000)
+            return TimePoint(0, 1000)
         }
         func assetId() -> String {
             return "assetId2"
@@ -97,7 +97,7 @@ final class busTests: XCTestCase {
             count += 1
             return .just(event)
         }
-        let tx2: Tx<TestEvent2, TestEvent2> = Tx { _ in 
+        let tx2: Tx<TestEvent2, TestEvent2> = Tx { _ in
             .nothing(nil)
         }
         let event2 = TestEvent2()

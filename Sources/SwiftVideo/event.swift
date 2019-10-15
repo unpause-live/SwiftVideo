@@ -14,7 +14,6 @@
    limitations under the License.
 */
 
-
 extension EventError {
     public init(_ src: String, _ code: Int, _ desc: String? = nil, _ time: TimePoint? = nil, assetId: String? = nil) {
         self.source = src
@@ -42,7 +41,7 @@ public protocol Event {
     func info() -> EventInfo?
 }
 
-extension Array : Event where Element: Event {
+extension Array: Event where Element: Event {
     public func type() -> String { return "list" }
     public func time() -> TimePoint { return self.last <??> { $0.time() } <|> TimePoint(0) }
     public func assetId() -> String {  return self.last <??> { $0.assetId() } <|> "none" }
@@ -70,7 +69,7 @@ public enum EventBox<T> {
 
 extension EventBox {
     public func flatMap<U>(_ fun: @escaping (T) -> EventBox<U>) -> EventBox<U> {
-        switch(self) {
+        switch self {
         case .just(let payload):
             return fun(payload)
         case .error(let error):
@@ -81,9 +80,9 @@ extension EventBox {
             return .gone
         }
     }
-    
+
     public func map<U>(_ fun: @escaping (T) -> U) -> EventBox<U> {
-        switch(self) {
+        switch self {
         case .just(let payload):
             return .just(fun(payload))
         case .error(let error):
@@ -94,9 +93,9 @@ extension EventBox {
             return .gone
         }
     }
-    
+
     public func apply<U>(_ fun: EventBox<(T) -> U>) -> EventBox<U> {
-        switch(fun) {
+        switch fun {
         case .just(let fun):
             return map(fun)
         case .error(let error):
@@ -107,14 +106,14 @@ extension EventBox {
             return .gone
         }
     }
-    
+
     public func value() -> T? {
         guard case let .just(val) = self else {
             return nil
         }
         return val
     }
-    
+
     public func error() -> EventError? {
         guard case let .error(val) = self else {
             return nil
@@ -135,14 +134,14 @@ public func >>- <T, U> (_ lhs: EventBox<T>, _ rhs: @escaping (T) -> EventBox<U>)
     return lhs.flatMap(rhs)
 }
 
-public final class ResultEvent : Event {
+public final class ResultEvent: Event {
     public func type() -> String { return "result" }
     public func time() -> TimePoint { return timePoint }
     public func assetId() -> String { return idAsset }
     public func workspaceId() -> String { return idWorkspace }
     public func workspaceToken() -> String? { return tokenWorkspace }
     public func info() -> EventInfo? { return eventInfo }
-    
+
     public init(time: TimePoint?, assetId: String?, workspaceId: String?, workspaceToken: String?) {
         self.timePoint = time ?? TimePoint(0, 1000)
         self.idAsset = assetId ?? ""
@@ -150,10 +149,9 @@ public final class ResultEvent : Event {
         self.tokenWorkspace = workspaceToken
         self.eventInfo = nil
     }
-    let timePoint : TimePoint
+    let timePoint: TimePoint
     let idAsset: String
     let idWorkspace: String
     let tokenWorkspace: String?
-    let eventInfo : EventInfo?
+    let eventInfo: EventInfo?
 }
-

@@ -17,7 +17,7 @@
 import Foundation
 
 public class Weak<T: AnyObject> {
-  public weak var value : T?
+  public weak var value: T?
   public var uuid: String?
   public init (value: T, uuid: String? = nil) {
     self.value = value
@@ -29,7 +29,7 @@ public func bridge<T: AnyObject>(_ obj: T) -> UnsafeMutableRawPointer {
     return Unmanaged.passUnretained(obj).toOpaque()
 }
 
-public func bridge<T : AnyObject>(from ptr: UnsafeMutableRawPointer) -> T {
+public func bridge<T: AnyObject>(from ptr: UnsafeMutableRawPointer) -> T {
     return Unmanaged<T>.fromOpaque(ptr).takeUnretainedValue()
 }
 

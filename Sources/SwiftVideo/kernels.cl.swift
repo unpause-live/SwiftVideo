@@ -14,10 +14,15 @@
    limitations under the License.
 */
 
+// swiftlint:disable file_length
+// swiftlint:disable identifier_name
+// swiftlint:disable line_length
+// swiftlint:disable type_body_length
+
 #if os(Linux) || (os(macOS) && GPGPU_OCL)
 import Foundation
 
-let kOpenCLKernelMatrixFuncs = 
+let kOpenCLKernelMatrixFuncs =
 """
 #define vecmat4(__vec__, __mat__) ((float4)(dot(__vec__, __mat__[0]), dot(__vec__, __mat__[1]), dot(__vec__, __mat__[2]), dot(__vec__, __mat__[3])))
 
@@ -37,7 +42,7 @@ inline void multmat4(float4 out[4], const float4 lhs[4], const float4 rhs[4]) {
 }
 """
 
-enum OpenCLKernel : String, CaseIterable {
+enum OpenCLKernel: String, CaseIterable {
     case img_clear_nv12 =
     """
     __kernel void img_clear_nv12(__write_only image2d_t out1,
@@ -60,7 +65,7 @@ enum OpenCLKernel : String, CaseIterable {
         float sampleTime;
         float targetTime;
     } ImageUniforms;
-    
+
     __constant sampler_t sampler = CLK_NORMALIZED_COORDS_TRUE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_LINEAR;
     __constant sampler_t curSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | CLK_FILTER_NEAREST;
     __kernel void img_nv12_nv12(__write_only image2d_t  outLuma,
@@ -94,7 +99,7 @@ enum OpenCLKernel : String, CaseIterable {
                         write_imagef(outChroma, gid/2, (curUV * (1.f - alpha) + chroma * alpha));
                     }
                     return;
-                } 
+                }
             }
             const float4 rgb2yuv[4] = { (float4)(0.299f, 0.587f, 0.113f, 0.f),
                  (float4)(-0.169f, -0.331f, 0.5f, 0.5f),
@@ -107,10 +112,10 @@ enum OpenCLKernel : String, CaseIterable {
                 write_imagef(outChroma, gid/2, clamp((curUV * (1.f - alpha) + fillColor.yzyz * alpha), -1.f, 1.f));
             }
         }
-        
+
     };
     """
-    case img_y420p_nv12 = 
+    case img_y420p_nv12 =
     """
     typedef struct {
         float4 transform[4];
@@ -159,7 +164,7 @@ enum OpenCLKernel : String, CaseIterable {
                         write_imagef(outChroma, gid/2, (curUV * (1.f - alpha) + (float4)(cb.x, cr.x, cb.x, cr.x) * alpha));
                     }
                     return;
-                } 
+                }
             }
             const float4 rgb2yuv[4] = { (float4)(0.299f, 0.587f, 0.113f, 0.f),
                  (float4)(-0.169f, -0.331f, 0.5f, 0.5f),
@@ -186,7 +191,7 @@ enum OpenCLKernel : String, CaseIterable {
         write_imagef(out3, gid/2, 0.5);
     }
     """
-    case img_y420p_y420p = 
+    case img_y420p_y420p =
     """
     typedef struct {
         float4 transform[4];
@@ -240,7 +245,7 @@ enum OpenCLKernel : String, CaseIterable {
                         write_imagef(outChromaV, gid/2, (curV * (1.f - alpha) + cr * alpha));
                     }
                     return;
-                } 
+                }
             }
             const float4 rgb2yuv[4] = { (float4)(0.299f, 0.587f, 0.113f, 0.f),
                  (float4)(-0.169f, -0.331f, 0.5f, 0.5f),
@@ -257,7 +262,7 @@ enum OpenCLKernel : String, CaseIterable {
     };
     """
 
-    case img_clear_bgra = 
+    case img_clear_bgra =
     """
     __kernel void img_clear_bgra(__read_write image2d_t out1) {
         int2 gid = (int2)(get_global_id(0), get_global_id(1));
@@ -326,7 +331,7 @@ enum OpenCLKernel : String, CaseIterable {
                     result.x = result.x * (1.f - alpha) + yuv.x * alpha;
                     result.y = result.y * (1.f - alpha) + yuv.y * alpha;
                     result.z = result.z * (1.f - alpha) + yuv.z * alpha;
-                } 
+                }
                 write_imagef(outLuma, gid, result.x);
                 if(handleChroma) {
                     write_imagef(outChromaU, gid/2, result.y);
@@ -394,7 +399,7 @@ enum OpenCLKernel : String, CaseIterable {
                     result.x = result.x * (1.f - alpha) + yuv.x * alpha;
                     result.y = result.y * (1.f - alpha) + yuv.y * alpha;
                     result.z = result.z * (1.f - alpha) + yuv.z * alpha;
-                } 
+                }
                 write_imagef(outLuma, gid, result.x);
                 if(handleChroma) {
                     write_imagef(outChromaU, gid/2, result.y);
@@ -459,7 +464,7 @@ enum OpenCLKernel : String, CaseIterable {
                     result.x = result.x * (1.f - alpha) + yuv.x * alpha;
                     result.y = result.y * (1.f - alpha) + yuv.y * alpha;
                     result.z = result.z * (1.f - alpha) + yuv.z * alpha;
-                } 
+                }
                 write_imagef(outLuma, gid, result.x);
                 if(handleChroma) {
                     write_imagef(outChroma, gid/2, result.yzyz);
@@ -524,7 +529,7 @@ enum OpenCLKernel : String, CaseIterable {
                     result.x = result.x * (1.f - alpha) + yuv.x * alpha;
                     result.y = result.y * (1.f - alpha) + yuv.y * alpha;
                     result.z = result.z * (1.f - alpha) + yuv.z * alpha;
-                } 
+                }
                 write_imagef(outLuma, gid, result.x);
                 if(handleChroma) {
                     write_imagef(outChroma, gid/2, result.yzyz);
@@ -534,7 +539,7 @@ enum OpenCLKernel : String, CaseIterable {
     };
     """
 
-    case snd_s16i_s16i = 
+    case snd_s16i_s16i =
     """
     typedef struct {
         int inputCount;

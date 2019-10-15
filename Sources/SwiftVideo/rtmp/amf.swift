@@ -18,8 +18,7 @@ import NIO
 import Foundation
 
 public enum amf {
-    public enum Amf0Type : UInt8
-    {
+    public enum Amf0Type: UInt8 {
         case number = 0
         case bool   = 0x1
         case string = 0x2
@@ -34,7 +33,7 @@ public enum amf {
         case typedObj   = 0x10
         case switchAmf3 = 0x11   // Switch to AMF 3
     }
-    
+
     public struct Atom {
         public init<T>(type: Amf0Type, value: T) {
             self.type = type
@@ -59,7 +58,7 @@ public enum amf {
         public init(_ value: [Atom]) {
             self.init(type: .strictArray, value: value)
         }
-        
+
         public init() {
             type = .null
             self.dict = nil
@@ -68,13 +67,13 @@ public enum amf {
             self.bool = nil
             self.array = nil
         }
-        let type : Amf0Type
+        let type: Amf0Type
         let dict: [String: Atom]?
         let array: [Atom]?
         let string: String?
         let number: Float64?
         let bool: Bool?
-        
+
     }
     public static func deserialize(_ buf: ByteBuffer?) -> (ByteBuffer?, [Atom]) {
         let current = detail.parse(buf)
@@ -84,7 +83,7 @@ public enum amf {
         let next = deserialize(current.0)
         return (next.0, [cur] + next.1)
     }
-    
+
     public static func serialize(_ val: [Atom]) throws -> ByteBuffer {
         let result = try val.reduce(nil) {
             try detail.write($1, buf: $0)
@@ -94,7 +93,7 @@ public enum amf {
         }
         return res
     }
-    public enum AmfError : Error {
+    public enum AmfError: Error {
         case invalidType
         case unsupportedType(Amf0Type)
         case unknownError
@@ -127,34 +126,34 @@ public enum amf {
             }
             return r
         }
-        
+
         static func writeString(_ val: String) -> ByteBuffer {
             if val.count < 0xFFFF {
-                let size : UInt16 = UInt16(val.count).byteSwapped
-                let bytes : [UInt8] = [Amf0Type.string.rawValue] + buffer.toByteArray(size) + val.utf8
+                let size: UInt16 = UInt16(val.count).byteSwapped
+                let bytes: [UInt8] = [Amf0Type.string.rawValue] + buffer.toByteArray(size) + val.utf8
                 return buffer.fromData(Data(bytes))
             } else {
-                let size : UInt32 = UInt32(val.count & Int(UInt32.max)).byteSwapped
-                let bytes : [UInt8] = [Amf0Type.longString.rawValue] + buffer.toByteArray(size) + val.utf8
+                let size: UInt32 = UInt32(val.count & Int(UInt32.max)).byteSwapped
+                let bytes: [UInt8] = [Amf0Type.longString.rawValue] + buffer.toByteArray(size) + val.utf8
                 return buffer.fromData(Data(bytes))
             }
         }
-        
+
         static func writeNumber(_ val: Float64) -> ByteBuffer {
-            let bytes : [UInt8] = [Amf0Type.number.rawValue] + buffer.toByteArray(val.bitPattern.byteSwapped)
+            let bytes: [UInt8] = [Amf0Type.number.rawValue] + buffer.toByteArray(val.bitPattern.byteSwapped)
             return buffer.fromData(Data(bytes))
         }
-        
+
         static func writeBool(_ val: Bool) -> ByteBuffer {
-            let bytes : [UInt8] = [Amf0Type.bool.rawValue] + [UInt8(val ? 1 : 0)]
+            let bytes: [UInt8] = [Amf0Type.bool.rawValue] + [UInt8(val ? 1 : 0)]
             return buffer.fromData(Data(bytes))
         }
-        
+
         static func writeNull() -> ByteBuffer {
-            let bytes : [UInt8] = [Amf0Type.null.rawValue]
+            let bytes: [UInt8] = [Amf0Type.null.rawValue]
             return buffer.fromData(Data(bytes))
         }
-        
+
         static func writeArray(_ val: [Atom]) throws -> ByteBuffer {
             let bytes = [Amf0Type.strictArray.rawValue] + buffer.toByteArray(UInt32(val.count).byteSwapped)
             let result = try val.reduce(buffer.fromData(Data(bytes))) {
@@ -162,18 +161,18 @@ public enum amf {
             }
             return result
         }
-        static func writeAssocArray(_ val: [String:Atom]) throws -> ByteBuffer {
+        static func writeAssocArray(_ val: [String: Atom]) throws -> ByteBuffer {
             let bytes = [Amf0Type.assocArray.rawValue] + buffer.toByteArray(UInt32(val.count).byteSwapped)
             return try writeObjImpl(val, bytes: bytes)
         }
-        static func writeObj(_ val: [String:Atom]) throws -> ByteBuffer {
+        static func writeObj(_ val: [String: Atom]) throws -> ByteBuffer {
             let bytes = [Amf0Type.object.rawValue]
             return try writeObjImpl(val, bytes: bytes)
         }
-        static func writeObjImpl(_ val: [String:Atom], bytes: [UInt8]) throws -> ByteBuffer {
+        static func writeObjImpl(_ val: [String: Atom], bytes: [UInt8]) throws -> ByteBuffer {
             let result = try val.reduce(buffer.fromData(Data(bytes))) {
-                let size : UInt16 = UInt16($1.0.count).byteSwapped
-                let bytes : [UInt8] = buffer.toByteArray(size) + $1.0.utf8
+                let size: UInt16 = UInt16($1.0.count).byteSwapped
+                let bytes: [UInt8] = buffer.toByteArray(size) + $1.0.utf8
                 let buf = buffer.concat($0, buffer.fromData(Data(bytes)))
                 return try write($1.1, buf: buf)
             }
@@ -209,7 +208,7 @@ public enum amf {
                 }
                 } <|> (buf, nil)
         }
-        
+
         static func getType(_ buf: ByteBuffer?) -> (ByteBuffer?, Amf0Type?) {
             let data = buf.map { buffer.readBytes($0, length: 1) }
             guard let type = data?.1 else {
@@ -217,13 +216,13 @@ public enum amf {
             }
             return (data?.0, type.first <??> { Amf0Type(rawValue: $0) } <|> nil )
         }
-        
+
         static func readObject(_ buf: ByteBuffer?) -> (ByteBuffer?, Atom?) {
-            let result = readObjectImpl(buf, [String:Atom]())
+            let result = readObjectImpl(buf, [String: Atom]())
             return (result.0, Atom(result.1))
         }
-        
-        static func readObjectImpl(_ buf: ByteBuffer?, _ result: [String:Atom]) -> (ByteBuffer?, [String:Atom]) {
+
+        static func readObjectImpl(_ buf: ByteBuffer?, _ result: [String: Atom]) -> (ByteBuffer?, [String: Atom]) {
             let (buf, maybeName) = readString(buf)
             guard let name = maybeName?.string else {
                 return (buf, result)
@@ -233,10 +232,10 @@ public enum amf {
                 return (buf, result)
             } else {
                 let (buf, value) = parse(buf)
-                return readObjectImpl(buf, value <??> { [name:$0].merging(result) { _, s in s }} <|> result)
+                return readObjectImpl(buf, value <??> { [name: $0].merging(result) { _, s in s }} <|> result)
             }
         }
-        
+
         static func readAssocArray(_ buf: ByteBuffer?) -> (ByteBuffer?, Atom?) {
             let (buf, size) = (buf <??> { buffer.readBytes($0, length: MemoryLayout<Int32>.size) } <|> (buf, nil))
             guard size != nil else {
@@ -244,7 +243,7 @@ public enum amf {
             }
             return readObject(buf)
         }
-        
+
         static func readStrictArray(_ buf: ByteBuffer?) -> (ByteBuffer?, Atom?) {
             let (pBuf, size): (ByteBuffer?, UInt32?) = readInt(buf)
             guard let sz = size else {
@@ -253,7 +252,7 @@ public enum amf {
             let result = readStrictArrayImpl(pBuf, Int(sz), [Atom]())
             return (result.0, Atom(result.1))
         }
-        
+
         static func readStrictArrayImpl(_ buf: ByteBuffer?, _ count: Int, _ result: [Atom]) -> (ByteBuffer?, [Atom]) {
             let (buf, value) = parse(buf)
             if (count - 1) == 0 {
@@ -262,7 +261,7 @@ public enum amf {
                 return readStrictArrayImpl(buf, count - 1, value <??> { result + [$0] } <|> result)
             }
         }
-        
+
         static func readNumber(_ buf: ByteBuffer?) -> (ByteBuffer?, Atom?) {
             let data = buf.map { buffer.readBytes($0, length: MemoryLayout<Float64>.size) }
             guard let bytes = data?.1 else {
@@ -272,7 +271,7 @@ public enum amf {
             let f64 = Float64(bitPattern: u64)
             return (data?.0, Atom(f64))
         }
-        
+
         static func readString(_ buf: ByteBuffer?, isLong: Bool = false) -> (ByteBuffer?, Atom?) {
             if isLong {
                 let (pBuf, len) = readInt(buf, as: UInt32.self)
@@ -282,7 +281,7 @@ public enum amf {
                 return len <??> { readString(pBuf, length: $0) } <|> (pBuf, nil)
             }
         }
-        
+
         static func readString<T>(_ buf: ByteBuffer?, length: T) -> (ByteBuffer?, Atom?) where T: FixedWidthInteger {
             let data = buf.map { buffer.readBytes($0, length: Int(length)) }
             guard let bytes = data?.1 else {
@@ -290,7 +289,7 @@ public enum amf {
             }
             return (data?.0, String(bytes: bytes, encoding: .utf8) <??> { Atom($0) } <|> nil)
         }
-        
+
         static func readInt<T>(_ buf: ByteBuffer?, as: T.Type = T.self) -> (ByteBuffer?, T?) where T: FixedWidthInteger {
             let data = buf.map { buffer.readBytes($0, length: MemoryLayout<T>.size) }
             guard let bytes = data?.1 else {
@@ -298,7 +297,7 @@ public enum amf {
             }
             return (data?.0, UnsafeRawPointer(bytes).load(as: T.self).byteSwapped)
         }
-        
+
         static func readBool(_ buf: ByteBuffer?) -> (ByteBuffer?, Atom?) {
             let data = buf.map { buffer.readBytes($0, length: 1) }
             guard let bytes = data?.1 else {

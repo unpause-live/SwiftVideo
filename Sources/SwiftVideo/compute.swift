@@ -17,7 +17,7 @@
 import VectorMath
 import Foundation
 
-enum ComputeError : Error {
+enum ComputeError: Error {
     case invalidPlatform
     case invalidDevice
     case invalidOperation
@@ -64,22 +64,21 @@ enum ComputeKernel {
 
     // motion estimation
     case me_fullsearch
-    
 
     // user-defined
     case custom(name: String)
 }
 
 struct ImageUniforms {
-    let transform : Matrix4
-    let textureTransform : Matrix4
+    let transform: Matrix4
+    let textureTransform: Matrix4
     let borderMatrix: Matrix4
     let fillColor: Vector4
-    let inputSize : Vector2
-    let outputSize : Vector2
-    let opacity : Float
-    let imageTime : Float
-    let targetTime : Float
+    let inputSize: Vector2
+    let outputSize: Vector2
+    let opacity: Float
+    let imageTime: Float
+    let targetTime: Float
 }
 
 // Find a default compute kernel
@@ -120,7 +119,7 @@ func defaultComputeKernelFromString(_ str: String) throws -> ComputeKernel {
 }
 
 public func hasAvailableComputeDevices(forType search: ComputeDeviceType) -> Bool {
-    let devices = availableComputeDevices().filter { 
+    let devices = availableComputeDevices().filter {
         guard let type = $0.deviceType, type == search && $0.available else {
             return false
         }
@@ -194,8 +193,6 @@ public class GPUBarrierAudioUpload: Tx<AudioSample, AudioSample> {
     let context: ComputeContext?
     var peak: Double
 }*/
-
-
 
 //
 //  Place in a pipeline to download textures from the GPU

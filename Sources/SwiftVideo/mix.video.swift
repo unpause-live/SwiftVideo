@@ -18,7 +18,7 @@ import Dispatch
 import Foundation
 import VectorMath
 
-public class VideoMixer : Source<PictureSample> {
+public class VideoMixer: Source<PictureSample> {
     public init(_ clock: Clock,
                 workspaceId: String,
                 frameDuration: TimePoint,
@@ -41,7 +41,7 @@ public class VideoMixer : Source<PictureSample> {
 
         self.clock = clock
         self.result = .nothing(nil)
-        self.samples = Array<[String:PictureSample]>(repeating: [String:PictureSample](), count: 2)
+        self.samples = Array<[String: PictureSample]>(repeating: [String: PictureSample](), count: 2)
         self.frameDuration = frameDuration
         let now = clock.current()
         self.epoch = rescale(epoch.map { clock.fromUnixTime($0) } ?? now, frameDuration.scale)
@@ -69,15 +69,15 @@ public class VideoMixer : Source<PictureSample> {
             } else {
                 return .just(pic)
             }
-            
+
         }
         clock.schedule(now + frameDuration) { [weak self] in self?.mix(at: $0) }
     }
-    
+
     public func assetId() -> String {
         return idAsset
     }
-    
+
     public func workspaceId() -> String {
         return idWorkspace
     }
@@ -85,7 +85,7 @@ public class VideoMixer : Source<PictureSample> {
     public func computeContext() -> ComputeContext? {
         return self.clContext
     }
-    
+
     deinit {
         if let context = self.clContext {
             do {
@@ -94,8 +94,8 @@ public class VideoMixer : Source<PictureSample> {
             self.clContext = nil
         }
     }
-    
-    func mix(at : ClockTickEvent) {
+
+    func mix(at: ClockTickEvent) {
         let next = at.time() + frameDuration
         let pts = at.time() - epoch
         clock.schedule(next) { [weak self] in self?.mix(at: $0) }
@@ -106,7 +106,7 @@ public class VideoMixer : Source<PictureSample> {
             guard var ctx = strongSelf.clContext else {
                 return
             }
-            var result : EventBox<PictureSample> = .nothing(nil)
+            var result: EventBox<PictureSample> = .nothing(nil)
             do {
                 strongSelf.statsReport.endTimer("mix.video.delta")
                 strongSelf.statsReport.startTimer("mix.video.delta")
@@ -117,7 +117,7 @@ public class VideoMixer : Source<PictureSample> {
                 // clear the target image
                 ctx = try runComputeKernel(ctx, images: [PictureSample](), target: backing, kernel: clearKernel)
                 // sort images by z-index so lowest is drawn first
-                let images = strongSelf.samples.reduce([String:PictureSample]()) { acc, next in
+                let images = strongSelf.samples.reduce([String: PictureSample]()) { acc, next in
                         acc.merging(next) { lhs, _ in lhs }
                     }.values.sorted { $0.zIndex() < $1.zIndex() }
                 strongSelf.samples[1] = strongSelf.samples[0]
@@ -128,7 +128,7 @@ public class VideoMixer : Source<PictureSample> {
                 }
                 // end compositing and wait for kernels to complete running
                 ctx = endComputePass(ctx, true)
-                
+
                 strongSelf.clContext = ctx
                 strongSelf.statsReport.endTimer("mix.video.compose")
                 let sample = PictureSample(backing, pts: pts, time: at.time(), eventInfo: strongSelf.statsReport)
@@ -139,17 +139,17 @@ public class VideoMixer : Source<PictureSample> {
                 result = .error(EventError("mix.video", -2, "Compute error \(error)", at.time(), assetId: strongSelf.idAsset))
             }
             strongSelf.result = result
-            
+
         }
     }
-    
+
     private func findKernel(_ image: PictureSample?, _ target: PictureSample) throws -> ComputeKernel {
-        let inp = image <??> { String(describing:$0.pixelFormat()).lowercased() } <|> "clear"
-        let outp = String(describing:target.pixelFormat()).lowercased()
+        let inp = image <??> { String(describing: $0.pixelFormat()).lowercased() } <|> "clear"
+        let outp = String(describing: target.pixelFormat()).lowercased()
         //print("findKernel img_\(inp)_\(outp)")
         return try defaultComputeKernelFromString("img_\(inp)_\(outp)")
     }
-    
+
     private func getBacking() throws -> PictureSample {
         guard let ctx = clContext else {
             throw ComputeError.badContextState(description: "No context")
@@ -171,18 +171,18 @@ public class VideoMixer : Source<PictureSample> {
     private let numberBackingImages = 10
     private let statsReport: StatsReport
 
-    private var backing : [PictureSample]
+    private var backing: [PictureSample]
     private var currentBacking = 0
-    private let backingFormat : PixelFormat
+    private let backingFormat: PixelFormat
     private let backingSize: Vector2
-    
-    public let frameDuration : TimePoint
-    private let clock : Clock
-    private let epoch : TimePoint
-    internal let queue : DispatchQueue
-    private var clContext : ComputeContext?
-    private var result : EventBox<PictureSample>
-    private var samples : [[String: PictureSample]]
+
+    public let frameDuration: TimePoint
+    private let clock: Clock
+    private let epoch: TimePoint
+    internal let queue: DispatchQueue
+    private var clContext: ComputeContext?
+    private var result: EventBox<PictureSample>
+    private var samples: [[String: PictureSample]]
    // private var pts : TimePoint
     private let idAsset: String
     private let idWorkspace: String
