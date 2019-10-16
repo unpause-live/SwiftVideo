@@ -40,20 +40,29 @@ public class FFmpegAudioDecoder: Tx<CodedMediaSample, AudioSample> {
     }
     private func handle(_ sample: CodedMediaSample) -> EventBox<AudioSample> {
         guard sample.mediaType() == .audio else {
-            return .error(EventError("dec.sound.ffmpeg", -1, "Only audio samples are supported", assetId: sample.assetId()))
+            return .error(EventError("dec.sound.ffmpeg",
+                                     -1,
+                                     "Only audio samples are supported",
+                                     assetId: sample.assetId()))
         }
         if self.codecContext == nil {
             do {
                 try setupContext(sample)
-            } catch (let err) {
-                return .error(EventError("dec.sound.ffmpeg", -2, "Error creating codec context \(err)", assetId: sample.assetId()))
+            } catch let err {
+                return .error(EventError("dec.sound.ffmpeg",
+                                         -2,
+                                         "Error creating codec context \(err)",
+                                         assetId: sample.assetId()))
             }
         }
         do {
             return try decode(sample)
-        } catch(let error) {
+        } catch let error {
             print("decode error \(error)")
-            return .error(EventError("dec.sound.ffmpeg", -3, "Error decoding bitstream \(error)", assetId: sample.assetId()))
+            return .error(EventError("dec.sound.ffmpeg",
+                                     -3,
+                                     "Error decoding bitstream \(error)",
+                                     assetId: sample.assetId()))
         }
     }
 
@@ -87,7 +96,7 @@ public class FFmpegAudioDecoder: Tx<CodedMediaSample, AudioSample> {
         packet.pts = pts.value
         packet.dts = dts.value
 
-        if(packet.size > 0) {
+        if packet.size > 0 {
             try codecCtx.sendPacket(packet)
             do {
                 let frame = AVFrame()
@@ -97,21 +106,21 @@ public class FFmpegAudioDecoder: Tx<CodedMediaSample, AudioSample> {
                 let sampleCt = frame.sampleCount
                 let sampleRate = codecCtx.sampleRate
                 let (format, bytesPerSample) = { () -> (AudioFormat, Int) in
-                    switch(frame.sampleFormat) {
-                        case .s16:
-                            return (.s16i, codecCtx.sampleFormat.bytesPerSample * channelCt)
-                        case .s16p:
-                            return (.s16p, codecCtx.sampleFormat.bytesPerSample)
-                        case .flt:
-                            return (.f32i, codecCtx.sampleFormat.bytesPerSample * channelCt)
-                        case .fltp:
-                            return (.f32p, codecCtx.sampleFormat.bytesPerSample)
-                        case .dbl:
-                            return (.f64i, codecCtx.sampleFormat.bytesPerSample * channelCt)
-                        case .dblp:
-                            return (.f64p, codecCtx.sampleFormat.bytesPerSample)
-                        default:
-                            return (.invalid, 0)
+                    switch frame.sampleFormat {
+                    case .s16:
+                        return (.s16i, codecCtx.sampleFormat.bytesPerSample * channelCt)
+                    case .s16p:
+                        return (.s16p, codecCtx.sampleFormat.bytesPerSample)
+                    case .flt:
+                        return (.f32i, codecCtx.sampleFormat.bytesPerSample * channelCt)
+                    case .fltp:
+                        return (.f32p, codecCtx.sampleFormat.bytesPerSample)
+                    case .dbl:
+                        return (.f64i, codecCtx.sampleFormat.bytesPerSample * channelCt)
+                    case .dblp:
+                        return (.f64p, codecCtx.sampleFormat.bytesPerSample)
+                    default:
+                        return (.invalid, 0)
                     }
                 }()
                 let data = (0..<channelCt).compactMap { idx -> Data? in
@@ -149,11 +158,11 @@ public class FFmpegAudioDecoder: Tx<CodedMediaSample, AudioSample> {
 
     private func setupContext(_ sample: CodedMediaSample) throws {
         self.codec = {
-                switch sample.mediaFormat() {
-                    case .aac: return AVCodec.findDecoderByName("libfdk_aac")
-                    case .opus: return AVCodec.findDecoderByName("libopus")
-                    default: return nil
-                } }()
+            switch sample.mediaFormat() {
+            case .aac: return AVCodec.findDecoderByName("libfdk_aac")
+            case .opus: return AVCodec.findDecoderByName("libopus")
+            default: return nil
+            } }()
         if let codec = self.codec {
             let ctx = AVCodecContext(codec: codec)
             self.codecContext = ctx
@@ -163,7 +172,8 @@ public class FFmpegAudioDecoder: Tx<CodedMediaSample, AudioSample> {
         if let context = self.codecContext {
             if let sideData = sample.sideData()["config"],
                let mem =  AVIO.malloc(size: sideData.count + AVConstant.inputBufferPaddingSize) {
-                    let memBuf = UnsafeMutableRawBufferPointer(start: mem, count: sideData.count + AVConstant.inputBufferPaddingSize)
+                    let memBuf = UnsafeMutableRawBufferPointer(start: mem,
+                                                        count: sideData.count + AVConstant.inputBufferPaddingSize)
                     _ = memBuf.baseAddress.map {
                         sideData.copyBytes(to: $0.assumingMemoryBound(to: UInt8.self), count: sideData.count)
                         context.extradata = $0.assumingMemoryBound(to: UInt8.self)

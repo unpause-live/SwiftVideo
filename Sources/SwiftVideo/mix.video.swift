@@ -41,7 +41,7 @@ public class VideoMixer: Source<PictureSample> {
 
         self.clock = clock
         self.result = .nothing(nil)
-        self.samples = Array<[String: PictureSample]>(repeating: [String: PictureSample](), count: 2)
+        self.samples = Array(repeating: [String: PictureSample](), count: 2)
         self.frameDuration = frameDuration
         let now = clock.current()
         self.epoch = rescale(epoch.map { clock.fromUnixTime($0) } ?? now, frameDuration.scale)
@@ -59,7 +59,9 @@ public class VideoMixer: Source<PictureSample> {
                 return .gone
             }
             guard strongSelf.clContext != nil else {
-                return .error(EventError("mix.video", -1, "No Compute Context", pic.time(), assetId: strongSelf.idAsset))
+                return .error(EventError("mix.video", -1, "No Compute Context",
+                                         pic.time(),
+                                         assetId: strongSelf.idAsset))
             }
             if pic.assetId() != strongSelf.assetId() {
                 strongSelf.queue.async { [weak self] in
@@ -124,19 +126,27 @@ public class VideoMixer: Source<PictureSample> {
                 strongSelf.samples[0].removeAll(keepingCapacity: true)
                 // draw images
                 try images.forEach {
-                    ctx = try applyComputeImage(ctx, image: $0, target: backing, kernel: strongSelf.findKernel($0, backing))
+                    ctx = try applyComputeImage(ctx,
+                                                image: $0,
+                                                target: backing,
+                                                kernel: strongSelf.findKernel($0, backing))
                 }
                 // end compositing and wait for kernels to complete running
                 ctx = endComputePass(ctx, true)
 
                 strongSelf.clContext = ctx
                 strongSelf.statsReport.endTimer("mix.video.compose")
-                let sample = PictureSample(backing, pts: pts, time: at.time(), eventInfo: strongSelf.statsReport)
+                let sample = PictureSample(backing,
+                                           pts: pts,
+                                           time: at.time(),
+                                           eventInfo: strongSelf.statsReport)
                 _ = strongSelf.emit(sample)
                 result = .nothing(strongSelf.statsReport)
-            } catch (let error) {
+            } catch let error {
                 print("[mix] caught error \(String(describing: error))")
-                result = .error(EventError("mix.video", -2, "Compute error \(error)", at.time(), assetId: strongSelf.idAsset))
+                result = .error(EventError("mix.video", -2, "Compute error \(error)",
+                                           at.time(),
+                                           assetId: strongSelf.idAsset))
             }
             strongSelf.result = result
 
@@ -146,7 +156,6 @@ public class VideoMixer: Source<PictureSample> {
     private func findKernel(_ image: PictureSample?, _ target: PictureSample) throws -> ComputeKernel {
         let inp = image <??> { String(describing: $0.pixelFormat()).lowercased() } <|> "clear"
         let outp = String(describing: target.pixelFormat()).lowercased()
-        //print("findKernel img_\(inp)_\(outp)")
         return try defaultComputeKernelFromString("img_\(inp)_\(outp)")
     }
 

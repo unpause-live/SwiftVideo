@@ -141,8 +141,8 @@ public class AudioMixer: Source<AudioSample> {
             // and filtering samples that occurred in the past
             var covered = (mixTimestamp + self.frameDuration, mixTimestamp)
             let unusedSamples = queuedSamples.filter { work in
-                let workDuration = rescale(TimePoint(Int64(work.numberSamples()), 
-                                                     Int64(work.sampleRate())), 
+                let workDuration = rescale(TimePoint(Int64(work.numberSamples()),
+                                                     Int64(work.sampleRate())),
                                            work.pts().scale)
                 // Normalize the sample PTS to match the mixer's time frame, plus some delay.
                 let normalizedPts = work.pts() + offset + self.delay
@@ -154,7 +154,7 @@ public class AudioMixer: Source<AudioSample> {
                     let gains = self.channelGains(self.samplePosition(work))
                     let ptsDelta = normalizedPts - mixTimestamp
                     let offsetSamples = rescale(ptsDelta, Int64(self.sampleRate)).value
-                    let inputOffsetSamples = 
+                    let inputOffsetSamples =
                         Int(ptsDelta.value < 0 ? TimePoint(abs(ptsDelta.value), Int64(work.sampleRate())).value : 0) *
                                                         bytesPerSample(work.format(), work.numberChannels())
                     let offset = max(Int(offsetSamples) * bytesPerSample(self.outputFormat, self.channelCount), 0)
@@ -171,11 +171,11 @@ public class AudioMixer: Source<AudioSample> {
                                 backingStartOffset: offset,
                                 inputStartOffset: inputOffsetSamples)
                     }
-                    covered = (clamp(normalizedPts, 
-                                     mixTimestamp, 
-                                     covered.0), 
-                               clamp(covered.1, 
-                                     normalizedEndTs, 
+                    covered = (clamp(normalizedPts,
+                                     mixTimestamp,
+                                     covered.0),
+                               clamp(covered.1,
+                                     normalizedEndTs,
                                      mixEndTimestamp))
                     return true
                     // Else, if the normalized end timestamp is greater than the start of this window period,
@@ -198,10 +198,10 @@ public class AudioMixer: Source<AudioSample> {
                 }
                 constituents.append(constituent)
             }
-            if ((covered.0 > covered.1) || 
-                (covered.1 != mixEndTimestamp)) && 
+            if ((covered.0 > covered.1) ||
+                (covered.1 != mixEndTimestamp)) &&
                 unusedSamples.count != queuedSamples.count {
-                let underrunDuration = max(TimePoint(0, 1000), covered.0 - mixTimestamp) + 
+                let underrunDuration = max(TimePoint(0, 1000), covered.0 - mixTimestamp) +
                                        max(TimePoint(0, 1000), mixEndTimestamp - covered.1)
                 self.statsReport.addSample("mix.audio.underrun", underrunDuration)
                 self.discontinuity(assetId)
@@ -257,10 +257,10 @@ public class AudioMixer: Source<AudioSample> {
         return gains
     }
 
-    private func applyMixS16(_ input: Data, 
-                             gain: [Float], 
-                             backing: inout Data, 
-                             backingStartOffset: Int, 
+    private func applyMixS16(_ input: Data,
+                             gain: [Float],
+                             backing: inout Data,
+                             backingStartOffset: Int,
                              inputStartOffset: Int) -> Int {
         guard inputStartOffset >= 0 &&
               inputStartOffset < input.count &&
@@ -283,8 +283,8 @@ public class AudioMixer: Source<AudioSample> {
                 let channelCount = gain.count
                 for i in 0..<(numberBytes/2) {
                     let channel = i % channelCount
-                    let value = Int64(Float(inptr[i + 
-                                (inputStartOffset/2)]) * gain[channel]) + 
+                    let value = Int64(Float(inptr[i +
+                                (inputStartOffset/2)]) * gain[channel]) +
                                 Int64(ptr[i + (backingStartOffset/2)])
                     ptr[i + (backingStartOffset/2)] = Int16(max(Int64(Int16.min), min(Int64(Int16.max), value)))
                 }

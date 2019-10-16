@@ -14,7 +14,10 @@ public class AppleAudioDecoder: Tx<CodedMediaSample, AudioSample> {
                 return .gone
             }
             guard sample.mediaType() == .audio else {
-                return .error(EventError("dec.sound.apple", -1, "Only audio samples are supported", assetId: sample.assetId()))
+                return .error(EventError("dec.sound.apple",
+                                         -1,
+                                         "Only audio samples are supported",
+                                         assetId: sample.assetId()))
             }
             strongSelf.configure(sample)
             return strongSelf.handle(sample)
@@ -42,16 +45,21 @@ public class AppleAudioDecoder: Tx<CodedMediaSample, AudioSample> {
                                         bufferSize: $0.count,
                                         channelCount: asbd.mChannelsPerFrame,
                                         packetDesc: [AudioStreamPacketDescription(mStartOffset: 0,
-                                                                                  mVariableFramesInPacket: 0,
-                                                                                  mDataByteSize: UInt32(sample.data().count))])
+                                                        mVariableFramesInPacket: 0,
+                                                        mDataByteSize: UInt32(sample.data().count))])
                 var packetSize = UInt32(self.samplesPerPacket)
                 let audioBufferList = AudioBufferList.allocate(maximumBuffers: Int(asbd.mChannelsPerFrame))
                 for i in 0..<Int(asbd.mChannelsPerFrame) {
                     audioBufferList[i] = AudioBuffer(mNumberChannels: 1,
-                                                     mDataByteSize: UInt32(dataLength/Int(asbd.mChannelsPerFrame)),
-                                                     mData: baseAddress+(i*self.samplesPerPacket*Int(asbd.mBytesPerPacket)))
+                                                 mDataByteSize: UInt32(dataLength/Int(asbd.mChannelsPerFrame)),
+                                                 mData: baseAddress+(i*self.samplesPerPacket*Int(asbd.mBytesPerPacket)))
                 }
-                return AudioConverterFillComplexBuffer(converter, ioProc, &packet, &packetSize, audioBufferList.unsafeMutablePointer, nil)
+                return AudioConverterFillComplexBuffer(converter,
+                                                       ioProc,
+                                                       &packet,
+                                                       &packetSize,
+                                                       audioBufferList.unsafeMutablePointer,
+                                                       nil)
             }
         }
         if result == noErr {
@@ -97,14 +105,16 @@ public class AppleAudioDecoder: Tx<CodedMediaSample, AudioSample> {
                                                              mBitsPerChannel: 0,
                                                              mReserved: 0)
                     var asbdOut = AudioStreamBasicDescription(mSampleRate: Float64(desc.sampleRate),
-                                                              mFormatID: kAudioFormatLinearPCM,
-                                                              mFormatFlags: kAudioFormatFlagIsPacked | kAudioFormatFlagIsFloat | kAudioFormatFlagIsNonInterleaved,
-                                                              mBytesPerPacket: 4,
-                                                              mFramesPerPacket: 1,
-                                                              mBytesPerFrame: 4,
-                                                              mChannelsPerFrame: UInt32(desc.channelCount),
-                                                              mBitsPerChannel: 32,
-                                                              mReserved: 0)
+                                      mFormatID: kAudioFormatLinearPCM,
+                                      mFormatFlags: kAudioFormatFlagIsPacked |
+                                                    kAudioFormatFlagIsFloat |
+                                                    kAudioFormatFlagIsNonInterleaved,
+                                      mBytesPerPacket: 4,
+                                      mFramesPerPacket: 1,
+                                      mBytesPerFrame: 4,
+                                      mChannelsPerFrame: UInt32(desc.channelCount),
+                                      mBitsPerChannel: 32,
+                                      mReserved: 0)
                     self.asbdOut = asbdOut
                     var requiredCodecs = AudioClassDescription(mType: kAudioDecoderComponentType,
                                                                mSubType: kAudioFormatMPEG4AAC,
@@ -136,10 +146,10 @@ private struct PacketData {
 }
 
 private func ioProc(_ converter: AudioConverterRef,
-                   _ ioNumDataPackets: UnsafeMutablePointer<UInt32>,
-                   _ ioData: UnsafeMutablePointer<AudioBufferList>,
-                   _ ioPacketDesc: UnsafeMutablePointer<UnsafeMutablePointer<AudioStreamPacketDescription>?>?,
-                   _ inUserData: UnsafeMutableRawPointer?) -> OSStatus {
+                    _ ioNumDataPackets: UnsafeMutablePointer<UInt32>,
+                    _ ioData: UnsafeMutablePointer<AudioBufferList>,
+                    _ ioPacketDesc: UnsafeMutablePointer<UnsafeMutablePointer<AudioStreamPacketDescription>?>?,
+                    _ inUserData: UnsafeMutableRawPointer?) -> OSStatus {
     guard let userData = inUserData else {
         ioNumDataPackets.pointee = 0
         return -1

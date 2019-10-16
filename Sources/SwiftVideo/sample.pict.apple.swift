@@ -28,7 +28,7 @@ public struct ImageBuffer {
             let planeCount = CVPixelBufferGetPlaneCount(pixelBuffer)
 
             self.planes = ((0..<planeCount) as CountableRange).map { idx in
-                let size = Vector2(Float(CVPixelBufferGetWidthOfPlane(pixelBuffer, idx)), 
+                let size = Vector2(Float(CVPixelBufferGetWidthOfPlane(pixelBuffer, idx)),
                                    Float(CVPixelBufferGetHeightOfPlane(pixelBuffer, idx)))
                 let stride = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, idx)
                 return  Plane(size: size, stride: stride, bitDepth: 8, components: componentsForPlane(pixelFormat, idx))
@@ -36,9 +36,9 @@ public struct ImageBuffer {
         } else {
             let size = Vector2(Float(CVPixelBufferGetWidth(pixelBuffer)), Float(CVPixelBufferGetHeight(pixelBuffer)))
             let stride = CVPixelBufferGetBytesPerRow(pixelBuffer)
-            self.planes = [Plane(size: size, 
-                                 stride: stride, 
-                                 bitDepth: 8, 
+            self.planes = [Plane(size: size,
+                                 stride: stride,
+                                 bitDepth: 8,
                                  components: componentsForPlane(pixelFormat, 0))]
         }
     }
@@ -132,7 +132,7 @@ public struct ImageBuffer {
 }
 
 extension ImageBuffer {
-    public func withUnsafeMutableRawPointer<T>(forPlane plane: Int, 
+    public func withUnsafeMutableRawPointer<T>(forPlane plane: Int,
                                                fn: (UnsafeMutableRawPointer?) throws -> T) rethrows -> T {
         let ptr = CVPixelBufferIsPlanar(self.pixelBuffer) ?
                         CVPixelBufferGetBaseAddressOfPlane(self.pixelBuffer, plane) :

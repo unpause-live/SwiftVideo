@@ -22,9 +22,9 @@ import BrightFutures
 
 public class Flavor {
     public init(_ clock: Clock, onEnded: @escaping LiveOnEnded,
-            onConnection: @escaping (String) -> Void,
-            formatQuery: @escaping (String, String?) -> [MediaFormat]?,
-            onStreamEstablished: @escaping LiveOnConnection) {
+                onConnection: @escaping (String) -> Void,
+                formatQuery: @escaping (String, String?) -> [MediaFormat]?,
+                onStreamEstablished: @escaping LiveOnConnection) {
         self.clock = clock
         self.sessions = [String: FlavorSession]()
         self.fnConnection = onConnection
@@ -128,7 +128,8 @@ public class Flavor {
                 if response == 0 {
                     // make a publisher
                     if let session = self?.sessions[sessionId] {
-                        let parts = token.split(separator: "/") // We know this has 2 parts because it will have been verified by sendPush
+                        // We know this has 2 parts because it will have been verified by sendPush
+                        let parts = token.split(separator: "/")
                         session.makePublisher(UUID().uuidString, String(parts[0]), workspaceToken: String(parts[1]))
                     }
                 } else {
@@ -150,7 +151,8 @@ public class Flavor {
                 if response == 0 {
                     // make a subscriber
                     if let session = self?.sessions[sessionId] {
-                        let parts = token.split(separator: "/") // We know this has 3 parts because it will have been verified by sendPull
+                        // We know this has 3 parts because it will have been verified by sendPull
+                        let parts = token.split(separator: "/")
                         session.makeSubscriber(String(parts[2]), String(parts[0]), workspaceToken: String(parts[1]))
                     }
                 } else {
@@ -212,13 +214,13 @@ private class FlavorSession {
     typealias RpcHandler = (Int32, Int32, String?, FlavorAtom?) -> Void
 
     fileprivate init(_ clock: Clock,
-        conn: Connection,
-        dialedOut: Bool,
-        sessionId: String? = nil,
-        formatQuery: @escaping (String, String?) -> [MediaFormat]?,
-        onEnded: @escaping LiveOnEnded,
-        onStreamEstablished: @escaping LiveOnConnection,
-        onConnection: @escaping (Bool) -> Void) {
+                     conn: Connection,
+                     dialedOut: Bool,
+                     sessionId: String? = nil,
+                     formatQuery: @escaping (String, String?) -> [MediaFormat]?,
+                     onEnded: @escaping LiveOnEnded,
+                     onStreamEstablished: @escaping LiveOnConnection,
+                     onConnection: @escaping (Bool) -> Void) {
         self.fnStreamEstablished = onStreamEstablished
         self.fnStreamEnded = onEnded
         self.fnFormatQuery = formatQuery
@@ -292,7 +294,8 @@ private class FlavorSession {
     func sendPush(_ token: String, handler: RpcHandler? = nil) throws {
         let callId = self.rpcCallId
         self.rpcCallId = self.rpcCallId &+ 1
-        let maxSession: Int32 = zip(self.publishSessions.keys, self.subscribeSessions.keys).reduce(Int32(0)) { max($0, $1.0) }
+        let maxSession: Int32 = zip(self.publishSessions.keys, self.subscribeSessions.keys)
+            .reduce(Int32(0)) { max($0, $1.0) }
         let streamId = (maxSession + 1)
         let child = try flavor.BasicAtom(.list([
             try flavor.BasicAtom(.in32(streamId), .in32),
@@ -311,7 +314,8 @@ private class FlavorSession {
     func sendPull(_ token: String, handler: RpcHandler? = nil) throws {
         let callId = self.rpcCallId
         self.rpcCallId = self.rpcCallId &+ 1
-        let maxSession: Int32 = zip(self.publishSessions.keys, self.subscribeSessions.keys).reduce(Int32(0)) { max($0, $1.0) }
+        let maxSession: Int32 = zip(self.publishSessions.keys, self.subscribeSessions.keys)
+            .reduce(Int32(0)) { max($0, $1.0) }
         let streamId = (maxSession + 1)
         let child = try flavor.BasicAtom(.list([
             try flavor.BasicAtom(.in32(streamId), .in32),
@@ -344,12 +348,12 @@ private class FlavorSession {
     }
 
     func writeTrakAtom(_ codec: flavor.FourCC,
-                        _ streamId: Int32,
-                        _ trackId: Int32,
-                        _ scale: Int64,
-                        _ usesDts: Bool,
-                        extradata: Data? = nil,
-                        handler: RpcHandler? = nil) throws -> Int32 {
+                       _ streamId: Int32,
+                       _ trackId: Int32,
+                       _ scale: Int64,
+                       _ usesDts: Bool,
+                       extradata: Data? = nil,
+                       handler: RpcHandler? = nil) throws -> Int32 {
 
         let callId = self.rpcCallId
         self.rpcCallId = self.rpcCallId &+ 1
@@ -373,13 +377,14 @@ private class FlavorSession {
         _ = .just(event) >>- tx
     }
 
-    func makePublisher( _ assetId: String,
-            _ workspaceId: String,
-            workspaceToken: String? = nil,
-            callId: Int32? = nil,
-            streamId: Int32? = nil,
-            formats: [MediaFormat] = [MediaFormat]()) {
-        let maxSession: Int32 = zip(self.publishSessions.keys, self.subscribeSessions.keys).reduce(Int32(0)) { max($0, $1.0) }
+    func makePublisher(_ assetId: String,
+                       _ workspaceId: String,
+                       workspaceToken: String? = nil,
+                       callId: Int32? = nil,
+                       streamId: Int32? = nil,
+                       formats: [MediaFormat] = [MediaFormat]()) {
+        let maxSession: Int32 = zip(self.publishSessions.keys, self.subscribeSessions.keys)
+            .reduce(Int32(0)) { max($0, $1.0) }
         let streamId = streamId ?? (maxSession + 1)
         guard self.publishSessions[streamId] == nil else {
             return
@@ -431,13 +436,14 @@ private class FlavorSession {
         }
     }
 
-    func makeSubscriber( _ assetId: String,
-            _ workspaceId: String,
-            workspaceToken: String? = nil,
-            callId: Int32? = nil,
-            streamId: Int32? = nil,
-            formats: [MediaFormat] = [MediaFormat]()) {
-        let maxSession: Int32 = zip(self.publishSessions.keys, self.subscribeSessions.keys).reduce(Int32(0)) { max($0, $1.0) }
+    func makeSubscriber(_ assetId: String,
+                        _ workspaceId: String,
+                        workspaceToken: String? = nil,
+                        callId: Int32? = nil,
+                        streamId: Int32? = nil,
+                        formats: [MediaFormat] = [MediaFormat]()) {
+        let maxSession: Int32 = zip(self.publishSessions.keys, self.subscribeSessions.keys)
+            .reduce(Int32(0)) { max($0, $1.0) }
         let streamId = streamId ?? (maxSession + 1)
         guard self.subscribeSessions[streamId] == nil else {
             return
@@ -523,113 +529,123 @@ private class FlavorSession {
     func handleRpc( _ atom: flavor.RpcAtom) {
         if let command = atom.command {
             switch command {
-                case .ping: do {
-                    let reply = flavor.RpcAtom(.rply, atom.callId, responseCode: 0)
-                    let bytes = try flavor.serialize(reply)
-                    let event = NetworkEvent(time: nil, assetId: sessionId, workspaceId: "session", bytes: bytes)
-                    let tx: Terminal<NetworkEvent> = mix() >>> self.bus
-                    _ = .just(event) >>- tx
-                    if atom.callId == 0 && self.dialedOut {
-                        self.fnConnected(true)
-                    }
-                } catch (let error) {
-                    print("Caught error \(error)")
+            case .ping: do {
+                let reply = flavor.RpcAtom(.rply, atom.callId, responseCode: 0)
+                let bytes = try flavor.serialize(reply)
+                let event = NetworkEvent(time: nil, assetId: sessionId, workspaceId: "session", bytes: bytes)
+                let tx: Terminal<NetworkEvent> = mix() >>> self.bus
+                _ = .just(event) >>- tx
+                if atom.callId == 0 && self.dialedOut {
+                    self.fnConnected(true)
                 }
-                case .mdia: ()
-                    // handle trak
-                    guard let payload = atom.child as? flavor.BasicAtom,
-                        case .list(let atoms) = payload.value else { return }
-                    for ftrak in atoms {
-                        guard let trak = ftrak as? flavor.TrakAtom else {
-                            return
-                        }
-                        self.context.tracks[trak.trackId] = flavor.Track(usesDts: trak.usesDts, scale: trak.scale)
-                        let streamId = trak.streamId
-                        let session = self.subscribeSessions[streamId]
-                        if let session = session?.value { do {
-                            let format = try flavor.fourccToMediaFormat(trak.codec)
-                            var extraData: Data?
-                            if case .data(let data)? = trak.extraData?.value {
-                                extraData = data
-                            }
-                            session.setTracks([(format, trak.trackId, extraData)])
-                            } catch {}
-                        }
-                    }
-                case .pull:
-                    do {
-                        let callId = atom.callId
-                        let (parts, streamId) = try getStreamTokens(atom)
-                        guard parts.count == 3 else {
-                            // incorrect token format
-                            try sendReply(callId, -1, payload: try flavor.BasicAtom(.dict(["reason":
-                                try  flavor.BasicAtom(
-                                    .utf8("incorrect token format, should be {workspaceId}/{workspaceToken}/{assetId}"), .utf8)
-                                ]), .dict))
-                            return
-                        }
-                        let formats = self.fnFormatQuery(parts[2], parts[0])
-                        self.makePublisher(parts[2], parts[0], workspaceToken: parts[1], callId: callId, streamId: streamId, formats: formats ?? [MediaFormat]())
-                    } catch {
-                        print("caught error \(error)")
+            } catch (let error) {
+                print("Caught error \(error)")
+            }
+            case .mdia: ()
+                // handle trak
+                guard let payload = atom.child as? flavor.BasicAtom,
+                    case .list(let atoms) = payload.value else { return }
+                for ftrak in atoms {
+                    guard let trak = ftrak as? flavor.TrakAtom else {
                         return
                     }
-                case .push:
-                    do {
-                        let callId = atom.callId
-                        let (parts, streamId) = try getStreamTokens(atom)
-                        guard parts.count == 2 else {
-                            // incorrect token format
-                            try sendReply(callId, -1, payload: try flavor.BasicAtom(.dict(["reason":
-                                try  flavor.BasicAtom(
-                                    .utf8("incorrect token format, should be {workspaceId}/{workspaceToken}"), .utf8)
-                                ]), .dict))
-                            return
+                    self.context.tracks[trak.trackId] = flavor.Track(usesDts: trak.usesDts, scale: trak.scale)
+                    let streamId = trak.streamId
+                    let session = self.subscribeSessions[streamId]
+                    if let session = session?.value { do {
+                        let format = try flavor.fourccToMediaFormat(trak.codec)
+                        var extraData: Data?
+                        if case .data(let data)? = trak.extraData?.value {
+                            extraData = data
                         }
-                        self.makeSubscriber(UUID().uuidString, parts[0], workspaceToken: parts[1], callId: callId, streamId: streamId)
-                    } catch {
+                        session.setTracks([(format, trak.trackId, extraData)])
+                        } catch {}
+                    }
+                }
+            case .pull:
+                do {
+                    let callId = atom.callId
+                    let (parts, streamId) = try getStreamTokens(atom)
+                    guard parts.count == 3 else {
+                        // incorrect token format
+                        try sendReply(callId, -1, payload: try flavor.BasicAtom(.dict(["reason":
+                            try  flavor.BasicAtom(
+                                .utf8("incorrect token format, should be {workspaceId}/{workspaceToken}/{assetId}"),
+                                .utf8)
+                            ]), .dict))
                         return
                     }
-                case .rmtk:
-                    guard let payload = atom.child as? flavor.BasicAtom,
-                        case .list(let atoms) = payload.value else { return }
-                    let tracks: [Int32] = atoms.compactMap { atom in
-                        guard let basic = atom as? flavor.BasicAtom, case .in32(let trackId) = basic.value else {
-                            return nil
-                        }
-                        return trackId
+                    let formats = self.fnFormatQuery(parts[2], parts[0])
+                    self.makePublisher(parts[2],
+                                       parts[0],
+                                       workspaceToken: parts[1],
+                                       callId: callId,
+                                       streamId: streamId,
+                                       formats: formats ?? [MediaFormat]())
+                } catch {
+                    print("caught error \(error)")
+                    return
+                }
+            case .push:
+                do {
+                    let callId = atom.callId
+                    let (parts, streamId) = try getStreamTokens(atom)
+                    guard parts.count == 2 else {
+                        // incorrect token format
+                        try sendReply(callId, -1, payload: try flavor.BasicAtom(.dict(["reason":
+                            try  flavor.BasicAtom(
+                                .utf8("incorrect token format, should be {workspaceId}/{workspaceToken}"), .utf8)
+                            ]), .dict))
+                        return
                     }
-                    let publishSessions = self.publishSessions
-                    publishSessions.forEach { session in
-                        if let hasTracks = session.1.value?.removeTracks(tracks), !hasTracks {
-                            session.1.value?.close()
-                        }
+                    self.makeSubscriber(UUID().uuidString,
+                                        parts[0],
+                                        workspaceToken: parts[1],
+                                        callId: callId,
+                                        streamId: streamId)
+                } catch {
+                    return
+                }
+            case .rmtk:
+                guard let payload = atom.child as? flavor.BasicAtom,
+                    case .list(let atoms) = payload.value else { return }
+                let tracks: [Int32] = atoms.compactMap { atom in
+                    guard let basic = atom as? flavor.BasicAtom, case .in32(let trackId) = basic.value else {
+                        return nil
                     }
-                    let subscribeSessions = self.subscribeSessions
-                    subscribeSessions.forEach { session in
-                        if let hasTracks = session.1.value?.removeTracks(tracks), !hasTracks {
-                            session.1.value?.close()
-                        }
+                    return trackId
+                }
+                let publishSessions = self.publishSessions
+                publishSessions.forEach { session in
+                    if let hasTracks = session.1.value?.removeTracks(tracks), !hasTracks {
+                        session.1.value?.close()
                     }
-                default: ()
+                }
+                let subscribeSessions = self.subscribeSessions
+                subscribeSessions.forEach { session in
+                    if let hasTracks = session.1.value?.removeTracks(tracks), !hasTracks {
+                        session.1.value?.close()
+                    }
+                }
+            default: ()
             }
         } else if let responseCode = atom.responseCode {
             switch atom.type() {
-                case .rply:
-                if let handler = self.inflightRpcHandler[atom.callId] {
-                    let reason: String? = atom.child <??> {
-                        if let basic = $0 as? flavor.BasicAtom,
-                            case .dict(let dict) = basic.value,
-                            let reason = dict["reason"] as? flavor.BasicAtom,
-                            case .utf8(let reasonStr) = reason.value {
-                                return reasonStr
-                            }
-                        return nil
-                    } <|> nil
-                    handler(atom.callId, responseCode, reason, atom.child)
-                    self.inflightRpcHandler.removeValue(forKey: atom.callId)
-                }
-                default: ()
+            case .rply:
+            if let handler = self.inflightRpcHandler[atom.callId] {
+                let reason: String? = atom.child <??> {
+                    if let basic = $0 as? flavor.BasicAtom,
+                        case .dict(let dict) = basic.value,
+                        let reason = dict["reason"] as? flavor.BasicAtom,
+                        case .utf8(let reasonStr) = reason.value {
+                            return reasonStr
+                        }
+                    return nil
+                } <|> nil
+                handler(atom.callId, responseCode, reason, atom.child)
+                self.inflightRpcHandler.removeValue(forKey: atom.callId)
+            }
+            default: ()
             }
         }
     }
@@ -640,42 +656,42 @@ private class FlavorSession {
             repeat {
                 let base = try flavor.parse(data, ctx: self.context)
                 switch base.0.containerType() {
-                    case .rpc:
-                        // handle in session
-                        if let atom = base.0 as? flavor.RpcAtom {
-                            handleRpc(atom)
-                        }
-                    case .media: ()
-                        // handle media
-                        if let atom = base.0 as? flavor.MediaAtom {
-                            handleMedia(atom)
-                        }
-                    default: () // find appropriate track to handle
+                case .rpc:
+                    // handle in session
+                    if let atom = base.0 as? flavor.RpcAtom {
+                        handleRpc(atom)
+                    }
+                case .media: ()
+                    // handle media
+                    if let atom = base.0 as? flavor.MediaAtom {
+                        handleMedia(atom)
+                    }
+                default: () // find appropriate track to handle
                 }
                 data = base.1
             } while (data.readableBytes > 0)
             accumulator = nil
         } catch let error as flavor.FlavorError {
             switch error {
-                case .unknownAtom(_, let size):
-                    data.moveReaderIndex(forwardBy: Int(size))
-                    accumulator = data
-                    return .nothing(event.info())
-                case .malformedAtom(let type, let size):
-                    print("malformed atom, skip \(size) and send error to peer via async command")
-                    data.moveReaderIndex(forwardBy: Int(size))
-                    accumulator = data
-                    return .error(EventError("flavor.parse", -4, "Malformed atom 4CC (\(type))"))
-                case .incompleteBuffer:
-                    //print("buffer incomplete")
-                    accumulator = data
-                    return .nothing(event.info())
-                case .unknownCommand(let command):
-                    print("unknown command, advance reader and respond with an error code")
-                    return .error(EventError("flavor.parse", -3, "Unknown command 4CC (\(command))"))
-                default:
-                    print("other error \(error)")
-                    return .error(EventError("flavor.parse", -1, "\(error)"))
+            case .unknownAtom(_, let size):
+                data.moveReaderIndex(forwardBy: Int(size))
+                accumulator = data
+                return .nothing(event.info())
+            case .malformedAtom(let type, let size):
+                print("malformed atom, skip \(size) and send error to peer via async command")
+                data.moveReaderIndex(forwardBy: Int(size))
+                accumulator = data
+                return .error(EventError("flavor.parse", -4, "Malformed atom 4CC (\(type))"))
+            case .incompleteBuffer:
+                //print("buffer incomplete")
+                accumulator = data
+                return .nothing(event.info())
+            case .unknownCommand(let command):
+                print("unknown command, advance reader and respond with an error code")
+                return .error(EventError("flavor.parse", -3, "Unknown command 4CC (\(command))"))
+            default:
+                print("other error \(error)")
+                return .error(EventError("flavor.parse", -1, "\(error)"))
             }
         } catch {
             return .error(EventError("flavor.parse", -2, "\(error)"))
@@ -706,17 +722,23 @@ private class FlavorSession {
 }
 
 private class FlavorPublisher: Terminal<CodedMediaSample>, FlavorMediaSession, LivePublisher {
-
+    // writeTrakAtom
+    // codec name, stream id, track id (maybe, assign=nil), time base, uses dts, extradata, returns track id
     public init(_ clock: Clock,
-                 formats: [MediaFormat],
-                 bus: HeterogeneousBus,
-                 streamId: Int32,
-                 dialedOut: Bool,
-                 assetId: String,
-                 workspaceId: String,
-                 workspaceToken: String?,
-                 onEnded: @escaping (String, [Int32]) -> Void,
-                 writeTrakAtom: @escaping (flavor.FourCC, Int32, Int32?, Int64, Bool, Data?) -> Int32) { // codec name, stream id, track id (maybe, assign=nil), time base, uses dts, extradata, returns track id
+                formats: [MediaFormat],
+                bus: HeterogeneousBus,
+                streamId: Int32,
+                dialedOut: Bool,
+                assetId: String,
+                workspaceId: String,
+                workspaceToken: String?,
+                onEnded: @escaping (String, [Int32]) -> Void,
+                writeTrakAtom: @escaping (_ codec: flavor.FourCC,
+                                           _ streamId: Int32,
+                                           _ trackId: Int32?,
+                                           _ timeBase: Int64,
+                                           _ usesDts: Bool,
+                                           _ extraData: Data?) -> Int32) {
         self.idAsset = assetId
         self.ident = UUID().uuidString
         self.idWorkspace = workspaceId
@@ -739,7 +761,12 @@ private class FlavorPublisher: Terminal<CodedMediaSample>, FlavorMediaSession, L
                 if strongSelf.tracks[sample.mediaFormat()] == nil && !strongSelf.ignore.contains(sample.mediaFormat()) {
                     // send a trak atom
                     let fourcc = try flavor.mediaFormatToFourcc(sample.mediaFormat())
-                    let trackId = writeTrakAtom(fourcc, streamId, nil, sample.pts().scale, true, sample.sideData()["config"])
+                    let trackId = writeTrakAtom(fourcc,
+                                                streamId,
+                                                nil,
+                                                sample.pts().scale,
+                                                true,
+                                                sample.sideData()["config"])
 
                     print("writing track atom, id=\(trackId) scale=\(sample.pts().scale)")
                     strongSelf.tracks[sample.mediaFormat()] = (trackId, sample.sideData()["config"])
@@ -747,7 +774,11 @@ private class FlavorPublisher: Terminal<CodedMediaSample>, FlavorMediaSession, L
                 guard let trackId = strongSelf.tracks[sample.mediaFormat()]?.0 else {
                     return .nothing(sample.info())
                 }
-                let atom = try flavor.MediaAtom(sample.data(), trackId, sample.pts().scale, sample.pts(), dts: sample.dts())
+                let atom = try flavor.MediaAtom(sample.data(),
+                                                trackId,
+                                                sample.pts().scale,
+                                                sample.pts(),
+                                                dts: sample.dts())
                 let bytes = try flavor.serializeMedia(atom)
 
                 let event = NetworkEvent(time: clock.current(),
@@ -835,12 +866,12 @@ private class FlavorPublisher: Terminal<CodedMediaSample>, FlavorMediaSession, L
 
 private class FlavorSubscriber: Source<CodedMediaSample>, FlavorMediaSession, LiveSubscriber {
     public init(_ clock: Clock,
-                 formats: [MediaFormat],
-                 dialedOut: Bool,
-                 assetId: String,
-                 workspaceId: String,
-                 workspaceToken: String?,
-                 onEnded: @escaping (String, [Int32]) -> Void) {
+                formats: [MediaFormat],
+                dialedOut: Bool,
+                assetId: String,
+                workspaceId: String,
+                workspaceToken: String?,
+                onEnded: @escaping (String, [Int32]) -> Void) {
         self.idAsset = assetId
         self.idWorkspace = workspaceId
         self.tokenWorkspace = workspaceToken
@@ -902,7 +933,16 @@ private class FlavorSubscriber: Source<CodedMediaSample>, FlavorMediaSession, Li
         let format = track.0
         let type: MediaType = [.aac, .opus].contains(format) ? .audio: .video
         let extra = track.1.map { ["config": $0] }
-        let mediaSample = CodedMediaSample(assetId(), workspaceId(), clock.current(), sample.pts, sample.dts, type, format, data, extra, nil)
+        let mediaSample = CodedMediaSample(assetId(),
+                                           workspaceId(),
+                                           clock.current(),
+                                           sample.pts,
+                                           sample.dts,
+                                           type,
+                                           format,
+                                           data,
+                                           extra,
+                                           nil)
         _ = self.emit(mediaSample)
     }
     var tracks: [Int32: (MediaFormat, Data?)]
@@ -1009,15 +1049,20 @@ public enum flavor {
             }
         }
 
-        let atom: FlavorAtom? = try { switch type {
+        let atom: FlavorAtom? = try {
+            switch type {
             case .in32:
-                return try buf.readInteger(endianness: .little, as: Int32.self).map { try BasicAtom(.in32($0), type) }
+                return try buf.readInteger(endianness: .little, as: Int32.self)
+                    .map { try BasicAtom(.in32($0), type) }
             case .in64:
-                return try buf.readInteger(endianness: .little, as: Int64.self).map { try BasicAtom(.in64($0), type) }
+                return try buf.readInteger(endianness: .little, as: Int64.self)
+                    .map { try BasicAtom(.in64($0), type) }
             case .fl32:
-                return try buf.readInteger(endianness: .little, as: UInt32.self).map { try BasicAtom(.fl32(Float(bitPattern: $0)), type) }
+                return try buf.readInteger(endianness: .little, as: UInt32.self)
+                    .map { try BasicAtom(.fl32(Float(bitPattern: $0)), type) }
             case .fl64:
-                return try buf.readInteger(endianness: .little, as: UInt64.self).map { try BasicAtom(.fl64(Double(bitPattern: $0)), type) }
+                return try buf.readInteger(endianness: .little, as: UInt64.self)
+                    .map { try BasicAtom(.fl64(Double(bitPattern: $0)), type) }
             case .utf8, .tokn:
                 return try buf.readString(length: Int(size - 8)).map { try BasicAtom(.utf8($0), type) }
             case .bool:
@@ -1072,7 +1117,10 @@ public enum flavor {
         }
     }
 
-    static func parseRpc(_ buf: ByteBuffer, _ size: Int32, _ type: FourCC, ctx: Context) throws -> (FlavorAtom, ByteBuffer) {
+    static func parseRpc(_ buf: ByteBuffer,
+                         _ size: Int32,
+                         _ type: FourCC,
+                         ctx: Context) throws -> (FlavorAtom, ByteBuffer) {
         guard var buf = buffer.getSlice(buf, buf.readableBytes) else { // already took first 8 bytes in size and type
             throw FlavorError.incompleteBuffer
         }
@@ -1103,7 +1151,10 @@ public enum flavor {
 
     }
 
-    static func parseMedia(_ buf: ByteBuffer, _ size: Int32, _ type: FourCC, ctx: Context) throws -> (FlavorAtom, ByteBuffer) {
+    static func parseMedia(_ buf: ByteBuffer,
+                           _ size: Int32,
+                           _ type: FourCC,
+                           ctx: Context) throws -> (FlavorAtom, ByteBuffer) {
         guard var buf = buffer.getSlice(buf, buf.readableBytes) else { // already took first 8 bytes in size and type
             throw FlavorError.incompleteBuffer
         }
@@ -1138,7 +1189,10 @@ public enum flavor {
         return (atom, next)
     }
 
-    static func parseTrack(_ buf: ByteBuffer, _ size: Int32, _ type: FourCC, ctx: Context) throws -> (FlavorAtom, ByteBuffer) {
+    static func parseTrack(_ buf: ByteBuffer,
+                           _ size: Int32,
+                           _ type: FourCC,
+                           ctx: Context) throws -> (FlavorAtom, ByteBuffer) {
         guard var buf = buffer.getSlice(buf, buf.readableBytes) else { // already took first 8 bytes in size and type
             throw FlavorError.incompleteBuffer
         }
@@ -1213,33 +1267,33 @@ public enum flavor {
         buf.writeInteger(atom.type().rawValue, endianness: .little)
 
         switch atom.value {
-            case .in32(let val):
-                buf.writeInteger(val, endianness: .little)
-            case .in64(let val):
-                buf.writeInteger(val, endianness: .little)
-            case .fl32(let val):
-                buf.writeInteger(val.bitPattern, endianness: .little)
-            case .fl64(let val):
-                buf.writeInteger(val.bitPattern, endianness: .little)
-            case .utf8(let val):
-                buf.writeString(val)
-            case .bool(let val):
-                buf.writeBytes([val == true ? 0x1 : 0x0])
-            case .data(let val):
-                var data = buffer.fromData(val)
+        case .in32(let val):
+            buf.writeInteger(val, endianness: .little)
+        case .in64(let val):
+            buf.writeInteger(val, endianness: .little)
+        case .fl32(let val):
+            buf.writeInteger(val.bitPattern, endianness: .little)
+        case .fl64(let val):
+            buf.writeInteger(val.bitPattern, endianness: .little)
+        case .utf8(let val):
+            buf.writeString(val)
+        case .bool(let val):
+            buf.writeBytes([val == true ? 0x1 : 0x0])
+        case .data(let val):
+            var data = buffer.fromData(val)
+            buf.writeBuffer(&data)
+        case .list(let val):
+            try val.forEach {
+                var data = try serialize($0)
                 buf.writeBuffer(&data)
-            case .list(let val):
-                try val.forEach {
-                    var data = try serialize($0)
-                    buf.writeBuffer(&data)
-                }
-            case .dict(let val):
-                try val.forEach {
-                    var key = try serialize(BasicAtom(.utf8($0.key), .utf8))
-                    var value = try serialize($0.value)
-                    buf.writeBuffer(&key)
-                    buf.writeBuffer(&value)
-                }
+            }
+        case .dict(let val):
+            try val.forEach {
+                var key = try serialize(BasicAtom(.utf8($0.key), .utf8))
+                var value = try serialize($0.value)
+                buf.writeBuffer(&key)
+                buf.writeBuffer(&value)
+            }
         }
 
         return buf
@@ -1346,13 +1400,13 @@ public enum flavor {
         }
         public func size() -> Int32 {
             switch value {
-                case .in32, .fl32: return 8+4
-                case .in64, .fl64: return 8+8
-                case .bool: return 8+1
-                case .data(let val): return Int32(8 + val.count)
-                case .list(let val): return 8 + val.reduce(0) { $0 + $1.size() }
-                case .dict(let val): return 8 + val.reduce(0) { $0 + $1.value.size() }
-                case .utf8(let val): return Int32(8 + val.utf8.count)
+            case .in32, .fl32: return 8+4
+            case .in64, .fl64: return 8+8
+            case .bool: return 8+1
+            case .data(let val): return Int32(8 + val.count)
+            case .list(let val): return 8 + val.reduce(0) { $0 + $1.size() }
+            case .dict(let val): return 8 + val.reduce(0) { $0 + $1.value.size() }
+            case .utf8(let val): return Int32(8 + val.utf8.count)
             }
         }
         public func type() -> FourCC {
@@ -1366,7 +1420,11 @@ public enum flavor {
     }
 
     struct RpcAtom: FlavorAtom {
-        public init(_ type: FourCC, _ callId: Int32, command: FourCC? = nil, responseCode: Int32? = nil, child: FlavorAtom? = nil) {
+        public init(_ type: FourCC,
+                    _ callId: Int32,
+                    command: FourCC? = nil,
+                    responseCode: Int32? = nil,
+                    child: FlavorAtom? = nil) {
             self.type_ = type
             self.callId = callId
             self.command = command
@@ -1430,7 +1488,12 @@ public enum flavor {
     }
 
     struct TrakAtom: FlavorAtom {
-        public init(_ codec: FourCC, _ streamId: Int32, _ trackId: Int32, _ timeBase: Int64, _ usesDts: Bool, _ extra: Data?) throws {
+        public init(_ codec: FourCC,
+                    _ streamId: Int32,
+                    _ trackId: Int32,
+                    _ timeBase: Int64,
+                    _ usesDts: Bool,
+                    _ extra: Data?) throws {
             self.codec = codec
             self.trackId = trackId
             self.scale = timeBase

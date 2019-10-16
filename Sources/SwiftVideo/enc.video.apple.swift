@@ -28,17 +28,17 @@ public class AppleVideoEncoder: Tx<PictureSample, [CodedMediaSample]> {
     public init(format: MediaFormat, frame: CGSize, bitrate: Int = 500000) {
         assert(format == .avc || format == .hevc, "AppleVideoEncoder only supports AVC and HEVC")
         self.queue = DispatchQueue.init(label: "cezium.encode.video")
-        VTCompressionSessionCreate(allocator: kCFAllocatorDefault,
-                                   width: Int32(frame.width),
-                                   height: Int32(frame.height),
-                                   codecType: format == .avc ? kCMVideoCodecType_H264 : kCMVideoCodecType_HEVC,
-                                   encoderSpecification: [kVTCompressionPropertyKey_ExpectedFrameRate: 30] as CFDictionary,
-                                   imageBufferAttributes: pixelBufferOptions(frame),
-                                   compressedDataAllocator: nil,
-                                   outputCallback: nil,
-                                   refcon: nil,
-                                   compressionSessionOut: &self.session)
 
+        VTCompressionSessionCreate(allocator: kCFAllocatorDefault,
+           width: Int32(frame.width),
+           height: Int32(frame.height),
+           codecType: format == .avc ? kCMVideoCodecType_H264 : kCMVideoCodecType_HEVC,
+           encoderSpecification: [kVTCompressionPropertyKey_ExpectedFrameRate: 30] as CFDictionary,
+           imageBufferAttributes: pixelBufferOptions(frame),
+           compressedDataAllocator: nil,
+           outputCallback: nil,
+           refcon: nil,
+           compressionSessionOut: &self.session)
         self.format = format
         super.init()
         super.set {
@@ -104,9 +104,9 @@ public class AppleVideoEncoder: Tx<PictureSample, [CodedMediaSample]> {
                             let sampleDesc = extensions["SampleDescriptionExtensionAtoms"] {
                             switch strongSelf.format {
                             case .avc:
-                                if let a = sampleDesc["avcC"], let b = a { extradata = b as? Data }
+                                if let opt = sampleDesc["avcC"], let desc = opt { extradata = desc as? Data }
                             case .hevc:
-                                if let a = sampleDesc["hvcC"], let b = a { extradata = b as? Data }
+                                if let opt = sampleDesc["hvcC"], let desc = opt { extradata = desc as? Data }
                             default: ()
                             }
                         }

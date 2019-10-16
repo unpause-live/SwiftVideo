@@ -40,20 +40,23 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
     }
     private func handle(_ sample: CodedMediaSample) -> EventBox<PictureSample> {
         guard sample.mediaType() == .video else {
-            return .error(EventError("dec.video.ffmpeg", -1, "Only video samples are supported", assetId: sample.assetId()))
+            return .error(EventError("dec.video.ffmpeg",
+                            -1, "Only video samples are supported", assetId: sample.assetId()))
         }
         if self.codecContext == nil {
             do {
                 try setupContext(sample)
-            } catch (let err) {
-                return .error(EventError("dec.video.ffmpeg", -2, "Error creating codec context \(err)", assetId: sample.assetId()))
+            } catch let err {
+                return .error(EventError("dec.video.ffmpeg",
+                                -2, "Error creating codec context \(err)", assetId: sample.assetId()))
             }
         }
         do {
             return try decode(sample)
-        } catch(let error) {
+        } catch let error {
             print("decode error \(error)")
-            return .error(EventError("dec.video.ffmpeg", -3, "Error decoding bitstream \(error)", assetId: sample.assetId()))
+            return .error(EventError("dec.video.ffmpeg",
+                            -3, "Error decoding bitstream \(error)", assetId: sample.assetId()))
         }
     }
 
@@ -87,7 +90,7 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
         packet.pts = pts.value
         packet.dts = dts.value
 
-        if(packet.size > 0) {
+        if packet.size > 0 {
             try codecCtx.sendPacket(packet)
             do {
                 let frame = AVFrame()
@@ -106,7 +109,9 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
                 return nil
             }
             if idx == 0 {
-                return Data(bytesNoCopy: data, count: Int(frame.linesize[idx]) * Int(frame.height), deallocator: .custom({ _, _ in
+                return Data(bytesNoCopy: data,
+                    count: Int(frame.linesize[idx]) * Int(frame.height),
+                    deallocator: .custom({ _, _ in
                         frame.unref()
                     }))
             } else {
@@ -117,14 +122,14 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
 
         let pixelFormat: PixelFormat = {
             switch frame.pixelFormat {
-                case .YUV420P: return .y420p
-                case .YUYV422: return .yuvs
-                case .UYVY422: return .zvuy
-                case .YUV422P: return .y422p
-                case .YUV444P: return .y444p
-                case .NV12: return .nv12
-                case .NV21: return .nv21
-                default: return .invalid
+            case .YUV420P: return .y420p
+            case .YUYV422: return .yuvs
+            case .UYVY422: return .zvuy
+            case .YUV422P: return .y422p
+            case .YUV444P: return .y444p
+            case .NV12: return .nv12
+            case .NV21: return .nv21
+            default: return .invalid
             }
         }()
 
@@ -133,14 +138,16 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
                 return nil
             }
             let size: Vector2 = {
-                switch(pixelFormat) {
-                    case .y420p, .nv12, .nv21:
-                        return idx == 0 ? Vector2(Float(frame.width), Float(frame.height)) : Vector2(Float(frame.width/2), Float(frame.height/2))
-                    case .yuvs, .zvuy, .y444p:
-                        return Vector2(Float(frame.width), Float(frame.height))
-                    case .y422p:
-                        return idx == 0 ? Vector2(Float(frame.width), Float(frame.height)) : Vector2(Float(frame.width/2), Float(frame.height))
-                    default: return Vector2(0, 0)
+                switch pixelFormat {
+                case .y420p, .nv12, .nv21:
+                    return idx == 0 ? Vector2(Float(frame.width),
+                                        Float(frame.height)) : Vector2(Float(frame.width/2), Float(frame.height/2))
+                case .yuvs, .zvuy, .y444p:
+                    return Vector2(Float(frame.width), Float(frame.height))
+                case .y422p:
+                    return idx == 0 ? Vector2(Float(frame.width),
+                                        Float(frame.height)) : Vector2(Float(frame.width/2), Float(frame.height))
+                default: return Vector2(0, 0)
                 }
             }()
             let components: [Component] = componentsForPlane(pixelFormat, idx)
@@ -159,8 +166,9 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
                                  workspaceToken: sample.workspaceToken(),
                                  time: sample.time(),
                                  pts: pts))
-        } catch (let error) {
-            return .error(EventError("dec.video.ffmpeg", -5, "Error creating image \(error)", assetId: sample.assetId()))
+        } catch let error {
+            return .error(EventError("dec.video.ffmpeg",
+                            -5, "Error creating image \(error)", assetId: sample.assetId()))
         }
 
     }
@@ -168,12 +176,12 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
     private func setupContext(_ sample: CodedMediaSample) throws {
         self.codec = {
                 switch sample.mediaFormat() {
-                    case .avc: return AVCodec.findDecoderById(.H264)
-                    case .hevc: return AVCodec.findDecoderById(.HEVC)
-                    case .vp8: return AVCodec.findDecoderById(.VP8)
-                    case .vp9: return AVCodec.findDecoderById(.VP9)
-                    case .png: return AVCodec.findDecoderById(.PNG)
-                    default: return nil
+                case .avc: return AVCodec.findDecoderById(.H264)
+                case .hevc: return AVCodec.findDecoderById(.HEVC)
+                case .vp8: return AVCodec.findDecoderById(.VP8)
+                case .vp9: return AVCodec.findDecoderById(.VP9)
+                case .png: return AVCodec.findDecoderById(.PNG)
+                default: return nil
                 } }()
         if let codec = self.codec {
             let ctx = AVCodecContext(codec: codec)
@@ -182,7 +190,8 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
         if let context = self.codecContext {
             if let sideData = sample.sideData()["config"],
                let mem =  AVIO.malloc(size: sideData.count + AVConstant.inputBufferPaddingSize) {
-                    let memBuf = UnsafeMutableRawBufferPointer(start: mem, count: sideData.count + AVConstant.inputBufferPaddingSize)
+                    let memBuf = UnsafeMutableRawBufferPointer(start: mem,
+                                        count: sideData.count + AVConstant.inputBufferPaddingSize)
                     _ = memBuf.baseAddress.map {
                         sideData.copyBytes(to: $0.assumingMemoryBound(to: UInt8.self), count: sideData.count)
                         context.extradata = $0.assumingMemoryBound(to: UInt8.self)

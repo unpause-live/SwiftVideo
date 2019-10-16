@@ -93,7 +93,9 @@ func destroyComputeContext( _ context: ComputeContext) throws {
 // Throws errors from MTLDevice.makeLibrary
 func buildComputeKernel(_ context: ComputeContext, name: String, source: String) throws -> ComputeContext {
     let library = try context.device.makeLibrary(source: source, options: nil)
-    return ComputeContext(other: context, customLibrary: (context.customLibrary ?? [String: MTLLibrary]()).merging([name: library]) { _, n in n })
+    return ComputeContext(other: context,
+                          customLibrary: (context.customLibrary ??
+                            [String: MTLLibrary]()).merging([name: library]) { _, n in n })
 }
 
 // Creates a command buffer to be used for the current compute pass.
@@ -119,7 +121,7 @@ func runComputeKernel(_ context: ComputeContext,
                       target: PictureSample,
                       kernel: ComputeKernel,
                       maxPlanes: Int = 3,
-                      requiredMemory: Int? = nil) throws -> ComputeContext { // max number of planes per image to use.  1 for Luma-only on YUV. No effect on BGRA.
+                      requiredMemory: Int? = nil) throws -> ComputeContext {
     return try runComputeKernel(context,
                                 images: images,
                                 target: target,
@@ -132,7 +134,7 @@ func runComputeKernel<T>(_ context: ComputeContext,
                          images: [PictureSample],
                          target: PictureSample,
                          kernel: ComputeKernel,
-                         maxPlanes: Int = 3, // max number of planes per image to use.  1 for Luma-only on YUV. No effect on BGRA.
+                         maxPlanes: Int = 3,
                          requiredMemory: Int? = nil,
                          uniforms: T? = nil) throws -> ComputeContext {
     let kernelFunction = try getComputeKernel(context, kernel)
@@ -177,9 +179,9 @@ func runComputeKernel<T>(_ context: ComputeContext,
 //  - badTarget
 // Can throw additional errors from MTLDevice.makeComputePipelineState
 func applyComputeImage(_ context: ComputeContext,
-                        image: PictureSample,
-                        target: PictureSample,
-                        kernel: ComputeKernel) throws -> ComputeContext {
+                       image: PictureSample,
+                       target: PictureSample,
+                       kernel: ComputeKernel) throws -> ComputeContext {
 
     let inputSize = Vector2([image.size().x, image.size().y])
     let outputSize = Vector2([target.size().x, target.size().y])
@@ -188,14 +190,14 @@ func applyComputeImage(_ context: ComputeContext,
     // as we normally would with vertex and fragment shaders we need to
     // invert the matrix.
     let uniforms = ImageUniforms(transform: image.matrix().inverse.transpose,
-                            textureTransform: image.textureMatrix().inverse.transpose,
-                            borderMatrix: image.borderMatrix().inverse.transpose,
-                            fillColor: image.fillColor(),
-                            inputSize: inputSize,
-                            outputSize: outputSize,
-                            opacity: image.opacity(),
-                            imageTime: seconds(image.time()),
-                            targetTime: seconds(target.time()))
+                                 textureTransform: image.textureMatrix().inverse.transpose,
+                                 borderMatrix: image.borderMatrix().inverse.transpose,
+                                 fillColor: image.fillColor(),
+                                 inputSize: inputSize,
+                                 outputSize: outputSize,
+                                 opacity: image.opacity(),
+                                 imageTime: seconds(image.time()),
+                                 targetTime: seconds(target.time()))
 
     return try runComputeKernel(context,
                                 images: [image],
@@ -340,8 +342,8 @@ private func getComputeKernel( _ context: ComputeContext, _ kernel: ComputeKerne
 // Returns (threadCount, threadgroupSize)
 // requiredStaticMemory is a hint for the required memory per thread.
 private func makeThreadgroup(_ pipelineState: MTLComputePipelineState,
-                                 _ bufferSize: MTLSize,
-                                 requiredStaticMemory: Int? = nil) -> (MTLSize, MTLSize) {
+                             _ bufferSize: MTLSize,
+                             requiredStaticMemory: Int? = nil) -> (MTLSize, MTLSize) {
     if let mem = requiredStaticMemory {
         let threadCount = bufferSize
         let maxMem = pipelineState.device.maxThreadgroupMemoryLength
@@ -360,10 +362,10 @@ private func makeThreadgroup(_ pipelineState: MTLComputePipelineState,
 
 // Set uniforms at an index
 //
-private func setUniforms<T>( _ context: ComputeContext,
-                                 _ commandEncoder: MTLComputeCommandEncoder,
-                                 _ uniforms: T?,
-                                 _ index: Int) {
+private func setUniforms<T>(_ context: ComputeContext,
+                            _ commandEncoder: MTLComputeCommandEncoder,
+                            _ uniforms: T?,
+                            _ index: Int) {
 
     if var uniforms = uniforms {
         // Workaround for a weird compile error when using `uniforms` directly as the bytes parameter.

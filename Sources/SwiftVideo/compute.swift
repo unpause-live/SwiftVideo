@@ -17,6 +17,8 @@
 import VectorMath
 import Foundation
 
+// swiftlint:disable identifier_name
+
 enum ComputeError: Error {
     case invalidPlatform
     case invalidDevice
