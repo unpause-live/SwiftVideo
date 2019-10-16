@@ -14,7 +14,6 @@
    limitations under the License.
 */
 
-
 // Repeats a sample at a specified interval if a new one is not provided.
 public class Repeater<T>: AsyncTx<T, T> {
     public init(_ clock: Clock, interval: TimePoint) {
@@ -38,13 +37,13 @@ public class Repeater<T>: AsyncTx<T, T> {
     }
     private func run(_ interval: TimePoint) {
         let now = self.clock.current()
-        self.clock.schedule(now + interval) { [weak self] at in
+        self.clock.schedule(now + interval) { [weak self] evt in
             guard let strongSelf = self, let sample = strongSelf.sample else {
                 return
             }
-            if (strongSelf.lastEmit + interval) <= at.timePoint {
+            if (strongSelf.lastEmit + interval) <= evt.timePoint {
                 _ = strongSelf.emit(sample)
-                strongSelf.lastEmit = at.timePoint
+                strongSelf.lastEmit = evt.timePoint
                 strongSelf.run(interval)
             }
         }

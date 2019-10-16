@@ -4,7 +4,7 @@ import AudioToolbox
 import VectorMath
 import CSwiftVideo
 
-public class AppleAudioDecoder : Tx<CodedMediaSample, AudioSample> {
+public class AppleAudioDecoder: Tx<CodedMediaSample, AudioSample> {
     public override init() {
         self.converter = nil
         self.asbdOut = nil
@@ -14,13 +14,16 @@ public class AppleAudioDecoder : Tx<CodedMediaSample, AudioSample> {
                 return .gone
             }
             guard sample.mediaType() == .audio else {
-                return .error(EventError("dec.sound.apple", -1, "Only audio samples are supported", assetId: sample.assetId()))
+                return .error(EventError("dec.sound.apple",
+                                         -1,
+                                         "Only audio samples are supported",
+                                         assetId: sample.assetId()))
             }
             strongSelf.configure(sample)
             return strongSelf.handle(sample)
         }
     }
-    
+
     private func handle(_ sample: CodedMediaSample) -> EventBox<AudioSample> {
         guard let converter = self.converter, let asbd = self.asbdOut else {
             return .error(EventError("dec.sound.apple", -2, "No converter found", assetId: sample.assetId()))
@@ -29,9 +32,9 @@ public class AppleAudioDecoder : Tx<CodedMediaSample, AudioSample> {
         guard dataLength > 0 else {
             return .error(EventError("dec.sound.apple", -3, "Invalid decoder state", assetId: sample.assetId()))
         }
-        
+
         var data = Data(count: dataLength)
-        
+
         let result = data.withUnsafeMutableBytes { (buffer: UnsafeMutableRawBufferPointer) -> OSStatus in
             var sampleBuffer = sample.data()
             return sampleBuffer.withUnsafeMutableBytes {
@@ -42,16 +45,21 @@ public class AppleAudioDecoder : Tx<CodedMediaSample, AudioSample> {
                                         bufferSize: $0.count,
                                         channelCount: asbd.mChannelsPerFrame,
                                         packetDesc: [AudioStreamPacketDescription(mStartOffset: 0,
-                                                                                  mVariableFramesInPacket: 0,
-                                                                                  mDataByteSize: UInt32(sample.data().count))])
+                                                        mVariableFramesInPacket: 0,
+                                                        mDataByteSize: UInt32(sample.data().count))])
                 var packetSize = UInt32(self.samplesPerPacket)
                 let audioBufferList = AudioBufferList.allocate(maximumBuffers: Int(asbd.mChannelsPerFrame))
                 for i in 0..<Int(asbd.mChannelsPerFrame) {
                     audioBufferList[i] = AudioBuffer(mNumberChannels: 1,
-                                                     mDataByteSize: UInt32(dataLength/Int(asbd.mChannelsPerFrame)),
-                                                     mData: baseAddress+(i*self.samplesPerPacket*Int(asbd.mBytesPerPacket)))
+                                                 mDataByteSize: UInt32(dataLength/Int(asbd.mChannelsPerFrame)),
+                                                 mData: baseAddress+(i*self.samplesPerPacket*Int(asbd.mBytesPerPacket)))
                 }
-                return AudioConverterFillComplexBuffer(converter, ioProc, &packet, &packetSize, audioBufferList.unsafeMutablePointer, nil)
+                return AudioConverterFillComplexBuffer(converter,
+                                                       ioProc,
+                                                       &packet,
+                                                       &packetSize,
+                                                       audioBufferList.unsafeMutablePointer,
+                                                       nil)
             }
         }
         if result == noErr {
@@ -77,7 +85,7 @@ public class AppleAudioDecoder : Tx<CodedMediaSample, AudioSample> {
         }
         return .error(EventError("dec.sound.apple", -4, "Decoder error: \(result)", assetId: sample.assetId()))
     }
-    
+
     private func configure(_ sample: CodedMediaSample) {
         guard converter == nil else {
             return
@@ -97,19 +105,21 @@ public class AppleAudioDecoder : Tx<CodedMediaSample, AudioSample> {
                                                              mBitsPerChannel: 0,
                                                              mReserved: 0)
                     var asbdOut = AudioStreamBasicDescription(mSampleRate: Float64(desc.sampleRate),
-                                                              mFormatID: kAudioFormatLinearPCM,
-                                                              mFormatFlags: kAudioFormatFlagIsPacked | kAudioFormatFlagIsFloat | kAudioFormatFlagIsNonInterleaved,
-                                                              mBytesPerPacket: 4,
-                                                              mFramesPerPacket: 1,
-                                                              mBytesPerFrame: 4,
-                                                              mChannelsPerFrame: UInt32(desc.channelCount),
-                                                              mBitsPerChannel: 32,
-                                                              mReserved: 0)
+                                      mFormatID: kAudioFormatLinearPCM,
+                                      mFormatFlags: kAudioFormatFlagIsPacked |
+                                                    kAudioFormatFlagIsFloat |
+                                                    kAudioFormatFlagIsNonInterleaved,
+                                      mBytesPerPacket: 4,
+                                      mFramesPerPacket: 1,
+                                      mBytesPerFrame: 4,
+                                      mChannelsPerFrame: UInt32(desc.channelCount),
+                                      mBitsPerChannel: 32,
+                                      mReserved: 0)
                     self.asbdOut = asbdOut
                     var requiredCodecs = AudioClassDescription(mType: kAudioDecoderComponentType,
                                                                mSubType: kAudioFormatMPEG4AAC,
                                                                mManufacturer: kAudioUnitManufacturer_Apple)
-                    var converter: AudioConverterRef? = nil
+                    var converter: AudioConverterRef?
                     let result = AudioConverterNewSpecific(&asbdIn, &asbdOut, 1, &requiredCodecs, &converter)
                     print("AudioConverterNewSpecific: \(result)")
                     self.converter = converter
@@ -120,7 +130,7 @@ public class AppleAudioDecoder : Tx<CodedMediaSample, AudioSample> {
             ()
         default: ()
         }
-        
+
     }
     var pts: TimePoint?
     var samplesPerPacket: Int = 0
@@ -128,18 +138,18 @@ public class AppleAudioDecoder : Tx<CodedMediaSample, AudioSample> {
     var converter: AudioConverterRef?
 }
 
-fileprivate struct PacketData {
+private struct PacketData {
     var buffer: UnsafeMutableRawBufferPointer?
     var bufferSize: Int
     let channelCount: UInt32
     var packetDesc: [AudioStreamPacketDescription]
 }
 
-fileprivate func ioProc(_ converter: AudioConverterRef,
-                   _ ioNumDataPackets: UnsafeMutablePointer<UInt32>,
-                   _ ioData: UnsafeMutablePointer<AudioBufferList>,
-                   _ ioPacketDesc: UnsafeMutablePointer<UnsafeMutablePointer<AudioStreamPacketDescription>?>?,
-                   _ inUserData: UnsafeMutableRawPointer?) -> OSStatus {
+private func ioProc(_ converter: AudioConverterRef,
+                    _ ioNumDataPackets: UnsafeMutablePointer<UInt32>,
+                    _ ioData: UnsafeMutablePointer<AudioBufferList>,
+                    _ ioPacketDesc: UnsafeMutablePointer<UnsafeMutablePointer<AudioStreamPacketDescription>?>?,
+                    _ inUserData: UnsafeMutableRawPointer?) -> OSStatus {
     guard let userData = inUserData else {
         ioNumDataPackets.pointee = 0
         return -1
@@ -149,7 +159,7 @@ fileprivate func ioProc(_ converter: AudioConverterRef,
         ioNumDataPackets.pointee = 0
         return -1
     }
-    
+
     ioNumDataPackets.pointee = 1
     ioData.pointee.mNumberBuffers = 1
     let dataSize = buf.count
@@ -162,6 +172,6 @@ fileprivate func ioProc(_ converter: AudioConverterRef,
                      mDataByteSize: UInt32(dataSize),
                      mData: buf.baseAddress)
     packet.pointee.buffer = nil
-    return noErr;
+    return noErr
 }
 #endif

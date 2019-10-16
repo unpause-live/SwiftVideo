@@ -27,7 +27,7 @@ public class AppleCamera: Source<PictureSample> {
     private var captureDevice: AVCaptureDevice?
     private var sampleBufferDel: SampleBufferDel?
     private let idAsset: String
-    
+
     private class SampleBufferDel: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
         private let callback: (CMSampleBuffer) -> Void
         init(callback: @escaping (CMSampleBuffer) -> Void) {
@@ -39,7 +39,7 @@ public class AppleCamera: Source<PictureSample> {
             self.callback(sampleBuffer)
         }
     }
-    
+
     public init(pos: AVCaptureDevice.Position, clock: Clock = WallClock(), frameDuration: TimePoint) {
         self.session = AVCaptureSession()
         self.frameDuration = frameDuration
@@ -48,13 +48,13 @@ public class AppleCamera: Source<PictureSample> {
         self.queue = DispatchQueue.init(label: "cam.apple.\(assetId)")
         self.idAsset = assetId
         super.init()
-        
+
         self.sampleBufferDel = SampleBufferDel { [weak self] in
             if let strongSelf = self {
                 strongSelf.push($0)
             }
         }
-        
+
         let permission: (Bool) -> Void = {
             [weak self] (granted) in
 
@@ -66,17 +66,21 @@ public class AppleCamera: Source<PictureSample> {
                 let output = AVCaptureVideoDataOutput()
                 strongSelf.session.beginConfiguration()
                 output.alwaysDiscardsLateVideoFrames = true
+
                 output.videoSettings =
-                    [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
-                     kCVPixelBufferIOSurfacePropertiesKey as String: [kCVPixelBufferMetalCompatibilityKey as String: true],
+                    [kCVPixelBufferPixelFormatTypeKey as String:
+                        kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+                     kCVPixelBufferIOSurfacePropertiesKey as String:
+                        [kCVPixelBufferMetalCompatibilityKey as String: true],
                      kCVPixelBufferOpenGLCompatibilityKey as String: true]
-                
+
                 output.setSampleBufferDelegate(strongSelf.sampleBufferDel, queue: strongSelf.queue)
                 strongSelf.session.addOutput(output)
                 strongSelf.session.commitConfiguration()
                 strongSelf.session.startRunning()
             }
         }
+        // swiftlint:disable deployment_target
         if #available(iOS 7.0, macOS 10.14, *) {
             let access = AVCaptureDevice.authorizationStatus(for: .video)
 
@@ -111,9 +115,10 @@ public class AppleCamera: Source<PictureSample> {
                 try device.lockForConfiguration()
                 // find the closest frame duration to the requested duration
                 let frameDuration = device.activeFormat.videoSupportedFrameRateRanges.reduce(CMTime.positiveInfinity) {
-                    Float64(seconds(self.frameDuration)).distance(to: CMTimeGetSeconds($1.maxFrameDuration)) < CMTimeGetSeconds($0) ? $1.maxFrameDuration : $0
+                    Float64(seconds(self.frameDuration)).distance(
+                        to: CMTimeGetSeconds($1.maxFrameDuration)) < CMTimeGetSeconds($0) ? $1.maxFrameDuration : $0
                 }
-                
+
                 device.activeVideoMinFrameDuration = frameDuration
                 device.activeVideoMaxFrameDuration = frameDuration
                 try self.session.addInput(AVCaptureDeviceInput(device: device))
@@ -130,7 +135,7 @@ public class AppleCamera: Source<PictureSample> {
         }
         return false
     }
-    
+
     public func assetId() -> String {
         return idAsset
     }

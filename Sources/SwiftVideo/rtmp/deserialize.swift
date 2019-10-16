@@ -18,6 +18,7 @@ import NIO
 import Foundation
 
 extension rtmp {
+    // swiftlint:disable:next type_name
     enum deserialize {
         static func parseChunk(_ buf: ByteBuffer, ctx: Context) -> (ByteBuffer?, Chunk?, Context) {
             let cfsid = getChunkHeader(buf)
@@ -25,8 +26,11 @@ extension rtmp {
                 let pBuf = cfsid.0 {
                     let formatId = cfsid.1
                     let chunkStreamId = cfsid.2
-                    let chunkParserMap : [(ByteBuffer?, Int, Chunk?, Context) -> (ByteBuffer?, Chunk?)] = [getChunk0, getChunk1, getChunk2, getChunk3]
-                    let result = chunkParserMap[safe: Int(formatId)]?(pBuf, chunkStreamId, ctx.inChunks[Int(chunkStreamId)], ctx)
+                    let chunkParserMap: [(ByteBuffer?, Int, Chunk?, Context) -> (ByteBuffer?, Chunk?)] =
+                        [getChunk0, getChunk1, getChunk2, getChunk3]
+                    let result = chunkParserMap[safe: Int(formatId)]?(pBuf, chunkStreamId,
+                                                                      ctx.inChunks[Int(chunkStreamId)],
+                                                                      ctx)
                     let complete = result?.1 <??> { chunkComplete($0) } <|> false
                     let chunks = result?.1 <??> {
                             return ctx.inChunks.merging([chunkStreamId: complete ? $0.changing(data: nil) : $0 ]) { $1 }
@@ -63,15 +67,19 @@ extension rtmp {
                 return nil
             }
         }
-        private static func getChunk0(_ data: ByteBuffer?, _ csid : Int, _ prev : Chunk?, _ ctx: Context) -> (ByteBuffer?, Chunk?) {
+        private static func getChunk0(_ data: ByteBuffer?,
+                                      _ csid: Int,
+                                      _ prev: Chunk?,
+                                      _ ctx: Context) -> (ByteBuffer?, Chunk?) {
             let pBuf = data <??> { buffer.readBytes($0, length: 11) } <|> (nil, nil)
             guard let bytes = pBuf.1 else {
                 return (nil, nil)
             }
             let (ts, buf) = { () -> (UInt32?, ByteBuffer?) in
                 let ts = UInt32(bytes[0]) << 16 | UInt32(bytes[1]) << 8 | UInt32(bytes[2])
-                if(ts == 0xFFFFFF) {
-                    return (pBuf.0?.getInteger(at: 0, endianness: .big, as: UInt32.self), buffer.advancingReader(pBuf.0, by: 4))
+                if ts == 0xFFFFFF {
+                    return (pBuf.0?.getInteger(at: 0,
+                        endianness: .big, as: UInt32.self), buffer.advancingReader(pBuf.0, by: 4))
                 }
                 return (ts, pBuf.0)
             }()
@@ -80,17 +88,20 @@ extension rtmp {
                 return (nil, nil)
             }
             // see https://tools.ietf.org/html/rfc1982
-            let timestamp = prev.map { 
+            let timestamp = prev.map {
                 let serialTimestamp = Int(serialTimestamp)
                 let prevSerial = $0.timestamp % 0xffffffff
-                if prevSerial > serialTimestamp && 
+                if prevSerial > serialTimestamp &&
                     (prevSerial - serialTimestamp) > 0x7fffffff {
                     return $0.timestamp + serialTimestamp + (0xffffffff - prevSerial)
                 } else {
                     return $0.timestamp + (serialTimestamp - prevSerial)
-                }  
+                }
             } ?? Int(serialTimestamp)
-            let chunk = Chunk(msgStreamId: Int(bytes[7]) | (Int(bytes[8]) << 8) | (Int(bytes[9]) << 16) | (Int(bytes[10]) << 24),
+            let chunk = Chunk(msgStreamId: Int(bytes[7]) |
+                                (Int(bytes[8]) << 8) |
+                                (Int(bytes[9]) << 16) |
+                                (Int(bytes[10]) << 24),
                               msgLength: len,
                               msgType: Int(bytes[6]),
                               chunkStreamId: csid,
@@ -98,20 +109,24 @@ extension rtmp {
                               timestampDelta: 0,
                               extended: serialTimestamp >= 0xffffff,
                               data: slice)
-            
+
             let next = buffer.advancingReader(buf, by: slice.readableBytes)
             return (next, chunk)
         }
-        
-        private static func getChunk1(_ data: ByteBuffer?, _ csid : Int, _ prev : Chunk?, _ ctx: Context) -> (ByteBuffer?, Chunk?) {
+
+        private static func getChunk1(_ data: ByteBuffer?,
+                                      _ csid: Int,
+                                      _ prev: Chunk?,
+                                      _ ctx: Context) -> (ByteBuffer?, Chunk?) {
             let pBuf = data <??> { buffer.readBytes($0, length: 7) } <|> (nil, nil)
-            guard let bytes = pBuf.1, let prev_ = prev else {
+            guard let bytes = pBuf.1, let prev = prev else {
                 return (nil, nil)
             }
             let (ts, buf) = { () -> (UInt32?, ByteBuffer?) in
                 let ts = UInt32(bytes[0]) << 16 | UInt32(bytes[1]) << 8 | UInt32(bytes[2])
-                if(ts == 0xFFFFFF) {
-                    return (pBuf.0?.getInteger(at: 0, endianness: .big, as: UInt32.self), buffer.advancingReader(pBuf.0, by: 4))
+                if ts == 0xFFFFFF {
+                    return (pBuf.0?.getInteger(at: 0, endianness: .big, as: UInt32.self),
+                        buffer.advancingReader(pBuf.0, by: 4))
                 }
                 return (ts, pBuf.0)
             }()
@@ -119,25 +134,29 @@ extension rtmp {
             guard let tsDelta = ts, let slice = buffer.getSlice(buf, min(len, ctx.inChunkSize)) else {
                 return (nil, nil)
             }
-            let timestamp = prev_.timestamp &+ Int(tsDelta)
-            let chunk = prev_.changing(msgLength: len,
+            let timestamp = prev.timestamp &+ Int(tsDelta)
+            let chunk = prev.changing(msgLength: len,
                                        msgType: Int(bytes[6]),
                                        timestamp: timestamp,
                                        timestampDelta: Int(tsDelta),
                                        extended: tsDelta >= 0xffffff,
-                                       data: buffer.concat(prev_.data, slice))
+                                       data: buffer.concat(prev.data, slice))
             return (buffer.advancingReader(buf, by: slice.readableBytes), chunk)
         }
-        
-        private static func getChunk2(_ data: ByteBuffer?, _ csid : Int, _ prev : Chunk?, _ ctx: Context) -> (ByteBuffer?, Chunk?) {
+
+        private static func getChunk2(_ data: ByteBuffer?,
+                                      _ csid: Int,
+                                      _ prev: Chunk?,
+                                      _ ctx: Context) -> (ByteBuffer?, Chunk?) {
             let pBuf = data <??> { buffer.readBytes($0, length: 3) } <|> (nil, nil)
             guard let bytes = pBuf.1, let prev = prev else {
                 return (nil, nil)
             }
             let (ts, buf) = { () -> (UInt32?, ByteBuffer?) in
                 let ts = UInt32(bytes[0]) << 16 | UInt32(bytes[1]) << 8 | UInt32(bytes[2])
-                if(ts == 0xFFFFFF) {
-                    return (pBuf.0?.getInteger(at: 0, endianness: .big, as: UInt32.self), buffer.advancingReader(pBuf.0, by: 4))
+                if ts == 0xFFFFFF {
+                    return (pBuf.0?.getInteger(at: 0,
+                        endianness: .big, as: UInt32.self), buffer.advancingReader(pBuf.0, by: 4))
                 }
                 return (ts, pBuf.0)
             }()
@@ -151,8 +170,11 @@ extension rtmp {
                                       data: buffer.concat(prev.data, slice))
             return (buffer.advancingReader(buf, by: slice.readableBytes), chunk)
         }
-        
-        private static func getChunk3(_ data: ByteBuffer?, _ csid : Int, _ prevChunk : Chunk?, _ ctx: Context) -> (ByteBuffer?, Chunk?) {
+
+        private static func getChunk3(_ data: ByteBuffer?,
+                                      _ csid: Int,
+                                      _ prevChunk: Chunk?,
+                                      _ ctx: Context) -> (ByteBuffer?, Chunk?) {
             guard let prev = prevChunk else {
                     return (nil, nil)
             }

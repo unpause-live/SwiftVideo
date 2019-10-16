@@ -18,7 +18,7 @@ import Dispatch
 import Foundation
 import VectorMath
 
-public class AudioMixer : Source<AudioSample> {
+public class AudioMixer: Source<AudioSample> {
     public init(_ clock: Clock,
                 workspaceId: String,
                 frameDuration: TimePoint,
@@ -29,7 +29,7 @@ public class AudioMixer : Source<AudioSample> {
                 assetId: String? = nil,
                 statsReport: StatsReport? = nil,
                 epoch: Int64? = nil) {
-        self.samples = [String:[AudioSample]]()
+        self.samples = [String: [AudioSample]]()
         self.frameDuration = frameDuration
         self.delay = delay ?? TimePoint(0, frameDuration.scale)
         self.clock = clock
@@ -45,7 +45,7 @@ public class AudioMixer : Source<AudioSample> {
         self.sampleRate = sampleRate
         self.outputFormat = outputFormat
         self.channelCount = channelCount
-        self.sourceOffset = [String:TimePoint]()
+        self.sourceOffset = [String: TimePoint]()
         super.init()
         super.set { [weak self] sample in
             guard let strongSelf = self else {
@@ -58,9 +58,8 @@ public class AudioMixer : Source<AudioSample> {
                     }
                     strongSelf.samples = strongSelf.samples.merging([sample.assetId(): [sample]]) { $0 + $1 }
                     if strongSelf.sourceOffset[sample.assetId()] == nil {
-                        
+
                         let ptsOffset = strongSelf.pts + (frameDuration*2) - sample.pts()
-                        //print("setting offset to \(ptsOffset.toString()) pts=\(sample.pts().toString()) self.pts=\(strongSelf.pts.toString())")
                         strongSelf.sourceOffset[sample.assetId()] = ptsOffset
                     }
                 }
@@ -69,9 +68,9 @@ public class AudioMixer : Source<AudioSample> {
                 return .just(sample)
             }
         }
-        clock.schedule(now + frameDuration) { [weak self] event in 
+        clock.schedule(now + frameDuration) { [weak self] event in
             self?.queue.async { [weak self] in
-                self?.mix(at: event) 
+                self?.mix(at: event)
             }
         }
     }
@@ -81,7 +80,7 @@ public class AudioMixer : Source<AudioSample> {
     public func assetId() -> String {
         return idAsset
     }
-    
+
     public func workspaceId() -> String {
         return idWorkspace
     }
@@ -114,18 +113,18 @@ public class AudioMixer : Source<AudioSample> {
         let next = at.time() + frameDuration
         let mixTimestamp = at.time() - epoch
         self.pts = mixTimestamp
-        clock.schedule(next) { [weak self] event in 
+        clock.schedule(next) { [weak self] event in
             self?.queue.async { [weak self] in
-                self?.mix(at: event) 
+                self?.mix(at: event)
             }
         }
         self.statsReport.endTimer("mix.audio.delta")
         self.statsReport.startTimer("mix.audio.delta")
         self.statsReport.startTimer("mix.audio.mix")
-        
+
         let mixEndTimestamp = mixTimestamp + self.frameDuration
         let numBuffers = numberOfBuffers(self.outputFormat, self.channelCount)
-        
+
         var buffers = ((0..<numBuffers) as CountableRange).map { _ -> Data in
                 let numberSamples = Int(rescale(self.frameDuration, Int64(self.sampleRate)).value)
                 let bufferSize = numberSamples * bytesPerSample(self.outputFormat, self.channelCount)
@@ -133,7 +132,7 @@ public class AudioMixer : Source<AudioSample> {
             }
         var constituents = [MediaConstituent]()
         let samples = self.samples.filter { $0.1.count > 0 }
-        let result = samples.reduce([String:[AudioSample]]()) { (acc, curr) in
+        let result = samples.reduce([String: [AudioSample]]()) { (acc, curr) in
             let (assetId, queuedSamples) = curr
             guard let offset = self.sourceOffset[assetId], queuedSamples.count > 0 else {
                 return acc
@@ -142,7 +141,9 @@ public class AudioMixer : Source<AudioSample> {
             // and filtering samples that occurred in the past
             var covered = (mixTimestamp + self.frameDuration, mixTimestamp)
             let unusedSamples = queuedSamples.filter { work in
-                let workDuration = rescale(TimePoint(Int64(work.numberSamples()), Int64(work.sampleRate())), work.pts().scale)
+                let workDuration = rescale(TimePoint(Int64(work.numberSamples()),
+                                                     Int64(work.sampleRate())),
+                                           work.pts().scale)
                 // Normalize the sample PTS to match the mixer's time frame, plus some delay.
                 let normalizedPts = work.pts() + offset + self.delay
                 let normalizedEndTs = normalizedPts + rescale(workDuration, normalizedPts.scale)
@@ -153,8 +154,8 @@ public class AudioMixer : Source<AudioSample> {
                     let gains = self.channelGains(self.samplePosition(work))
                     let ptsDelta = normalizedPts - mixTimestamp
                     let offsetSamples = rescale(ptsDelta, Int64(self.sampleRate)).value
-                    //print("[\(mixTimestamp.toString())] mixing \(normalizedPts.toString())=>\(normalizedEndTs.toString()) \(work.pts().toString())")
-                    let inputOffsetSamples = Int(ptsDelta.value < 0 ? TimePoint(abs(ptsDelta.value), Int64(work.sampleRate())).value : 0) * 
+                    let inputOffsetSamples =
+                        Int(ptsDelta.value < 0 ? TimePoint(abs(ptsDelta.value), Int64(work.sampleRate())).value : 0) *
                                                         bytesPerSample(work.format(), work.numberChannels())
                     let offset = max(Int(offsetSamples) * bytesPerSample(self.outputFormat, self.channelCount), 0)
                     //print("backing start offset=\(offset) input offset=\(inputOffsetSamples)")
@@ -165,13 +166,17 @@ public class AudioMixer : Source<AudioSample> {
                             return
                         }
                         _ = self.applyMixS16(data,
-                                gain: gains, 
-                                backing: &buffers[idx], 
-                                backingStartOffset: offset, 
+                                gain: gains,
+                                backing: &buffers[idx],
+                                backingStartOffset: offset,
                                 inputStartOffset: inputOffsetSamples)
                     }
-                    covered = (clamp(normalizedPts, mixTimestamp, covered.0), clamp(covered.1, normalizedEndTs, mixEndTimestamp))
-                    //covered = (max(min(covered.0, normalizedPts), mixTimestamp), min(max(covered.1, normalizedEndTs), mixEndTimestamp))
+                    covered = (clamp(normalizedPts,
+                                     mixTimestamp,
+                                     covered.0),
+                               clamp(covered.1,
+                                     normalizedEndTs,
+                                     mixEndTimestamp))
                     return true
                     // Else, if the normalized end timestamp is greater than the start of this window period,
                     // keep the sample for later processing.
@@ -193,18 +198,19 @@ public class AudioMixer : Source<AudioSample> {
                 }
                 constituents.append(constituent)
             }
-            //if !(covered.0 == mixTimestamp && covered.1 == mixEndTimestamp) && unusedSamples.count != queuedSamples.count {
-            if ((covered.0 > covered.1) || (covered.1 != mixEndTimestamp)) && unusedSamples.count != queuedSamples.count {
-                let underrunDuration = max(TimePoint(0, 1000), covered.0 - mixTimestamp) + max(TimePoint(0, 1000), mixEndTimestamp - covered.1)
+            if ((covered.0 > covered.1) ||
+                (covered.1 != mixEndTimestamp)) &&
+                unusedSamples.count != queuedSamples.count {
+                let underrunDuration = max(TimePoint(0, 1000), covered.0 - mixTimestamp) +
+                                       max(TimePoint(0, 1000), mixEndTimestamp - covered.1)
                 self.statsReport.addSample("mix.audio.underrun", underrunDuration)
-                //print("covered.0=\(covered.0.toString()) covered.1=\(covered.1.toString()) min=\(mixTimestamp.toString()) max=\(mixEndTimestamp.toString())")
                 self.discontinuity(assetId)
-            } 
+            }
             return acc.merging([assetId: unusedSamples]) { $1 }
         }
         self.statsReport.endTimer("mix.audio.mix")
         self.samples = result
-        let output = AudioSample(buffers, 
+        let output = AudioSample(buffers,
                          frequency: self.sampleRate,
                          channels: self.channelCount,
                          format: self.outputFormat,
@@ -217,12 +223,11 @@ public class AudioMixer : Source<AudioSample> {
                          eventInfo: self.statsReport)
        _ = self.emit(output)
     }
-    
 
     // (Position, Gain)
     private func samplePosition(_ sample: AudioSample) -> (Vector2, Float) {
-        let center = Vector3(0,0,1) * sample.transform
-        let front = Vector3(0,1,1) * sample.transform
+        let center = Vector3(0, 0, 1) * sample.transform
+        let front = Vector3(0, 1, 1) * sample.transform
         let mag = front - center
         let gain = sqrt((mag.x*mag.x)+(mag.y*mag.y))
         return (Vector2(center.x, center.y), gain)
@@ -234,28 +239,32 @@ public class AudioMixer : Source<AudioSample> {
         let dimensions = min(channelCount-1, 2)
         let theta = Float.pi*2.0 / Float(channelCount)
         let theta_2 = theta/2
-        let gains = (0..<channelCount).map { idx -> Float in 
+        let gains = (0..<channelCount).map { idx -> Float in
             let pos = Vector2(cos(theta*Float(idx)+theta_2), sin(theta*Float(idx)+theta_2))
             let mag = pos - position.0
             switch dimensions {
-                case 0:
-                    return position.1
-                case 1:
-                    return smoothstep(0.0, 0.5, 1.0 - mag.x * 0.5) * position.1 // using a 1-D line, drop y component
-                case 2:
-                    let distance = sqrt((mag.x*mag.x)+(mag.y*mag.y)) * 0.5
-                    return smoothstep(0.0, 0.5, 1.0 - distance) * position.1 // revisit this to properly model dropoff.
-                default:
-                    return position.1
+            case 0:
+                return position.1
+            case 1:
+                return smoothstep(0.0, 0.5, 1.0 - mag.x * 0.5) * position.1 // using a 1-D line, drop y component
+            case 2:
+                let distance = sqrt((mag.x*mag.x)+(mag.y*mag.y)) * 0.5
+                return smoothstep(0.0, 0.5, 1.0 - distance) * position.1 // revisit this to properly model dropoff.
+            default:
+                return position.1
             }
         }
         return gains
     }
 
-    private func applyMixS16(_ input: Data, gain: [Float], backing: inout Data, backingStartOffset: Int, inputStartOffset: Int) -> Int {
-        guard inputStartOffset >= 0 && 
+    private func applyMixS16(_ input: Data,
+                             gain: [Float],
+                             backing: inout Data,
+                             backingStartOffset: Int,
+                             inputStartOffset: Int) -> Int {
+        guard inputStartOffset >= 0 &&
               inputStartOffset < input.count &&
-              backingStartOffset >= 0 && 
+              backingStartOffset >= 0 &&
               backingStartOffset < backing.count else {
                 return -1
         }
@@ -266,44 +275,44 @@ public class AudioMixer : Source<AudioSample> {
             guard let baseAddress = inputPtr.baseAddress else {
                 return
             }
-            
+
             // TODO: Use SSE
             backing.withUnsafeMutableBytes { backingPtr in
                 let ptr = backingPtr.bindMemory(to: Int16.self)
-                let inptr = UnsafeRawPointer(baseAddress).bindMemory(to: Int16.self, capacity:inputSize / 2)
+                let inptr = UnsafeRawPointer(baseAddress).bindMemory(to: Int16.self, capacity: inputSize / 2)
                 let channelCount = gain.count
-                for i in 0..<(numberBytes/2) {
-                    let channel = i % channelCount
-                    let value = Int64(Float(inptr[i + (inputStartOffset/2)]) * gain[channel]) + Int64(ptr[i + (backingStartOffset/2)])
-                    ptr[i + (backingStartOffset/2)] = Int16(max(Int64(Int16.min), min(Int64(Int16.max), value)))
+                for idx in 0..<(numberBytes/2) {
+                    let channel = idx % channelCount
+                    let value = Int64(Float(inptr[idx +
+                                (inputStartOffset/2)]) * gain[channel]) +
+                                Int64(ptr[idx + (backingStartOffset/2)])
+                    ptr[idx + (backingStartOffset/2)] = Int16(max(Int64(Int16.min), min(Int64(Int16.max), value)))
                 }
             }
         }
         return numberBytes
     }
-    private var samples : [String: [AudioSample]]
+    private var samples: [String: [AudioSample]]
     private var sourceOffset: [String: TimePoint]
     private var pts: TimePoint
-    private let statsReport : StatsReport
-    private let frameDuration : TimePoint
+    private let statsReport: StatsReport
+    private let frameDuration: TimePoint
     private let delay: TimePoint
     private let epoch: TimePoint
-    private let clock : Clock
-    private let queue : DispatchQueue
-    private let sampleRate : Int
+    private let clock: Clock
+    private let queue: DispatchQueue
+    private let sampleRate: Int
     private let channelCount: Int
-    private let outputFormat : AudioFormat
-    private let idAsset: String 
+    private let outputFormat: AudioFormat
+    private let idAsset: String
     private let idWorkspace: String
 }
 
-
-func smoothstep<T: BinaryFloatingPoint>(_ edge0: T, _ edge1: T, _ x: T) -> T {
-    let x = clamp(0.0, 1.0, (x - edge0) / (edge1 - edge0))
-    return x * x * (3 - 2 * x)
+func smoothstep<T: BinaryFloatingPoint>(_ edge0: T, _ edge1: T, _ val: T) -> T {
+    let val = clamp(0.0, 1.0, (val - edge0) / (edge1 - edge0))
+    return val * val * (3 - 2 * val)
 }
 
-func clamp<T: BinaryFloatingPoint>(_ lower: T, _ upper: T, _ x: T) -> T {
-    return max(min(upper, x), lower)
+func clamp<T: BinaryFloatingPoint>(_ lower: T, _ upper: T, _ val: T) -> T {
+    return max(min(upper, val), lower)
 }
-

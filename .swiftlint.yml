@@ -1,0 +1,10 @@
+included:
+  - Sources
+
+excluded:
+  - Sources/CFreeType
+  - Sources/CSwiftVideo
+  - Sources/SwiftVideo/proto
+
+disabled_rules:
+  - todo

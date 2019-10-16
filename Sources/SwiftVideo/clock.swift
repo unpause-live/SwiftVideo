@@ -14,13 +14,15 @@
    limitations under the License.
 */
 
+// swiftlint:disable identifier_name
+
 import Foundation
 import Dispatch
 
 public protocol Clock {
     func step() -> TimePoint
     func current() -> TimePoint
-    func schedule(_ at: TimePoint, f: @escaping (ClockTickEvent) -> ())
+    func schedule(_ at: TimePoint, f: @escaping (ClockTickEvent) -> Void)
     func fromUnixTime(_ time: Int64) -> TimePoint /* Base 100k */
     func toUnixTime(_ time: TimePoint) -> Int64
 }
@@ -29,11 +31,11 @@ public final class WallClock: Clock {
     private let epoch: Date
     private let assetId: String
     private let workspaceId: String
-    
+
     public func step() -> TimePoint {
         return current()
     }
-    
+
     public func current() -> TimePoint {
         return TimePoint(Date().timeIntervalSince(epoch))
     }
@@ -56,7 +58,7 @@ public final class WallClock: Clock {
         self.assetId = assetId
         self.workspaceId = workspaceId
     }
-    
+
     public init(_ epoch: Date,
                 assetId: String = UUID().uuidString,
                 workspaceId: String = "wallclock") {
@@ -65,7 +67,7 @@ public final class WallClock: Clock {
         self.workspaceId = workspaceId
     }
 
-    public func schedule(_ at: TimePoint, f: @escaping (ClockTickEvent) -> ()) {
+    public func schedule(_ at: TimePoint, f: @escaping (ClockTickEvent) -> Void) {
         let cur = current()
         if at <= cur {
             f(ClockTickEvent(at, self.assetId, self.workspaceId))
@@ -81,7 +83,7 @@ public final class WallClock: Clock {
 public final class StepClock: Clock {
     private var time = TimePoint(0)
     private let stepSize: TimePoint
-    private var scheduled = [(TimePoint, (ClockTickEvent) -> ())]()
+    private var scheduled = [(TimePoint, (ClockTickEvent) -> Void)]()
     private let assetId: String
     private let workspaceId: String
     private let queue: DispatchQueue
@@ -103,7 +105,7 @@ public final class StepClock: Clock {
     public func current() -> TimePoint {
         return self.time
     }
-    
+
     public func fromUnixTime(_ time: Int64) -> TimePoint {
         return current()
     }
@@ -119,7 +121,7 @@ public final class StepClock: Clock {
         }
     }
 
-    public func schedule(_ at: TimePoint, f: @escaping (ClockTickEvent) -> ()) {
+    public func schedule(_ at: TimePoint, f: @escaping (ClockTickEvent) -> Void) {
         let cur = current()
         if at <= cur {
             f(ClockTickEvent(at, self.assetId, self.workspaceId))
@@ -257,16 +259,16 @@ public func clamp(_ val: TimePoint, _ low: TimePoint, _ high: TimePoint) -> Time
     return min(max(val, low), high)
 }
 
-public class ClockTickEvent : Event {
-    let timePoint : TimePoint
+public class ClockTickEvent: Event {
+    let timePoint: TimePoint
     let idAsset: String
     let idWorkspace: String
-    init(_ time: TimePoint, _ assetId : String, _ workspaceId: String) {
+    init(_ time: TimePoint, _ assetId: String, _ workspaceId: String) {
         self.timePoint = time
         self.idAsset = assetId
         self.idWorkspace = workspaceId
     }
-    
+
     public func type() -> String { return "clock.tick" }
     public func time() -> TimePoint { return timePoint }
     public func assetId() -> String { return idAsset }

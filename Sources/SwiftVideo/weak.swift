@@ -17,7 +17,7 @@
 import Foundation
 
 public class Weak<T: AnyObject> {
-  public weak var value : T?
+  public weak var value: T?
   public var uuid: String?
   public init (value: T, uuid: String? = nil) {
     self.value = value
@@ -29,7 +29,7 @@ public func bridge<T: AnyObject>(_ obj: T) -> UnsafeMutableRawPointer {
     return Unmanaged.passUnretained(obj).toOpaque()
 }
 
-public func bridge<T : AnyObject>(from ptr: UnsafeMutableRawPointer) -> T {
+public func bridge<T: AnyObject>(from ptr: UnsafeMutableRawPointer) -> T {
     return Unmanaged<T>.fromOpaque(ptr).takeUnretainedValue()
 }
 
@@ -38,8 +38,11 @@ enum ConversionError: Error {
 }
 
 extension String {
+    // swiftlint:disable:next identifier_name
     public func toJSON<T: Decodable>(_ as: T.Type) throws -> T {
-        guard let data = self.data(using: .utf8, allowLossyConversion: false) else { throw ConversionError.cannotConvertToData }
+        guard let data = self.data(using: .utf8, allowLossyConversion: false) else {
+          throw ConversionError.cannotConvertToData
+        }
         return try JSONDecoder().decode(T.self, from: data)
     }
 }

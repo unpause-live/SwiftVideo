@@ -16,7 +16,6 @@
 
 import VectorMath
 
-
 // TODO: Higher bit-depth formats
 public enum PixelFormat {
     case nv12
@@ -33,6 +32,7 @@ public enum PixelFormat {
     case invalid
 }
 
+// swiftlint:disable identifier_name
 public enum Component {
     case r
     case g
@@ -42,6 +42,7 @@ public enum Component {
     case cr
     case cb
 }
+// swiftlint:enable identifier_name
 
 public struct Plane {
     public init(size: Vector2, stride: Int, bitDepth: Int, components: [Component]) {
@@ -50,10 +51,10 @@ public struct Plane {
         self.bitDepth = bitDepth
         self.components = components
     }
-    let size : Vector2
-    let stride : Int
-    let bitDepth : Int
-    let components : [Component]
+    let size: Vector2
+    let stride: Int
+    let bitDepth: Int
+    let components: [Component]
 }
 
 public enum BufferType {
@@ -71,8 +72,8 @@ public protocol PictureEvent: Event {
     func pixelFormat() -> PixelFormat
     func bufferType() -> BufferType
     func size() -> Vector2
-    func lock() -> ()
-    func unlock() -> ()
+    func lock()
+    func unlock()
     func revision() -> String
     func fillColor() -> Vector4
     func borderMatrix() -> Matrix4
@@ -80,18 +81,18 @@ public protocol PictureEvent: Event {
 }
 
 public func componentsForPlane(_ pixelFormat: PixelFormat, _ idx: Int) -> [Component] {
-    switch(pixelFormat) {
-        case .y420p, .y422p, .y444p:
-            return [[.y], [.cb], [.cr]][idx]
-        case .nv12:
-            return [[.y], [.cb, .cr]][idx]
-        case .nv21:
-            return [[.y], [.cr, .cb]][idx]
-        case .yuvs:
-            return [.y, .cb, .y, .cr]
-        case .zvuy:
-            return [.cb, .y, .cr, .y]
-        default:
-            return []
+    switch pixelFormat {
+    case .y420p, .y422p, .y444p:
+        return [[.y], [.cb], [.cr]][idx]
+    case .nv12:
+        return [[.y], [.cb, .cr]][idx]
+    case .nv21:
+        return [[.y], [.cr, .cb]][idx]
+    case .yuvs:
+        return [.y, .cb, .y, .cr]
+    case .zvuy:
+        return [.cb, .y, .cr, .y]
+    default:
+        return []
     }
 }

@@ -17,7 +17,9 @@
 import VectorMath
 import Foundation
 
-enum ComputeError : Error {
+// swiftlint:disable identifier_name
+
+enum ComputeError: Error {
     case invalidPlatform
     case invalidDevice
     case invalidOperation
@@ -64,22 +66,21 @@ enum ComputeKernel {
 
     // motion estimation
     case me_fullsearch
-    
 
     // user-defined
     case custom(name: String)
 }
 
 struct ImageUniforms {
-    let transform : Matrix4
-    let textureTransform : Matrix4
+    let transform: Matrix4
+    let textureTransform: Matrix4
     let borderMatrix: Matrix4
     let fillColor: Vector4
-    let inputSize : Vector2
-    let outputSize : Vector2
-    let opacity : Float
-    let imageTime : Float
-    let targetTime : Float
+    let inputSize: Vector2
+    let outputSize: Vector2
+    let opacity: Float
+    let imageTime: Float
+    let targetTime: Float
 }
 
 // Find a default compute kernel
@@ -120,7 +121,7 @@ func defaultComputeKernelFromString(_ str: String) throws -> ComputeKernel {
 }
 
 public func hasAvailableComputeDevices(forType search: ComputeDeviceType) -> Bool {
-    let devices = availableComputeDevices().filter { 
+    let devices = availableComputeDevices().filter {
         guard let type = $0.deviceType, type == search && $0.available else {
             return false
         }
@@ -155,7 +156,7 @@ public class GPUBarrierUpload: Tx<PictureSample, PictureSample> {
                     let sample = try uploadComputePicture(context, pict: $0)
                     $0.info()?.endTimer("gpu.upload")
                     return .just(sample)
-                } catch (let error) {
+                } catch let error {
                     return .error(EventError("barrier.upload", -1, "\(error)", assetId: $0.assetId()))
                 }
             } else {
@@ -195,8 +196,6 @@ public class GPUBarrierAudioUpload: Tx<AudioSample, AudioSample> {
     var peak: Double
 }*/
 
-
-
 //
 //  Place in a pipeline to download textures from the GPU
 //
@@ -214,7 +213,7 @@ public class GPUBarrierDownload: Tx<PictureSample, PictureSample> {
                     let sample = try downloadComputePicture(context, pict: $0)
                     $0.info()?.endTimer("gpu.download")
                     return .just(sample)
-                } catch (let error) {
+                } catch let error {
                     return .error(EventError("barrier.download", -1, "\(error)", assetId: $0.assetId()))
                 }
             } else {

@@ -23,7 +23,7 @@ import CoreVideo
 
 private class FreeTypeInit {
     static let library: FT_Library? = {
-        var library: FT_Library? = nil
+        var library: FT_Library?
         FT_Init_FreeType(&library)
         return library
     }()
@@ -57,21 +57,21 @@ public class TextSample: Event {
     public func textColor() -> Vector4 {
         return color
     }
-    public init(_ value: String, 
-        _ pixelSize: Int,
-        assetId: String, 
-        workspaceId: String,
-        workspaceToken: String? = nil, 
-        color: Vector4 = Vector4(1.0, 1.0, 1.0, 1.0),
-        pts: TimePoint? = nil,
-        info: EventInfo? = nil) {
-        self.val = value
-        self.idAsset = assetId
-        self.tokenWorkspace = workspaceToken
-        self.idWorkspace = workspaceId
-        self.meta = info
-        self.size = pixelSize
-        self.color = color
+    public init(_ value: String,
+                _ pixelSize: Int,
+                assetId: String,
+                workspaceId: String,
+                workspaceToken: String? = nil,
+                color: Vector4 = Vector4(1.0, 1.0, 1.0, 1.0),
+                pts: TimePoint? = nil,
+                info: EventInfo? = nil) {
+                self.val = value
+                self.idAsset = assetId
+                self.tokenWorkspace = workspaceToken
+                self.idWorkspace = workspaceId
+                self.meta = info
+                self.size = pixelSize
+                self.color = color
     }
     let idAsset: String
     let idWorkspace: String
@@ -89,14 +89,14 @@ public enum TextError: Error {
 }
 
 public class TextRenderer: Tx<TextSample, PictureSample> {
-    public init(_ clock: Clock, 
-            _ fontUrl: String) throws {
+    public init(_ clock: Clock,
+                _ fontUrl: String) throws {
         let library = FreeTypeInit.library
         self.library = library
         if let url = URL(string: fontUrl) {
             let fontData = try Data(contentsOf: url, options: [.uncached])
             let face: FT_Face = try fontData.withUnsafeBytes {
-                var face: FT_Face? = nil
+                var face: FT_Face?
                 let base = $0.bindMemory(to: UInt8.self)
                 let result = FT_New_Memory_Face(library, base.baseAddress, $0.count, 0, &face)
 
@@ -122,7 +122,7 @@ public class TextRenderer: Tx<TextSample, PictureSample> {
             return strongSelf.handle($0)
         }
     }
-    
+
     deinit {
         FT_Done_Face(fontFace)
         print("TextRenderer deinit")
@@ -147,11 +147,11 @@ public class TextRenderer: Tx<TextSample, PictureSample> {
         let descender = Int(self.fontFace.pointee.size.pointee.metrics.descender / 64)
         let height = abs(descender) + ascender
         do {
-            let pic = try createPictureSample(Vector2(Float(width), 
-                            Float(height)), 
-                            .RGBA, 
-                            assetId: sample.assetId(), 
-                            workspaceId: sample.workspaceId(), 
+            let pic = try createPictureSample(Vector2(Float(width),
+                            Float(height)),
+                            .RGBA,
+                            assetId: sample.assetId(),
+                            workspaceId: sample.workspaceId(),
                             workspaceToken: sample.workspaceToken())
             let color = sample.textColor()
 #if os(Linux)
@@ -160,12 +160,12 @@ public class TextRenderer: Tx<TextSample, PictureSample> {
                 return .nothing(sample.info())
             }
             let stride = width * 4
-#else 
+#else
             pic.lock()
             defer {
                 pic.unlock()
             }
-            guard let imageBuffer = pic.imageBuffer(), 
+            guard let imageBuffer = pic.imageBuffer(),
                   let rawPointer = CVPixelBufferGetBaseAddress(imageBuffer.pixelBuffer) else {
                 return .nothing(sample.info())
             }
@@ -183,8 +183,10 @@ public class TextRenderer: Tx<TextSample, PictureSample> {
                 }
                 if let bitmap = glyph.bitmap.buffer {
                     let top = max(ascender - Int(glyph.bitmap_top), 0)
+                    // swiftlint:disable identifier_name
                     for y in top..<min(top+Int(glyph.bitmap.rows), height) {
-                        for x in lhs+Int(glyph.bitmap_left)..<min(lhs+Int(glyph.bitmap_left)+Int(glyph.bitmap.width), stride) {
+                        for x in lhs+Int(glyph.bitmap_left)..<min(lhs+Int(glyph.bitmap_left)+Int(glyph.bitmap.width),
+                                stride) {
                             let srcx = x - (lhs+Int(glyph.bitmap_left))
                             let srcy = y - top
                             let srcIdx = Int(glyph.bitmap.width) * srcy + srcx
@@ -196,6 +198,7 @@ public class TextRenderer: Tx<TextSample, PictureSample> {
                             buffer[dstIdx+3] = gray
                         }
                     }
+                    // swiftlint:enable identifier_name
                 }
                 return lhs + Int(glyph.advance.x >> 6) + ((glyph.advance.x & 0x3f) > 31 ? 1 : 0)
             }

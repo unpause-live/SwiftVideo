@@ -18,9 +18,8 @@ import XCTest
 import Foundation
 import SwiftVideo
 
-
 final class sampleRateConversionTests: XCTestCase {
-    
+
     func sampleCountTest() {
         let audioPacketDuration = TimePoint(1024, 44100)
         let src = AudioSampleRateConversion(48000, 2, .s16i)
@@ -38,21 +37,21 @@ final class sampleRateConversionTests: XCTestCase {
         }
 
         for i in 0..<100000 {
-            let sample = AudioSample(buffers, 
-                frequency: 44100, 
-                channels: 1, 
-                format: .f32p, 
+            let sample = AudioSample(buffers,
+                frequency: 44100,
+                channels: 1,
+                format: .f32p,
                 sampleCount: Int(audioPacketDuration.value),
                 time: clock.current(),
                 pts: pts,
                 assetId: "blank",
-                workspaceId: "test");
+                workspaceId: "test")
 
-            .just(sample) >>- tx
+            EventBox<AudioSample>.just(sample) >>- tx
             pts = pts + audioPacketDuration
             clock.step()
         }
-        
+
     }
 
     static var allTests = [

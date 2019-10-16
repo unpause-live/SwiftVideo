@@ -19,8 +19,10 @@ import Foundation
 
 extension rtmp {
     enum serialize {
-        
-        static func serializeMedia(_ sample: CodedMediaSample, ctx: Context, sendConfig: Bool = false) -> (ByteBuffer?, Context) {
+
+        static func serializeMedia(_ sample: CodedMediaSample,
+                                   ctx: Context,
+                                   sendConfig: Bool = false) -> (ByteBuffer?, Context) {
             guard sample.mediaType() == .video || sample.mediaType() == .audio else {
                 return (nil, ctx)
             }
@@ -36,7 +38,8 @@ extension rtmp {
                     return [0xa0 | 0xc | 0x2 | 0x1, sendConfig ? 0 : 1]
                 }
             }()
-            let payload = !sendConfig ? buffer.fromData(sample.data()) : sample.sideData()["config"].map { buffer.fromData($0) }
+            let payload =
+                !sendConfig ? buffer.fromData(sample.data()) : sample.sideData()["config"].map { buffer.fromData($0) }
             let buf = buffer.concat(buffer.fromData(Data(header)), payload)
             let chunk = Chunk(msgStreamId: ctx.msgStreamId,
                               msgLength: buf?.readableBytes ?? 0,
@@ -49,24 +52,25 @@ extension rtmp {
             let result = serializeChunk(chunk, ctx: ctx)
             return result
         }
-        
-        static func createMetadata(_ mediaDescription: [BasicMediaDescription], ctx: Context) throws -> (ByteBuffer?, Context) {
+
+        static func createMetadata(_ mediaDescription: [BasicMediaDescription],
+                                   ctx: Context) throws -> (ByteBuffer?, Context) {
             let header = ["encoder": amf.Atom("Cezium 1.0"), "duration": amf.Atom(0.0), "filesize": amf.Atom(0.0)]
-            let body: [[String:amf.Atom]] = mediaDescription.map {
+            let body: [[String: amf.Atom]] = mediaDescription.map {
                 switch $0 {
-                    case .video(let desc):
-                        return ["width": amf.Atom(Float64(desc.size.x)),
-                                "height": amf.Atom(Float64(desc.size.y)),
-                                "videodatarate": amf.Atom(1000.0),
-                                "framerate": amf.Atom(30.0),
-                                "videocodecid": amf.Atom("avc1")]
-                    case .audio(let desc):
-                        return ["audiodatarate": amf.Atom(96.0),
-                                "audiosamplerate": amf.Atom(Float64(desc.sampleRate)),
-                                "audiosamplesize": amf.Atom(16.0),
-                                "audiochannels": amf.Atom(Float64(desc.channelCount)),
-                                "stereo": amf.Atom(desc.channelCount > 1 ? 1.0 : 0.0),
-                                "audiocodecid": amf.Atom("mp4a")]
+                case .video(let desc):
+                    return ["width": amf.Atom(Float64(desc.size.x)),
+                            "height": amf.Atom(Float64(desc.size.y)),
+                            "videodatarate": amf.Atom(1000.0),
+                            "framerate": amf.Atom(30.0),
+                            "videocodecid": amf.Atom("avc1")]
+                case .audio(let desc):
+                    return ["audiodatarate": amf.Atom(96.0),
+                            "audiosamplerate": amf.Atom(Float64(desc.sampleRate)),
+                            "audiosamplesize": amf.Atom(16.0),
+                            "audiochannels": amf.Atom(Float64(desc.channelCount)),
+                            "stereo": amf.Atom(desc.channelCount > 1 ? 1.0 : 0.0),
+                            "audiocodecid": amf.Atom("mp4a")]
                 }
             }
             let props = body.reduce(header) {
@@ -99,14 +103,15 @@ extension rtmp {
                 chunk.chunkStreamId != 3 {
 
                 // decide on type 3
-                if chunk.msgLength == prev.msgLength && 
-                    chunk.msgType == prev.msgType && 
+                if chunk.msgLength == prev.msgLength &&
+                    chunk.msgType == prev.msgType &&
                     chunk.timestampDelta == prev.timestampDelta &&
                     chunk.timestampDelta > 0 &&
                     chunk.msgLength < ctx.outChunkSize {
                     // Type 3
                     return serializeChunk3(chunk, ctx)
-                } else if chunk.msgLength != prev.msgLength || chunk.msgType != prev.msgType || prev.timestampDelta == 0 {
+                } else if chunk.msgLength != prev.msgLength ||
+                    chunk.msgType != prev.msgType || prev.timestampDelta == 0 {
                     // Type 1
                     return serializeChunk1(chunk, ctx)
                 } else if prev.timestampDelta != chunk.timestampDelta {
@@ -121,7 +126,7 @@ extension rtmp {
                 return serializeChunk0(chunk, ctx)
             }
         }
-        
+
         private static func createChunkHeader(_ chunkStreamId: Int, _ chunkFormat: Int) -> [UInt8] {
             if chunkStreamId < 64 {
                 return [UInt8(chunkStreamId & 0x3f) | UInt8((chunkFormat & 0x3) << 6)]
@@ -131,7 +136,7 @@ extension rtmp {
                 return [UInt8((chunkFormat & 0x3) << 6) | UInt8(1)] + buffer.toByteArray(UInt16(chunkStreamId & 0xffff))
             }
         }
-        
+
         private static func be24(_ val: UInt32) -> [UInt8] {
             return [UInt8((val >> 16) & 0xff), UInt8((val >> 8) & 0xff), UInt8(val & 0xff)]
         }
@@ -139,13 +144,13 @@ extension rtmp {
         private static func be24(_ val: Int32) -> [UInt8] {
             return [UInt8((val >> 16) & 0xff), UInt8((val >> 8) & 0xff), UInt8(val & 0xff)]
         }
-        
-        private static func chunkBuffer(_ buf: ByteBuffer?, 
-            ctx: Context, 
-            chunkStreamId: Int, 
-            headerBytes: [UInt8], 
-            timestamp: UInt32, 
-            useExtended: Bool) -> ByteBuffer? {
+
+        private static func chunkBuffer(_ buf: ByteBuffer?,
+                                        ctx: Context,
+                                        chunkStreamId: Int,
+                                        headerBytes: [UInt8],
+                                        timestamp: UInt32,
+                                        useExtended: Bool) -> ByteBuffer? {
             guard var buf = buf else {
                 return nil
             }
@@ -165,11 +170,11 @@ extension rtmp {
                 if buf.readableBytes > ctx.outChunkSize {
                     _ = outp.writeBytes(header)
                 }
-                buf.moveReaderIndex(forwardBy:size)
+                buf.moveReaderIndex(forwardBy: size)
             } while(buf.readableBytes > 0)
             return outp
         }
-        
+
         private static func serializeChunk0(_ chunk: Chunk, _ ctx: Context) -> (ByteBuffer?, Context) {
             let chunkHeader = createChunkHeader(chunk.chunkStreamId, 0)
             let timestamp: UInt32 = UInt32(max(chunk.timestamp, 0) % 0xffffffff)
@@ -179,19 +184,19 @@ extension rtmp {
             let msgStreamId = buffer.toByteArray(UInt32(chunk.msgStreamId))
             let extTsBytes: [UInt8] = timestamp >= 0xffffff ? buffer.toByteArray(timestamp.byteSwapped) : []
             let bytes = chunkHeader + tsBytes + len + msgType + msgStreamId + extTsBytes
-            let serializedChunk = chunkBuffer(chunk.data, 
-                ctx: ctx, 
-                chunkStreamId: chunk.chunkStreamId, 
-                headerBytes: bytes, 
+            let serializedChunk = chunkBuffer(chunk.data,
+                ctx: ctx,
+                chunkStreamId: chunk.chunkStreamId,
+                headerBytes: bytes,
                 timestamp: timestamp,
                 useExtended: timestamp >= 0xffffff)
             return (serializedChunk,
                     ctx.changing(
-                        outChunks:ctx.outChunks.merging([chunk.chunkStreamId: chunk.changing(timestampDelta: 0, 
+                        outChunks: ctx.outChunks.merging([chunk.chunkStreamId: chunk.changing(timestampDelta: 0,
                             extended: timestamp >= 0xffffff, data: nil)]) { $1 },
-                        lastChunk0:ctx.lastChunk0.merging([chunk.chunkStreamId: chunk.timestamp]) { $1 }))
+                        lastChunk0: ctx.lastChunk0.merging([chunk.chunkStreamId: chunk.timestamp]) { $1 }))
         }
-        
+
         private static func serializeChunk1(_ chunk: Chunk, _ ctx: Context) -> (ByteBuffer?, Context) {
             let chunkHeader = createChunkHeader(chunk.chunkStreamId, 1)
             let timestampDelta = UInt32(max(chunk.timestampDelta, 0) % 0xffffffff)
@@ -200,44 +205,48 @@ extension rtmp {
             let msgType = [UInt8(chunk.msgType & 0xff)]
             let extTsBytes: [UInt8] = timestampDelta >= 0xffffff ? buffer.toByteArray(timestampDelta.byteSwapped) : []
             let bytes = chunkHeader + tsDeltaBytes + len + msgType + extTsBytes
-            let serializedChunk = chunkBuffer(chunk.data, 
-                ctx: ctx, 
-                chunkStreamId: chunk.chunkStreamId, 
-                headerBytes: bytes, 
+            let serializedChunk = chunkBuffer(chunk.data,
+                ctx: ctx,
+                chunkStreamId: chunk.chunkStreamId,
+                headerBytes: bytes,
                 timestamp: UInt32(max(chunk.timestamp, 0) % 0xffffffff),
                 useExtended: timestampDelta >= 0xffffff)
             return (serializedChunk,
-                    ctx.changing(outChunks:ctx.outChunks.merging([chunk.chunkStreamId: chunk.changing(extended: timestampDelta >= 0xffffff, data: nil)]) { $1 }))
+                    ctx.changing(
+                        outChunks: ctx.outChunks.merging([chunk.chunkStreamId: chunk.changing(
+                            extended: timestampDelta >= 0xffffff, data: nil)]) { $1 }))
         }
-        
+
         private static func serializeChunk2(_ chunk: Chunk, _ ctx: Context) -> (ByteBuffer?, Context) {
             let chunkHeader = createChunkHeader(chunk.chunkStreamId, 2)
             let timestampDelta = UInt32(max(chunk.timestampDelta, 0) % 0xffffffff)
             let tsDeltaBytes = be24(min(timestampDelta, 0xffffff))
             let extTsBytes: [UInt8] = timestampDelta >= 0xffffff ? buffer.toByteArray(timestampDelta.byteSwapped) : []
             let bytes = chunkHeader + tsDeltaBytes + extTsBytes
-            let serializedChunk = chunkBuffer(chunk.data, 
-                ctx: ctx, 
-                chunkStreamId: chunk.chunkStreamId, 
-                headerBytes: bytes, 
+            let serializedChunk = chunkBuffer(chunk.data,
+                ctx: ctx,
+                chunkStreamId: chunk.chunkStreamId,
+                headerBytes: bytes,
                 timestamp: UInt32(max(chunk.timestamp, 0) % 0xffffffff),
                 useExtended: timestampDelta >= 0xffffff)
             return (serializedChunk,
-                    ctx.changing(outChunks:ctx.outChunks.merging([chunk.chunkStreamId: chunk.changing(extended: timestampDelta >= 0xffffff, data: nil)]) { $1 }))
+                    ctx.changing(
+                        outChunks: ctx.outChunks.merging([chunk.chunkStreamId: chunk.changing(
+                            extended: timestampDelta >= 0xffffff, data: nil)]) { $1 }))
         }
-        
+
         private static func serializeChunk3(_ chunk: Chunk, _ ctx: Context) -> (ByteBuffer?, Context) {
             let timestamp = UInt32(max(chunk.timestamp, 0) % 0xffffffff)
             let extTsBytes: [UInt8] = chunk.extended ? buffer.toByteArray(timestamp.byteSwapped) : []
             let bytes = createChunkHeader(chunk.chunkStreamId, 3) + extTsBytes
-            let serializedChunk = chunkBuffer(chunk.data, 
-                ctx: ctx, 
-                chunkStreamId: chunk.chunkStreamId, 
-                headerBytes: bytes, 
+            let serializedChunk = chunkBuffer(chunk.data,
+                ctx: ctx,
+                chunkStreamId: chunk.chunkStreamId,
+                headerBytes: bytes,
                 timestamp: UInt32(max(chunk.timestamp, 0) % 0xffffffff),
                 useExtended: chunk.extended)
             return (serializedChunk,
-                    ctx.changing(outChunks:ctx.outChunks.merging([chunk.chunkStreamId: chunk]) { $1 }))
+                    ctx.changing(outChunks: ctx.outChunks.merging([chunk.chunkStreamId: chunk]) { $1 }))
         }
     }
 }

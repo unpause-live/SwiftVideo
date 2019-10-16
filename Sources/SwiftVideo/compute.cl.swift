@@ -19,14 +19,14 @@
 #warning ("macOS support is deprecated, this is only for development. Use Metal for production.")
 import OpenCL
 import CoreVideo
-#else 
+#else
 import CSwiftVideo
 #endif
 import Logging
 import VectorMath
 import Foundation
 
-fileprivate struct Platform {
+private struct Platform {
     let platformId: cl_platform_id
     let name: String?
     let vendor: String?
@@ -57,7 +57,7 @@ public class ComputeBuffer {
     }
 }
 
-fileprivate class InternalContext {
+private class InternalContext {
     init(_ ctx: cl_context) {
         self.ctx = ctx
         self.library = [:]
@@ -112,7 +112,9 @@ func createComputeContext(sharing ctx: ComputeContext) -> ComputeContext? {
     let ctx = ComputeContext(device: ctx.device, ctx: ctx.context.ctx, logger: ctx.logger)
     do {
         return try OpenCLKernel.allCases.reduce(ctx) {
-            try buildComputeKernel($0, name: String(describing: $1), source: kOpenCLKernelMatrixFuncs + "\n" + $1.rawValue)
+            try buildComputeKernel($0,
+                                   name: String(describing: $1),
+                                   source: kOpenCLKernelMatrixFuncs + "\n" + $1.rawValue)
         }
     } catch {
         ctx.logger.error("Caught error building kernels \(error)")
@@ -120,36 +122,39 @@ func createComputeContext(sharing ctx: ComputeContext) -> ComputeContext? {
     }
 }
 
-func createComputeContext(_ device: ComputeDevice, logger: Logger = Logger(label:"SwiftVideo")) throws -> ComputeContext? {
-    let properties : [cl_context_properties] = [Int(CL_CONTEXT_PLATFORM), Int(bitPattern: device.platformId), 0, 0]
-    let deviceIds : [cl_device_id?] = [device.deviceId]
-    var error : cl_int = 0
+func createComputeContext(_ device: ComputeDevice,
+                          logger: Logger = Logger(label: "SwiftVideo")) throws -> ComputeContext? {
+    let properties: [cl_context_properties] = [Int(CL_CONTEXT_PLATFORM), Int(bitPattern: device.platformId), 0, 0]
+    let deviceIds: [cl_device_id?] = [device.deviceId]
+    var error: cl_int = 0
     let ctx = clCreateContext(properties, cl_uint(deviceIds.count), deviceIds, nil, nil, &error)
     logger.info("createComputeContext")
     if error != CL_SUCCESS {
-        switch (error) {
-            case CL_INVALID_PLATFORM:
-                throw ComputeError.invalidPlatform
-            case CL_INVALID_DEVICE:
-                throw ComputeError.invalidDevice
-            case CL_INVALID_VALUE:
-                throw ComputeError.invalidValue
-            case CL_DEVICE_NOT_AVAILABLE:
-                throw ComputeError.deviceNotAvailable
-            case CL_OUT_OF_HOST_MEMORY:
-                throw ComputeError.outOfMemory
-            default:
-                throw ComputeError.unknownError
+        switch error {
+        case CL_INVALID_PLATFORM:
+            throw ComputeError.invalidPlatform
+        case CL_INVALID_DEVICE:
+            throw ComputeError.invalidDevice
+        case CL_INVALID_VALUE:
+            throw ComputeError.invalidValue
+        case CL_DEVICE_NOT_AVAILABLE:
+            throw ComputeError.deviceNotAvailable
+        case CL_OUT_OF_HOST_MEMORY:
+            throw ComputeError.outOfMemory
+        default:
+            throw ComputeError.unknownError
         }
     }
 
     return try ctx.map {
         try OpenCLKernel.allCases.reduce(ComputeContext(device: device, ctx: $0, logger: logger)) {
-            try buildComputeKernel($0, name: String(describing: $1), source: kOpenCLKernelMatrixFuncs + "\n" + $1.rawValue)
+            try buildComputeKernel($0,
+                                   name: String(describing: $1),
+                                   source: kOpenCLKernelMatrixFuncs + "\n" + $1.rawValue)
         } }
 }
 
-func destroyComputeContext( _ context: ComputeContext) throws -> () {
+func destroyComputeContext( _ context: ComputeContext) throws {
     if let queue = context.commandQueue {
         clReleaseCommandQueue(queue)
     }
@@ -158,15 +163,15 @@ func destroyComputeContext( _ context: ComputeContext) throws -> () {
 func buildComputeKernel(_ context: ComputeContext, name: String, source: String) throws -> ComputeContext {
     context.logger.info("buildComputeKernel")
     let (program, errcode) = source.withCString { (cstr: UnsafePointer<Int8>?) -> (cl_program?, cl_int) in
-        var errcode : cl_int = 0
-        var mutStr : UnsafePointer<Int8>? = UnsafePointer(cstr)
-        let p = clCreateProgramWithSource(context.clContext(), 1, &mutStr, [source.count], &errcode)
-        return (p, errcode)
+        var errcode: cl_int = 0
+        var mutStr: UnsafePointer<Int8>? = UnsafePointer(cstr)
+        let pid = clCreateProgramWithSource(context.clContext(), 1, &mutStr, [source.count], &errcode)
+        return (pid, errcode)
     }
-    
+
     try checkCLError(errcode)
 
-    var deviceIds : cl_device_id? = context.device.deviceId
+    var deviceIds: cl_device_id? = context.device.deviceId
     if let program = program {
         var error = clBuildProgram(program, 1,
                        &deviceIds,
@@ -175,7 +180,7 @@ func buildComputeKernel(_ context: ComputeContext, name: String, source: String)
                        nil)
         guard CL_SUCCESS == error else {
             var val = [UInt8](repeating: 0, count: 10240)
-            var len : Int = 0
+            var len: Int = 0
             clGetProgramBuildInfo(program,
                                   deviceIds,
                                   cl_program_build_info(CL_PROGRAM_BUILD_LOG),
@@ -222,7 +227,7 @@ func runComputeKernel(_ context: ComputeContext,
                       target: PictureSample,
                       kernel: ComputeKernel,
                       maxPlanes: Int = 3,
-                      requiredMemory: Int? = nil) throws -> ComputeContext { // max number of planes per image to use.  1 for Luma-only on YUV. No effect on BGRA.
+                      requiredMemory: Int? = nil) throws -> ComputeContext {
     return try runComputeKernel(context,
                                 images: images,
                                 target: target,
@@ -235,7 +240,7 @@ func runComputeKernel<T>(_ context: ComputeContext,
                          images: [PictureSample],
                          target: PictureSample,
                          kernel: ComputeKernel,
-                         maxPlanes: Int = 3, // max number of planes per image to use.  1 for Luma-only on YUV. No effect on BGRA.
+                         maxPlanes: Int = 3,
                          requiredMemory: Int? = nil,
                          uniforms: T? = nil,
                          blends: Bool = false) throws -> ComputeContext {
@@ -253,9 +258,9 @@ func runComputeKernel<T>(_ context: ComputeContext,
         let result = try $0 + createTexture(context, image, maxPlanes)
         return result
     }
-    
+
     let outputs = targetImageBuffer.computeTextures
-    
+
     // writeable output
     try outputs.enumerated().forEach {
         var mem = $0.element.mem
@@ -292,9 +297,9 @@ func runComputeKernel<T>(_ context: ComputeContext,
             throw ComputeError.badContextState(description: "OpenCL error \(result) binding input texture")
         }
     }
-    
+
     let uniformBuf = setUniforms(context, kernelFunction.1, uniforms, inputs.count + outputArgCount)
-    
+
     var workSize: [Int] = [Int(target.size().x), Int(target.size().y)]
     let res = clEnqueueNDRangeKernel(commandQueue,
                                kernelFunction.1,
@@ -302,9 +307,9 @@ func runComputeKernel<T>(_ context: ComputeContext,
                                nil,
                                &workSize,
                                nil, 0, nil, nil)
-    
+
     _ = uniformBuf.map { clReleaseMemObject($0) }
-    
+
     guard CL_SUCCESS == res else {
         throw ComputeError.badContextState(description: "OpenCL error running kernel named \(kernel) \(res)")
     }
@@ -325,7 +330,7 @@ func applyComputeImage(_ context: ComputeContext,
                        image: PictureSample,
                        target: PictureSample,
                        kernel: ComputeKernel) throws -> ComputeContext {
-    
+
     let inputSize = Vector2([image.size().x, image.size().y])
     let outputSize = Vector2([target.size().x, target.size().y])
     let matrix = image.matrix().inverse.transpose
@@ -339,7 +344,7 @@ func applyComputeImage(_ context: ComputeContext,
                                  opacity: image.opacity(),
                                  imageTime: seconds(image.time()),
                                  targetTime: seconds(target.time()))
-    
+
     return try runComputeKernel(context,
                                 images: [image],
                                 target: target,
@@ -349,7 +354,6 @@ func applyComputeImage(_ context: ComputeContext,
                                 blends: true)
 }
 
-
 func endComputePass( _ context: ComputeContext, _ waitForCompletion: Bool ) -> ComputeContext {
     guard let queue = context.commandQueue else {
         return context
@@ -357,7 +361,7 @@ func endComputePass( _ context: ComputeContext, _ waitForCompletion: Bool ) -> C
     #if !os(macOS)
     // clEnqueueReadImage
     #endif
-    if(waitForCompletion) {
+    if waitForCompletion {
         clFinish(queue)
     } else {
         clFlush(queue)
@@ -375,10 +379,10 @@ func uploadComputeBuffer(_ ctx: ComputeContext, src: Data, dst: ComputeBuffer?) 
     var src = src
     let count = src.count
     let result = src.withUnsafeMutableBytes {
-        clEnqueueWriteBuffer(ctx.commandQueue, 
-                             buffer.mem, 
-                             cl_bool(CL_TRUE), 
-                             0, count, 
+        clEnqueueWriteBuffer(ctx.commandQueue,
+                             buffer.mem,
+                             cl_bool(CL_TRUE),
+                             0, count,
                              $0.baseAddress, 0, nil, nil)
     }
     try checkCLError(result)
@@ -391,17 +395,17 @@ func downloadComputeBuffer(_ ctx: ComputeContext, src: ComputeBuffer, dst: Data?
         throw ComputeError.badInputData(description: "Destination data buffer must be >= buffer.size")
     }
     let result = dst.withUnsafeMutableBytes {
-        clEnqueueReadBuffer(ctx.commandQueue, 
-                            src.mem, 
-                            cl_bool(CL_TRUE), 0, 
-                            src.size, $0.baseAddress, 
+        clEnqueueReadBuffer(ctx.commandQueue,
+                            src.mem,
+                            cl_bool(CL_TRUE), 0,
+                            src.size, $0.baseAddress,
                             0, nil, nil)
     }
     try checkCLError(result)
     return dst
 }
 
-#if os(macOS) 
+#if os(macOS)
 func uploadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes: Int = 3) throws -> PictureSample {
     guard 3 >= maxPlanes else {
         throw ComputeError.badInputData(description: "Input images must have 3 planes or fewer")
@@ -441,7 +445,7 @@ func uploadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes:
         let plane = imageBuffer.planes[idx]
         let origin = [0, 0, 0]
         let region = [Int(plane.size.x), Int(plane.size.y), 1]
-        let result = buffer.withUnsafeBytes { 
+        let result = buffer.withUnsafeBytes {
             clEnqueueWriteImage(ctx.commandQueue,
                                  texture.mem,
                                  cl_bool(CL_TRUE),
@@ -489,17 +493,17 @@ func downloadComputePicture(_ ctx: ComputeContext, pict: PictureSample) throws -
         return buffer
     }
     _ = endComputePass(ctx, true)
-    let image = ImageBuffer(imageBuffer, buffers: buffers,  bufferType: .cpu)
+    let image = ImageBuffer(imageBuffer, buffers: buffers, bufferType: .cpu)
     return PictureSample(pict, img: image)
-}   
+}
 #endif
 
 // Retrieve a predefined or custom kernel from the library
 // Can throw ComputError.computeKernelNotFound
 //
-fileprivate func getComputeKernel( _ context: ComputeContext, _ kernel: ComputeKernel) throws -> (cl_program, cl_kernel) {
-    var function: (cl_program, cl_kernel)? = nil
-    switch (kernel) {
+private func getComputeKernel( _ context: ComputeContext, _ kernel: ComputeKernel) throws -> (cl_program, cl_kernel) {
+    var function: (cl_program, cl_kernel)?
+    switch kernel {
     case .custom(let name):
         function = context.library()[name]
     default:
@@ -512,11 +516,11 @@ fileprivate func getComputeKernel( _ context: ComputeContext, _ kernel: ComputeK
     return kernelFunction
 }
 
-fileprivate func setUniforms<T>( _ context: ComputeContext,
-                                 _ kernel: cl_kernel,
-                                 _ uniforms: T?,
-                                 _ index: Int) -> cl_mem? {
-    
+private func setUniforms<T>(_ context: ComputeContext,
+                            _ kernel: cl_kernel,
+                            _ uniforms: T?,
+                            _ index: Int) -> cl_mem? {
+
     if var uniforms = uniforms {
         var err: cl_int = 0
         var buf = clCreateBuffer(context.clContext(),
@@ -533,8 +537,8 @@ fileprivate func setUniforms<T>( _ context: ComputeContext,
     return nil
 }
 
-fileprivate func createBuffer(_ ctx: ComputeContext, _ size: Int) throws -> ComputeBuffer {
-    var error : cl_int = 0
+private func createBuffer(_ ctx: ComputeContext, _ size: Int) throws -> ComputeBuffer {
+    var error: cl_int = 0
     let mem = clCreateBuffer(ctx.clContext(), UInt64(CL_MEM_READ_WRITE), Int(size), nil, &error)
     guard let buffer = mem, CL_SUCCESS == error else {
         throw ComputeError.badContextState(description: "Could not create OpenCL buffer \(error)")
@@ -543,7 +547,9 @@ fileprivate func createBuffer(_ ctx: ComputeContext, _ size: Int) throws -> Comp
 }
 
 #if os(Linux)
-fileprivate func createTexture(_ ctx: ComputeContext, _ image: ImageBuffer, _ maxPlanes: Int = 3) throws -> [ComputeBuffer] {
+private func createTexture(_ ctx: ComputeContext,
+                           _ image: ImageBuffer,
+                           _ maxPlanes: Int = 3) throws -> [ComputeBuffer] {
     let planeCount = image.planes.count
     guard 3 >= planeCount &&  0 < planeCount else {
         throw ComputeError.badInputData(description: "Input image must have 1, 2, or 3 planes")
@@ -557,13 +563,18 @@ fileprivate func createTexture(_ ctx: ComputeContext, _ image: ImageBuffer, _ ma
     return try (0..<min(planeCount, maxPlanes) as CountableRange).map { idx in
         let plane = image.planes[idx]
         let components = plane.components.count
-        var pixelFormat : cl_image_format = { switch components {
-            case 1: return cl_image_format(image_channel_order: cl_uint(CL_R), image_channel_data_type: cl_uint(CL_UNORM_INT8))
-            case 2: return cl_image_format(image_channel_order: cl_uint(CL_RG), image_channel_data_type: cl_uint(CL_UNORM_INT8))
-            case 3: return cl_image_format(image_channel_order: cl_uint(CL_RGB), image_channel_data_type: cl_uint(CL_UNORM_INT8))
-            default: return cl_image_format(image_channel_order: cl_uint(CL_RGBA), image_channel_data_type: cl_uint(CL_UNORM_INT8))
+        var pixelFormat: cl_image_format = {
+            switch components {
+            case 1: return cl_image_format(image_channel_order: cl_uint(CL_R),
+                                           image_channel_data_type: cl_uint(CL_UNORM_INT8))
+            case 2: return cl_image_format(image_channel_order: cl_uint(CL_RG),
+                                           image_channel_data_type: cl_uint(CL_UNORM_INT8))
+            case 3: return cl_image_format(image_channel_order: cl_uint(CL_RGB),
+                                           image_channel_data_type: cl_uint(CL_UNORM_INT8))
+            default: return cl_image_format(image_channel_order: cl_uint(CL_RGBA),
+                                            image_channel_data_type: cl_uint(CL_UNORM_INT8))
         } }()
-        var img_desc = cl_image_desc(image_type: cl_uint(CL_MEM_OBJECT_IMAGE2D),
+        var imgDesc = cl_image_desc(image_type: cl_uint(CL_MEM_OBJECT_IMAGE2D),
                                      image_width: Int(plane.size.x),
                                      image_height: Int(plane.size.y),
                                      image_depth: 1,
@@ -573,11 +584,11 @@ fileprivate func createTexture(_ ctx: ComputeContext, _ image: ImageBuffer, _ ma
                                      num_mip_levels: 0,
                                      num_samples: 0,
                                      .init(buffer: nil))
-        var error : cl_int = 0
+        var error: cl_int = 0
         let texture = clCreateImage(ctx.clContext(),
                                     cl_mem_flags(bitPattern: Int64(CL_MEM_READ_WRITE)),
                                     &pixelFormat,
-                                    &img_desc,
+                                    &imgDesc,
                                     nil,
                                     &error)
         guard let tex = texture, CL_SUCCESS == error else {
@@ -594,7 +605,9 @@ fileprivate func createTexture(_ ctx: ComputeContext, _ image: ImageBuffer, _ ma
 // Can throw ComputeError
 // - badContextState
 // - badInputData
-fileprivate func createTexture(_ ctx: ComputeContext, _ image: ImageBuffer, _ maxPlanes: Int = 3) throws -> [ComputeBuffer] {
+private func createTexture(_ ctx: ComputeContext,
+                           _ image: ImageBuffer,
+                           _ maxPlanes: Int = 3) throws -> [ComputeBuffer] {
 
     let planeCount = CVPixelBufferIsPlanar(image.pixelBuffer) ? CVPixelBufferGetPlaneCount(image.pixelBuffer) : 1
     guard 3 >= planeCount else {
@@ -603,19 +616,22 @@ fileprivate func createTexture(_ ctx: ComputeContext, _ image: ImageBuffer, _ ma
     guard let ioSurface = CVPixelBufferGetIOSurface(image.pixelBuffer) else {
         throw ComputeError.badInputData(description: "Image must be an IOSurface")
     }
-    return try (0..<min(planeCount, maxPlanes) as CountableRange).map {
-        idx in
+    return try (0..<min(planeCount, maxPlanes) as CountableRange).map { idx in
         var pixelFormat: cl_image_format = {
             if planeCount == 3 {
-                return cl_image_format(image_channel_order: cl_uint(CL_R), image_channel_data_type: cl_uint(CL_UNORM_INT8))
+                return cl_image_format(image_channel_order: cl_uint(CL_R),
+                                       image_channel_data_type: cl_uint(CL_UNORM_INT8))
             } else if planeCount == 2 && idx == 0 {
-                return cl_image_format(image_channel_order: cl_uint(CL_R), image_channel_data_type: cl_uint(CL_UNORM_INT8))
+                return cl_image_format(image_channel_order: cl_uint(CL_R),
+                                       image_channel_data_type: cl_uint(CL_UNORM_INT8))
             } else if planeCount == 2 && idx == 1 {
-                return cl_image_format(image_channel_order: cl_uint(CL_RG), image_channel_data_type: cl_uint(CL_UNORM_INT8))
+                return cl_image_format(image_channel_order: cl_uint(CL_RG),
+                                       image_channel_data_type: cl_uint(CL_UNORM_INT8))
             }
-            return cl_image_format(image_channel_order: cl_uint(CL_BGRA), image_channel_data_type: cl_uint(CL_UNORM_INT8))
+            return cl_image_format(image_channel_order: cl_uint(CL_BGRA),
+                                   image_channel_data_type: cl_uint(CL_UNORM_INT8))
         }()
-        var img_desc = cl_image_desc(image_type: cl_uint(CL_MEM_OBJECT_IMAGE2D),
+        var imgDesc = cl_image_desc(image_type: cl_uint(CL_MEM_OBJECT_IMAGE2D),
                                      image_width: CVPixelBufferGetWidthOfPlane(image.pixelBuffer, idx),
                                      image_height: CVPixelBufferGetHeightOfPlane(image.pixelBuffer, idx),
                                      image_depth: 1,
@@ -626,15 +642,17 @@ fileprivate func createTexture(_ ctx: ComputeContext, _ image: ImageBuffer, _ ma
                                      num_samples: 0,
                                      buffer: nil)
         let surfRef = intptr_t(bitPattern: ioSurface.toOpaque())
-        var io_props : [cl_iosurface_properties_APPLE] = [Int(CL_IOSURFACE_REF_APPLE), surfRef, Int(CL_IOSURFACE_PLANE_APPLE), idx, 0]
-        var error : cl_int = 0
+        var ioProps: [cl_iosurface_properties_APPLE] = [Int(CL_IOSURFACE_REF_APPLE),
+                                                         surfRef,
+                                                         Int(CL_IOSURFACE_PLANE_APPLE), idx, 0]
+        var error: cl_int = 0
         let texture = clCreateImageFromIOSurfaceWithPropertiesAPPLE(ctx.clContext(),
                                                       cl_mem_flags(bitPattern: Int64(CL_MEM_READ_WRITE)),
                                                       &pixelFormat,
-                                                      &img_desc,
-                                                      &io_props,
+                                                      &imgDesc,
+                                                      &ioProps,
                                                       &error)
-        
+
         guard let tex = texture else {
             throw ComputeError.badContextState(description: "Could not create OpenCL image \(error)")
         }
@@ -643,34 +661,34 @@ fileprivate func createTexture(_ ctx: ComputeContext, _ image: ImageBuffer, _ ma
 }
 #endif
 
-fileprivate func getPlatformInfo(_ platformId: cl_platform_id, _ info: Int32) -> String? {
+private func getPlatformInfo(_ platformId: cl_platform_id, _ info: Int32) -> String? {
     var size: Int = 0
     let param = cl_platform_info(info)
     guard 0 == clGetPlatformInfo(platformId, param, 0, nil, &size) else {
         return nil
     }
     var val = [UInt8](repeating: 0, count: size)
-    
+
     if 0 == clGetPlatformInfo(platformId, param, size, &val, nil) {
         return String(bytes: val.prefix(through: val.count-2), encoding: .utf8)
     }
     return nil
 }
 
-fileprivate func getPlatforms() -> [Platform] {
-    var platformCt : cl_uint = 0
-    
+private func getPlatforms() -> [Platform] {
+    var platformCt: cl_uint = 0
+
     guard 0 == clGetPlatformIDs(0, nil, &platformCt) else {
         return [Platform]()
     }
-    
+
     var platformIds = [cl_platform_id?](repeating: nil, count: Int(platformCt))
-    
+
     guard 0 == clGetPlatformIDs(platformCt, &platformIds, nil) else {
         return [Platform]()
     }
-    
-    return platformIds.reduce ([Platform]()) { acc, val in val <??> {
+
+    return platformIds.reduce([Platform]()) { acc, val in val <??> {
         let platform = Platform(
             platformId: $0,
             name: getPlatformInfo($0, CL_PLATFORM_NAME),
@@ -680,33 +698,33 @@ fileprivate func getPlatforms() -> [Platform] {
         } <|> acc }
 }
 
-fileprivate func checkCLError(_ errcode: Int32) throws {
+private func checkCLError(_ errcode: Int32) throws {
     guard CL_SUCCESS == errcode else {
-        switch(errcode) {
-            case CL_INVALID_PROGRAM:
-                throw ComputeError.invalidProgram
-            case CL_INVALID_VALUE:
-                throw ComputeError.invalidValue
-            case CL_INVALID_DEVICE:
-                throw ComputeError.invalidDevice
-            case CL_INVALID_BINARY:
-                throw ComputeError.unknownError
-            case CL_INVALID_BUILD_OPTIONS:
-                throw ComputeError.unknownError
-            case CL_INVALID_OPERATION:
-                throw ComputeError.invalidOperation
-            case CL_COMPILER_NOT_AVAILABLE:
-                throw ComputeError.compilerNotAvailable
-            case CL_BUILD_PROGRAM_FAILURE:
-                throw ComputeError.unknownError
-            case CL_OUT_OF_HOST_MEMORY:
-                throw ComputeError.outOfMemory
-            default:
-                throw ComputeError.unknownError
+        switch errcode {
+        case CL_INVALID_PROGRAM:
+            throw ComputeError.invalidProgram
+        case CL_INVALID_VALUE:
+            throw ComputeError.invalidValue
+        case CL_INVALID_DEVICE:
+            throw ComputeError.invalidDevice
+        case CL_INVALID_BINARY:
+            throw ComputeError.unknownError
+        case CL_INVALID_BUILD_OPTIONS:
+            throw ComputeError.unknownError
+        case CL_INVALID_OPERATION:
+            throw ComputeError.invalidOperation
+        case CL_COMPILER_NOT_AVAILABLE:
+            throw ComputeError.compilerNotAvailable
+        case CL_BUILD_PROGRAM_FAILURE:
+            throw ComputeError.unknownError
+        case CL_OUT_OF_HOST_MEMORY:
+            throw ComputeError.outOfMemory
+        default:
+            throw ComputeError.unknownError
         }
     }
 }
-fileprivate func getDeviceInfo<T>(_ deviceId: cl_device_id, _ info: Int32) -> T? where T: BinaryInteger {
+private func getDeviceInfo<T>(_ deviceId: cl_device_id, _ info: Int32) -> T? where T: BinaryInteger {
     var val: T = 0
     let res = clGetDeviceInfo(deviceId, cl_device_info(info), MemoryLayout<T>.size, &val, nil)
     guard 0 == res else {
@@ -715,29 +733,29 @@ fileprivate func getDeviceInfo<T>(_ deviceId: cl_device_id, _ info: Int32) -> T?
     return val
 }
 
-fileprivate func getDeviceInfo(_ deviceId: cl_device_id, _ info: Int32) -> String? {
+private func getDeviceInfo(_ deviceId: cl_device_id, _ info: Int32) -> String? {
     var size: Int = 0
     let param = cl_device_info(info)
     guard 0 == clGetDeviceInfo(deviceId, param, 0, nil, &size) else {
         return nil
     }
     var val = [UInt8](repeating: 0, count: size)
-    
+
     if 0 == clGetDeviceInfo(deviceId, param, size, &val, nil) {
         return String(bytes: val.prefix(through: val.count-2), encoding: .utf8)
     }
     return nil
 }
 
-fileprivate func getDeviceInfo(_ deviceId: cl_device_id, _ info: Int32) -> Bool {
+private func getDeviceInfo(_ deviceId: cl_device_id, _ info: Int32) -> Bool {
     let val: UInt32? = getDeviceInfo(deviceId, info)
     return val <??> { $0 > 0 } <|> false
 }
 
-fileprivate func getDeviceType(_ deviceId: cl_device_id) -> ComputeDeviceType? {
+private func getDeviceType(_ deviceId: cl_device_id) -> ComputeDeviceType? {
     let type: cl_device_type? = getDeviceInfo(deviceId, CL_DEVICE_TYPE)
     if let sgType = type {
-        switch(sgType) {
+        switch sgType {
         case UInt64(CL_DEVICE_TYPE_GPU):
             return .GPU
         case UInt64(CL_DEVICE_TYPE_CPU):
@@ -751,12 +769,12 @@ fileprivate func getDeviceType(_ deviceId: cl_device_id) -> ComputeDeviceType? {
     return nil
 }
 
-fileprivate func getDeviceVendorId(_ deviceId: cl_device_id) -> Int? {
+private func getDeviceVendorId(_ deviceId: cl_device_id) -> Int? {
     return getDeviceInfo(deviceId, CL_DEVICE_VENDOR_ID).map { (val: cl_uint) in Int(val) }
 }
 
-fileprivate func getDevices(_ platform: Platform) -> [ComputeDevice] {
-    var deviceCt : cl_uint = 0
+private func getDevices(_ platform: Platform) -> [ComputeDevice] {
+    var deviceCt: cl_uint = 0
     guard 0 == clGetDeviceIDs(platform.platformId, cl_device_type(CL_DEVICE_TYPE_ALL), 0, nil, &deviceCt) else {
         return [ComputeDevice]()
     }
@@ -764,8 +782,8 @@ fileprivate func getDevices(_ platform: Platform) -> [ComputeDevice] {
     guard 0 == clGetDeviceIDs(platform.platformId, cl_device_type(CL_DEVICE_TYPE_ALL), deviceCt, &deviceIds, nil) else {
         return [ComputeDevice]()
     }
-    
-    return deviceIds.reduce ([ComputeDevice]()) { acc, val in val <??> {
+
+    return deviceIds.reduce([ComputeDevice]()) { acc, val in val <??> {
         let device = ComputeDevice(deviceId: $0,
                                    platformId: platform.platformId,
                                    available: getDeviceInfo($0, CL_DEVICE_AVAILABLE),
