@@ -72,18 +72,18 @@ public class AudioSample: Event {
     }
 
     public init(_ other: AudioSample,
-                  bufferType: BufferType? = nil,
-                  assetId: String? = nil,
-                  buffers: [Data]? = nil,
-                  frequency: Int? = nil,
-                  channels: Int? = nil,
-                  format: AudioFormat? = nil,
-                  sampleCount: Int? = nil,
-                  pts: TimePoint? = nil,
-                  transform: Matrix3? = nil,
-                  computeBuffers: [ComputeBuffer]? = nil,
-                  constituents: [MediaConstituent]? = nil,
-                  eventInfo: EventInfo? = nil) {
+                bufferType: BufferType? = nil,
+                assetId: String? = nil,
+                buffers: [Data]? = nil,
+                frequency: Int? = nil,
+                channels: Int? = nil,
+                format: AudioFormat? = nil,
+                sampleCount: Int? = nil,
+                pts: TimePoint? = nil,
+                transform: Matrix3? = nil,
+                computeBuffers: [ComputeBuffer]? = nil,
+                constituents: [MediaConstituent]? = nil,
+                eventInfo: EventInfo? = nil) {
         self.buffers = buffers ?? other.buffers
         self.computeBuffers = computeBuffers ?? other.computeBuffers
         self.buffertype = bufferType ?? other.bufferType()
@@ -164,7 +164,8 @@ public class AudioSample: Event {
     let audioFormat: AudioFormat
     let presentationTimestamp: TimePoint
     let timePoint: TimePoint
-    let transform: Matrix3          /// Position is represented by a single 2D circular plane.  Maybe  in the future we will add elevation, but not now.
+    let transform: Matrix3          /// Position is represented by a single 2D circular plane.  
+                                    /// Maybe  in the future we will add elevation, but not now.
                                     /// Gain is represented by the length of a line that starts as (0, 0) -> (0, 1).
     let eventInfo: EventInfo?
 
@@ -172,10 +173,10 @@ public class AudioSample: Event {
 
 func numberOfChannels(_ channelLayout: AudioChannelLayout) -> Int {
     switch channelLayout {
-        case .mono:
-            return 1
-        case .stereo:
-            return 2
+    case .mono:
+        return 1
+    case .stereo:
+        return 2
     }
 }
 
@@ -190,14 +191,14 @@ func numberOfBuffers(_ format: AudioFormat, _ channelLayout: AudioChannelLayout)
 func bytesPerSample(_ format: AudioFormat, _ channelCount: Int) -> Int {
     let sampleBytes = { () -> Int in
         switch format {
-            case .s16p, .s16i:
-                return 2
-            case .f32p, .f32i:
-                return 4
-            case .f64p, .f64i, .s64p, .s64i:
-                return 8
-            case .invalid:
-                return 0
+        case .s16p, .s16i:
+            return 2
+        case .f32p, .f32i:
+            return 4
+        case .f64p, .f64i, .s64p, .s64i:
+            return 8
+        case .invalid:
+            return 0
         }
     }()
     return isPlanar(format) ? sampleBytes : sampleBytes * channelCount
@@ -205,9 +206,9 @@ func bytesPerSample(_ format: AudioFormat, _ channelCount: Int) -> Int {
 
 func isPlanar(_ format: AudioFormat) -> Bool {
     switch format {
-        case .s16p, .f32p, .f64p, .s64p:
-            return true
-        default:
-            return false
+    case .s16p, .f32p, .f64p, .s64p:
+        return true
+    default:
+        return false
     }
 }

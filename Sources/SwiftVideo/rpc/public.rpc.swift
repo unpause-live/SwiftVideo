@@ -28,7 +28,10 @@ extension RpcAssetPermissionResponse {
 }
 
 extension RpcAssetPermissionRequest {
-    public init(_ sourceType: MediaSourceType, mediaType: MediaType, formats: [MediaFormat], requestType: PermissionRequestType) {
+    public init(_ sourceType: MediaSourceType,
+                mediaType: MediaType,
+                formats: [MediaFormat],
+                requestType: PermissionRequestType) {
         self.sourceType = sourceType
         self.mediaType = mediaType
         self.formats = formats

@@ -17,6 +17,7 @@
 import NIO
 import Foundation
 
+// swiftlint:disable:next type_name
 public enum amf {
     public enum Amf0Type: UInt8 {
         case number = 0
@@ -98,11 +99,12 @@ public enum amf {
         case unsupportedType(Amf0Type)
         case unknownError
     }
+    // swiftlint:disable:next type_name
     fileprivate enum detail {
         // MARK: - Write Functions
         static func write(_ atom: Atom, buf: ByteBuffer?) throws -> ByteBuffer {
             let result = try { () -> ByteBuffer? in
-                switch(atom.type) {
+                switch atom.type {
                 case .string, .longString:
                     return atom.string.map { writeString($0) }
                 case .bool:
@@ -121,10 +123,10 @@ public enum amf {
                     return nil
                 }
             }()
-            guard let r = buffer.concat(buf, result) else {
+            guard let res = buffer.concat(buf, result) else {
                 throw AmfError.unsupportedType(atom.type)
             }
-            return r
+            return res
         }
 
         static func writeString(_ val: String) -> ByteBuffer {
@@ -176,7 +178,8 @@ public enum amf {
                 let buf = buffer.concat($0, buffer.fromData(Data(bytes)))
                 return try write($1.1, buf: buf)
             }
-            let res = buffer.concat(result, buffer.fromData(Data(buffer.toByteArray(UInt16(0)) + [Amf0Type.objEnd.rawValue])))
+            let res = buffer.concat(result, buffer.fromData(Data(buffer.toByteArray(UInt16(0)) +
+                [Amf0Type.objEnd.rawValue])))
             if let res = res {
                 return res
             } else {
@@ -188,7 +191,7 @@ public enum amf {
             let (buf, type) = detail.getType(buf)
             return type <??> {
                 (type) in
-                switch(type) {
+                switch type {
                 case .number:
                     return detail.readNumber(buf)
                 case .string, .longString:
@@ -232,7 +235,7 @@ public enum amf {
                 return (buf, result)
             } else {
                 let (buf, value) = parse(buf)
-                return readObjectImpl(buf, value <??> { [name: $0].merging(result) { _, s in s }} <|> result)
+                return readObjectImpl(buf, value <??> { [name: $0].merging(result) { _, val in val }} <|> result)
             }
         }
 
@@ -246,11 +249,11 @@ public enum amf {
 
         static func readStrictArray(_ buf: ByteBuffer?) -> (ByteBuffer?, Atom?) {
             let (pBuf, size): (ByteBuffer?, UInt32?) = readInt(buf)
-            guard let sz = size else {
-                return (buf, nil)
+            if let size = size {
+                let result = readStrictArrayImpl(pBuf, Int(size), [Atom]())
+                return (result.0, Atom(result.1))
             }
-            let result = readStrictArrayImpl(pBuf, Int(sz), [Atom]())
-            return (result.0, Atom(result.1))
+            return (buf, nil)
         }
 
         static func readStrictArrayImpl(_ buf: ByteBuffer?, _ count: Int, _ result: [Atom]) -> (ByteBuffer?, [Atom]) {
@@ -290,13 +293,16 @@ public enum amf {
             return (data?.0, String(bytes: bytes, encoding: .utf8) <??> { Atom($0) } <|> nil)
         }
 
-        static func readInt<T>(_ buf: ByteBuffer?, as: T.Type = T.self) -> (ByteBuffer?, T?) where T: FixedWidthInteger {
+        // swiftlint:disable identifier_name
+        static func readInt<T>(_ buf: ByteBuffer?,
+                               as: T.Type = T.self) -> (ByteBuffer?, T?) where T: FixedWidthInteger {
             let data = buf.map { buffer.readBytes($0, length: MemoryLayout<T>.size) }
             guard let bytes = data?.1 else {
                 return (data?.0, nil)
             }
             return (data?.0, UnsafeRawPointer(bytes).load(as: T.self).byteSwapped)
         }
+        // swiftlint:enable identifier_name
 
         static func readBool(_ buf: ByteBuffer?) -> (ByteBuffer?, Atom?) {
             let data = buf.map { buffer.readBytes($0, length: 1) }

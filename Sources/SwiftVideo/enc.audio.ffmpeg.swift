@@ -44,9 +44,10 @@ public class FFmpegAudioEncoder: Tx<AudioSample, [CodedMediaSample]> {
         if self.codecContext == nil {
             do {
                 try setupContext(sample)
-            } catch (let error) {
+            } catch let error {
                 print("setupContext error \(error)")
-                return .error(EventError("enc.audio.ffmpeg", -1, "Codec setup error \(error)", assetId: sample.assetId()))
+                return .error(EventError("enc.audio.ffmpeg",
+                    -1, "Codec setup error \(error)", assetId: sample.assetId()))
             }
         }
         //if self.pts == nil {
@@ -85,13 +86,14 @@ public class FFmpegAudioEncoder: Tx<AudioSample, [CodedMediaSample]> {
                         let pts = self.pts ?? rescale(sample.pts(), Int64(codecContext.sampleRate))
                         self.frameNumber = self.frameNumber &+ 1
                         let buffer = Data(bytes: data, count: packet.size)
-                        let extradata = codecContext.extradata.map { Data(bytes: $0, count: codecContext.extradataSize) }
+                        let extradata = codecContext.extradata
+                            .map { Data(bytes: $0, count: codecContext.extradataSize) }
                         let dts = pts
                         self.pts = pts + frameDuration
                         let sidedata: [String: Data]? = extradata.map { ["config": $0] }
                         let sample = CodedMediaSample(sample.assetId(),
                                                       sample.workspaceId(),
-                                                      sample.time(),        // incorrect, needs to be matched with packet
+                                                      sample.time(),  // incorrect, needs to be matched with packet
                                                       pts,
                                                       dts,
                                                       .audio,
@@ -137,7 +139,8 @@ public class FFmpegAudioEncoder: Tx<AudioSample, [CodedMediaSample]> {
                     guard let ptr = frame.data[offset] else {
                         throw AVError.tryAgain
                     }
-                    let requiredBytes = codecCtx.frameSize * codecCtx.sampleFormat.bytesPerSample * (isPlanar ? 1 : codecCtx.channelCount)
+                    let requiredBytes = codecCtx.frameSize *
+                        codecCtx.sampleFormat.bytesPerSample * (isPlanar ? 1 : codecCtx.channelCount)
                     if self.accumulators[offset].count >= requiredBytes {
                         self.accumulators[offset].copyBytes(to: ptr, count: requiredBytes)
                         if self.accumulators[offset].count > requiredBytes {
@@ -157,9 +160,9 @@ public class FFmpegAudioEncoder: Tx<AudioSample, [CodedMediaSample]> {
     private func setupContext(_ sample: AudioSample) throws {
         let name: String = try {
             switch format {
-                case .aac: return "libfdk_aac"
-                case .opus: return "libopus"
-                default: throw EncodeError.invalidMediaFormat
+            case .aac: return "libfdk_aac"
+            case .opus: return "libopus"
+            default: throw EncodeError.invalidMediaFormat
             }
         }()
         guard let codec = AVCodec.findEncoderByName(name) else {
@@ -171,14 +174,14 @@ public class FFmpegAudioEncoder: Tx<AudioSample, [CodedMediaSample]> {
         codecContext.sampleRate = sample.sampleRate()
         codecContext.sampleFormat = {
                 switch sample.format() {
-                    case .s16i:
-                        return .s16
-                    case .s16p:
-                        return .s16p
-                    case .f32p:
-                        return .fltp
-                    default:
-                        return .s16
+                case .s16i:
+                    return .s16
+                case .s16p:
+                    return .s16p
+                case .f32p:
+                    return .fltp
+                default:
+                    return .s16
                 }
             }()
         codecContext.channelLayout = .CHL_STEREO

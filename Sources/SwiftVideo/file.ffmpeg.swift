@@ -29,27 +29,40 @@ private struct StreamInfo {
     let extradata: Data?
 }
 public class FileSource: Source<CodedMediaSample> {
-    public init(_ clock: Clock, url: String, assetId: String, workspaceId: String, workspaceToken: String? = nil, repeats: Bool = false) throws {
+    public init(_ clock: Clock,
+                url: String,
+                assetId: String,
+                workspaceId: String,
+                workspaceToken: String? = nil,
+                repeats: Bool = false) throws {
         let fmtCtx = try AVFormatContext(url: url)
         try fmtCtx.findStreamInfo()
-        let streams: [Int: StreamInfo] = Dictionary(uniqueKeysWithValues: fmtCtx.streams.enumerated().compactMap { (idx, val) in
-            let codecParams = val.codecParameters
-            let timebase = TimePoint(Int64(val.timebase.num), Int64(val.timebase.den))
-            let codecMap: [AVCodecID: MediaFormat] = [.H264: .avc, .HEVC: .hevc, .VP8: .vp8, .VP9: .vp9, .AAC: .aac, .OPUS: .opus, .PNG: .png]
-            let typeMap: [AVMediaType: MediaType] = [.audio: .audio, .video: .video, .data: .data, .subtitle: .subtitle]
-            let extradata: Data? = {
-                guard let ptr = codecParams.extradata, codecParams.extradataSize > 0 else {
+        let streams: [Int: StreamInfo] =
+            Dictionary(uniqueKeysWithValues: fmtCtx.streams.enumerated().compactMap { (idx, val) in
+                let codecParams = val.codecParameters
+                let timebase = TimePoint(Int64(val.timebase.num), Int64(val.timebase.den))
+                let codecMap: [AVCodecID: MediaFormat] =
+                    [.H264: .avc, .HEVC: .hevc, .VP8: .vp8, .VP9: .vp9, .AAC: .aac, .OPUS: .opus, .PNG: .png]
+                let typeMap: [AVMediaType: MediaType] =
+                    [.audio: .audio, .video: .video, .data: .data, .subtitle: .subtitle]
+                let extradata: Data? = {
+                    guard let ptr = codecParams.extradata, codecParams.extradataSize > 0 else {
+                        return nil
+                    }
+                    return Data(bytes: ptr, count: codecParams.extradataSize)
+                }()
+                guard let codec = codecMap[codecParams.codecId], let type = typeMap[val.mediaType] else {
                     return nil
                 }
-                return Data(bytes: ptr, count: codecParams.extradataSize)
-            }()
-            guard let codec = codecMap[codecParams.codecId], let type = typeMap[val.mediaType] else {
-                return nil
-            }
-            // to  be used with hls/dash sources
-            //val.discard = .all
-            let startTime = (val.startTime != AVTimestamp.noPTS) ? TimePoint(Int64(val.startTime), timebase.scale) : timebase
-            return (idx, StreamInfo(format: codec, type: type, timebase: timebase, startTime: startTime, extradata: extradata))
+                // to  be used with hls/dash sources
+                //val.discard = .all
+                let startTime =
+                    (val.startTime != AVTimestamp.noPTS) ? TimePoint(Int64(val.startTime), timebase.scale) : timebase
+                return (idx, StreamInfo(format: codec,
+                                        type: type,
+                                        timebase: timebase,
+                                        startTime: startTime,
+                                        extradata: extradata))
             })
         if streams.count == 0 {
             throw FileError.unsupported
@@ -80,7 +93,8 @@ public class FileSource: Source<CodedMediaSample> {
         do {
             try ctx.readFrame(into: pkt)
             if let stream = streams[pkt.streamIndex] {
-                let pts = (pkt.pts != AVTimestamp.noPTS) ? TimePoint(Int64(pkt.pts), stream.timebase.scale) : stream.timebase
+                let pts =
+                    (pkt.pts != AVTimestamp.noPTS) ? TimePoint(Int64(pkt.pts), stream.timebase.scale) : stream.timebase
                 let dts = (pkt.dts != AVTimestamp.noPTS) ? TimePoint(Int64(pkt.dts), stream.timebase.scale) : pts
                 let delta = dts - stream.startTime
                 guard let data = pkt.data else {
@@ -106,15 +120,15 @@ public class FileSource: Source<CodedMediaSample> {
                     }
                     let result = strongSelf.emit(outsample)
                     switch result {
-                        case .nothing, .just, .error:
-                            strongSelf.parse()
-                        default: ()
+                    case .nothing, .just, .error:
+                        strongSelf.parse()
+                    default: ()
                     }
                 }
             }
         } catch let error as AVError where error == .eof {
             print("caught eof")
-        } catch(let error) {
+        } catch let error {
             print("caught error \(error)")
         }
     }

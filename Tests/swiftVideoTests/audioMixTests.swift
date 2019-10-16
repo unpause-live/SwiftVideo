@@ -41,12 +41,12 @@ final class audioMixTests: XCTestCase {
     }
 
     private func runner(_ clock: Clock,
-        _ frameDuration: TimePoint,
-        _ audioPacketDuration: TimePoint,
-        _ receiver: Terminal<AudioSample>,
-        _ generator: @escaping (TimePoint) -> EventBox<AudioSample>,
-        delay: TimePoint = TimePoint(0, 48000),
-        latePacketProb: Float = 0.0) {
+                        _ frameDuration: TimePoint,
+                        _ audioPacketDuration: TimePoint,
+                        _ receiver: Terminal<AudioSample>,
+                        _ generator: @escaping (TimePoint) -> EventBox<AudioSample>,
+                        delay: TimePoint = TimePoint(0, 48000),
+                        latePacketProb: Float = 0.0) {
         let mixer = AudioMixer(clock,
             workspaceId: "test",
             frameDuration: frameDuration,
@@ -54,7 +54,7 @@ final class audioMixTests: XCTestCase {
             channelCount: 2,
             delay: delay)
         let tx = mixer >>> receiver
-        recur(clock, TimePoint(0, 48000)) { [weak self] time in
+        recur(clock, TimePoint(0, 48000)) { time in
             let sample = generator(time)
             _ = sample >>- mixer
             let value = Int.random(in: 0..<1000)
@@ -63,7 +63,7 @@ final class audioMixTests: XCTestCase {
         }
         print("first step")
         clock.step()
-        while(clock.current() < duration) {
+        while clock.current() < duration {
             sleep(1)
             print("clock.current = \(clock.current().toString())")
         }
@@ -153,8 +153,9 @@ final class audioMixTests: XCTestCase {
             let constituent = constituents[0]
             let sampleOffset = Int(constituent.normalizedPts.value - sample.pts().value) * 2 * 2
 
-            if let discontinuityEnd = discontinuityEndTs, let index = discontinuityIndex, discontinuityEnd <= constituent.pts {
-                discontinuityCount = discontinuityCount + 1
+            if let discontinuityEnd = discontinuityEndTs, 
+                let index = discontinuityIndex, discontinuityEnd <= constituent.pts {
+                discontinuityCount += 1
                 discontinuityIndex = nil
                 discontinuityEndTs = nil
                 //print("actual \(index) push \(pushIdx)")
@@ -162,7 +163,8 @@ final class audioMixTests: XCTestCase {
                 let offIdx2 = (((15 + index + 1) % 15) * 1024) % 960
                 let testOffset1 = offIdx1 * 2 * 2
                 let testOffset2 = offIdx2 * 2 * 2
-                // There's a race condition here so it could be one or the other depending on when the dispatchqueue in the mixer runs
+                // There's a race condition here so it could be one or the other 
+                // depending on when the dispatchqueue in the mixer runs
                 // more work would need to be done to make this deterministic
                 let similarity1 = self.diff(reference,
                     sample.data()[0],
@@ -174,8 +176,7 @@ final class audioMixTests: XCTestCase {
                     lhsStart: testOffset2,
                     rhsStart: sampleOffset,
                     count: Int(constituent.duration.value * 2 * 2))
-                //print("similarities \(similarity1)[\(testOffset1)] \(similarity2)[\(testOffset2)] -- sampleOffset=\(sampleOffset)")
-                startOffset = similarity1 > similarity2 ? testOffset1 : testOffset2 //(Int(constituent.pts.value) % 960) * 2 * 2
+                startOffset = similarity1 > similarity2 ? testOffset1 : testOffset2
             }
             let similarity = self.diff(reference,
                 sample.data()[0],

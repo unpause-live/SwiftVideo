@@ -107,10 +107,10 @@ public struct ImageBuffer {
                         guard let baseAddress = $0.baseAddress else {
                             return
                         }
-                        for i in 0..<CVPixelBufferGetHeight(pixelBuffer) {
-                            let offset = inStride * i
+                        for idx in 0..<CVPixelBufferGetHeight(pixelBuffer) {
+                            let offset = inStride * idx
                             let toCopy = min(inStride, stride)
-                            (ptr + (stride * i)).copyMemory(from: (baseAddress+offset), byteCount: toCopy)
+                            (ptr + (stride * idx)).copyMemory(from: (baseAddress+offset), byteCount: toCopy)
                         }
                     }
                 }
@@ -132,6 +132,7 @@ public struct ImageBuffer {
 }
 
 extension ImageBuffer {
+    // swiftlint:disable identifier_name
     public func withUnsafeMutableRawPointer<T>(forPlane plane: Int,
                                                fn: (UnsafeMutableRawPointer?) throws -> T) rethrows -> T {
         let ptr = CVPixelBufferIsPlanar(self.pixelBuffer) ?
@@ -139,6 +140,7 @@ extension ImageBuffer {
                         CVPixelBufferGetBaseAddress(self.pixelBuffer)
         return try fn(ptr)
     }
+    // swiftlint:enable identifier_name
 }
 
 public final class PictureSample: PictureEvent {
@@ -355,7 +357,7 @@ func createPictureSample(_ size: Vector2,
     }
 
     let pixelFormat = try { () -> OSType in
-        switch(format) {
+        switch format {
         case .nv12:
             return kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
         case .BGRA, .RGBA:
@@ -410,7 +412,7 @@ func createPictureSample(_ size: Vector2,
 
 private func fromCVPixelFormat(_ pixelBuffer: CVPixelBuffer) -> PixelFormat {
     let format = CVPixelBufferGetPixelFormatType(pixelBuffer)
-    switch(format) {
+    switch format {
     case kCVPixelFormatType_32BGRA:
         return .BGRA
     case kCVPixelFormatType_32RGBA:

@@ -58,20 +58,20 @@ public class TextSample: Event {
         return color
     }
     public init(_ value: String,
-        _ pixelSize: Int,
-        assetId: String,
-        workspaceId: String,
-        workspaceToken: String? = nil,
-        color: Vector4 = Vector4(1.0, 1.0, 1.0, 1.0),
-        pts: TimePoint? = nil,
-        info: EventInfo? = nil) {
-        self.val = value
-        self.idAsset = assetId
-        self.tokenWorkspace = workspaceToken
-        self.idWorkspace = workspaceId
-        self.meta = info
-        self.size = pixelSize
-        self.color = color
+                _ pixelSize: Int,
+                assetId: String,
+                workspaceId: String,
+                workspaceToken: String? = nil,
+                color: Vector4 = Vector4(1.0, 1.0, 1.0, 1.0),
+                pts: TimePoint? = nil,
+                info: EventInfo? = nil) {
+                self.val = value
+                self.idAsset = assetId
+                self.tokenWorkspace = workspaceToken
+                self.idWorkspace = workspaceId
+                self.meta = info
+                self.size = pixelSize
+                self.color = color
     }
     let idAsset: String
     let idWorkspace: String
@@ -90,7 +90,7 @@ public enum TextError: Error {
 
 public class TextRenderer: Tx<TextSample, PictureSample> {
     public init(_ clock: Clock,
-            _ fontUrl: String) throws {
+                _ fontUrl: String) throws {
         let library = FreeTypeInit.library
         self.library = library
         if let url = URL(string: fontUrl) {
@@ -183,9 +183,10 @@ public class TextRenderer: Tx<TextSample, PictureSample> {
                 }
                 if let bitmap = glyph.bitmap.buffer {
                     let top = max(ascender - Int(glyph.bitmap_top), 0)
+                    // swiftlint:disable identifier_name
                     for y in top..<min(top+Int(glyph.bitmap.rows), height) {
-                        for x in lhs+Int(glyph.bitmap_left)..<min(lhs+Int(glyph.bitmap_left)+
-                                Int(glyph.bitmap.width), stride) {
+                        for x in lhs+Int(glyph.bitmap_left)..<min(lhs+Int(glyph.bitmap_left)+Int(glyph.bitmap.width),
+                                stride) {
                             let srcx = x - (lhs+Int(glyph.bitmap_left))
                             let srcy = y - top
                             let srcIdx = Int(glyph.bitmap.width) * srcy + srcx
@@ -197,6 +198,7 @@ public class TextRenderer: Tx<TextSample, PictureSample> {
                             buffer[dstIdx+3] = gray
                         }
                     }
+                    // swiftlint:enable identifier_name
                 }
                 return lhs + Int(glyph.advance.x >> 6) + ((glyph.advance.x & 0x3f) > 31 ? 1 : 0)
             }

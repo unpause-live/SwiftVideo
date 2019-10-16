@@ -24,9 +24,9 @@ public enum NoError: Error {}
 
 public class Rtmp {
     public init(_ clock: Clock,
-        bufferSize: TimePoint = TimePoint(500, 1000),
-        onEnded: @escaping LiveOnEnded,
-        onConnection: @escaping LiveOnConnection) {
+                bufferSize: TimePoint = TimePoint(500, 1000),
+                onEnded: @escaping LiveOnEnded,
+                onConnection: @escaping LiveOnConnection) {
 
         self.clock = clock
         self.handshaking = [:]
@@ -55,8 +55,8 @@ public class Rtmp {
         let query = url.query?.split(separator: "/")
         let playPath = { () -> String in
             let base = components[safe: 2] ?? (query?[safe: 1].map { String($0) } ?? "")
-            let qs = query <??> { if $0.count > 0 { return "?" + $0[0] } else { return "" } } <|> ""
-            return base + qs
+            let queryString = query <??> { if $0.count > 0 { return "?" + $0[0] } else { return "" } } <|> ""
+            return base + queryString
         }()
 
         let port = url.port ?? 1935
@@ -67,7 +67,8 @@ public class Rtmp {
                     return
                 }
                 let query = (query?[safe: 0].map { String($0) } ?? "")
-                let tcUrl = String(url.scheme ?? "rtmp") + "://" + host + ":" + String(port) + "/" + app + (query.count > 0 ? ("?" + query) : "")
+                let tcUrl = String(url.scheme ?? "rtmp") + "://" + host +
+                    ":" + String(port) + "/" + app + (query.count > 0 ? ("?" + query) : "")
                 let ctx = rtmp.Context(assetId: assetId ?? UUID().uuidString,
                                        workspaceId: workspaceId,
                                        uuid: uuid,
@@ -101,13 +102,16 @@ public class Rtmp {
                     guard let strongSelf = self else {
                         return
                     }
-                    let shouldReconnect = (strongSelf.publishers[ident]?.value != nil || strongSelf.handshaking[ident] != nil) && attempt < 30
+                    let shouldReconnect = (strongSelf.publishers[ident]?.value != nil ||
+                        strongSelf.handshaking[ident] != nil) && attempt < 30
                     if shouldReconnect && !strongSelf.inflightReconnects.contains(ident) {
                         strongSelf.inflightReconnects.insert(ident)
-                        strongSelf.clock.schedule(TimePoint(900000, 100000) + strongSelf.clock.current()) { [weak self] _ in
+                        strongSelf.clock.schedule(
+                            TimePoint(900000, 100000) + strongSelf.clock.current()) { [weak self] _ in
                             self?.inflightReconnects.remove(ident)
                             guard let strongSelf = self,
-                                (strongSelf.publishers[ident]?.value != nil || strongSelf.handshaking[ident] != nil) else {
+                                (strongSelf.publishers[ident]?.value != nil ||
+                                    strongSelf.handshaking[ident] != nil) else {
                                 return
                             }
                             strongSelf.handshaking.removeValue(forKey: ident)
@@ -226,14 +230,15 @@ public class Rtmp {
 
         if !ctx.dialedOut {
             let (success, ctx) = rtmp.buildStatus("status",
-                                                  ctx.publishToPeer ? "NetStream.Play.Start" : "NetStream.Publish.Start",
-                                                  "Begin",
-                                                  ctx)
+                                              ctx.publishToPeer ? "NetStream.Play.Start" : "NetStream.Publish.Start",
+                                              "Begin",
+                                              ctx)
             let (fail, _) = rtmp.buildStatus("error",
                                              ctx.publishToPeer ? "NetStream.Play.Fail" : "NetStream.Publish.Fail",
                                              "No access",
                                              ctx)
-            let publisher = ctx.publishToPeer ? RtmpPublisher(clock, conn: conn, ctx: ctx, bufferSize: self.bufferSize, uuid: ctx.uuid) : nil
+            let publisher = ctx.publishToPeer ? RtmpPublisher(clock,
+                                conn: conn, ctx: ctx, bufferSize: self.bufferSize, uuid: ctx.uuid) : nil
             let subscriber = !ctx.publishToPeer ? RtmpSubscriber(clock, conn: conn, ctx: ctx) : nil
 
             _ = fnConnection(publisher, subscriber).andThen { [weak conn, weak self] result in
@@ -264,7 +269,8 @@ public class Rtmp {
                 }
             }
         } else {
-            let publisher = ctx.publishToPeer ? RtmpPublisher(clock, conn: conn, ctx: ctx, bufferSize: self.bufferSize, uuid: ctx.uuid) : nil
+            let publisher = ctx.publishToPeer ? RtmpPublisher(clock,
+                    conn: conn, ctx: ctx, bufferSize: self.bufferSize, uuid: ctx.uuid) : nil
             let subscriber = !ctx.publishToPeer ? RtmpSubscriber(clock, conn: conn, ctx: ctx) : nil
 
             if let pub = publisher {
@@ -341,16 +347,16 @@ public class RtmpPublisher: Terminal<CodedMediaSample>, LivePublisher {
             } else {
                 let has = strongSelf.props.contains {
                     switch $0 {
-                        case .video:
-                            return sample.mediaType() == .video
-                        case .audio:
-                            return sample.mediaType() == .audio
+                    case .video:
+                        return sample.mediaType() == .video
+                    case .audio:
+                        return sample.mediaType() == .audio
                     }
                 }
                 if !has {
                     do {
                         try strongSelf.props.append(basicMediaDescription(sample))
-                    } catch(let error) {
+                    } catch let error {
                         return .error(EventError("rtmp.mediaDescription", -1, "\(error)", assetId: sample.assetId()))
                     }
                 }
@@ -450,7 +456,7 @@ public class RtmpPublisher: Terminal<CodedMediaSample>, LivePublisher {
             } else {
                 return .nothing(nil)
             }
-        } catch(let error) {
+        } catch let error {
             return .error(EventError("rtmp.mediaDescription", -2, "\(error)", assetId: ctx.assetId))
         }
     }
@@ -536,7 +542,10 @@ enum rtmp {
 
     typealias StateFunction = (ByteBuffer, Context) -> (EventBox<Event>, ByteBuffer?, Context, Bool)
 
-    static func buildStatus(_ level: String, _ code: String, _ description: String, _ ctx: rtmp.Context) -> (EventBox<Event>, rtmp.Context) {
+    static func buildStatus(_ level: String,
+                            _ code: String,
+                            _ description: String,
+                            _ ctx: rtmp.Context) -> (EventBox<Event>, rtmp.Context) {
         let chunk = rtmp.Chunk(msgStreamId: ctx.msgStreamId,
                                msgLength: 0,
                                msgType: 0x14,
@@ -569,7 +578,8 @@ enum rtmp {
                     return makeNetworkResult(sample, result.0)
                 } else if let curConfig = curConfig {
                     // have a config but haven't sent it, or config changed
-                    if mediaType == .audio || (mediaType == .video && (strongSelf.sentFirstKeyframe || isKeyframe(sample))) {
+                    if mediaType == .audio ||
+                        (mediaType == .video && (strongSelf.sentFirstKeyframe || isKeyframe(sample))) {
                         let header = serialize.serializeMedia(sample, ctx: strongSelf.ctx, sendConfig: true)
                         let result = serialize.serializeMedia(sample, ctx: header.1)
                         if mediaType == .video && !strongSelf.sentFirstKeyframe {
@@ -595,7 +605,8 @@ enum rtmp {
         private var sentFirstKeyframe: Bool
     }
 
-    fileprivate static func makeNetworkResult(_ sample: CodedMediaSample, _ buffer: ByteBuffer?) -> EventBox<NetworkEvent> {
+    fileprivate static func makeNetworkResult(_ sample: CodedMediaSample,
+                                              _ buffer: ByteBuffer?) -> EventBox<NetworkEvent> {
         return buffer <??> { .just(NetworkEvent(time: sample.time(),
                                  assetId: sample.assetId(),
                                  workspaceId: sample.workspaceId(),
@@ -654,14 +665,14 @@ enum rtmp {
 
     class Handshake: Source<Event> {
         public init(_ ctx: Context, completion: @escaping (Context) -> EventBox<Event>) {
-            self.stages = ctx.dialedOut ? [states.s0s1, states.s2, states.establish] : [states.c0c1, states.c2, states.establish]
+            self.stages = ctx.dialedOut ?
+                [states.s0s1, states.s2, states.establish] : [states.c0c1, states.c2, states.establish]
             self.stage = 0
             self.ctx = ctx
             self.onComplete = completion
             self.accumulator = nil
             super.init()
-            super.set {
-                [weak self] evt in
+            super.set { [weak self] evt in
                 guard let strongSelf = self else {
                     return .gone
                 }
@@ -677,7 +688,8 @@ enum rtmp {
             }
         }
         public func start() {
-            DispatchQueue.global().asyncAfter(wallDeadline: DispatchWallTime.now() + DispatchTimeInterval.milliseconds(250)) {
+            DispatchQueue.global().asyncAfter(
+                wallDeadline: DispatchWallTime.now() + DispatchTimeInterval.milliseconds(250)) {
                 let c0c1 = states.writeC0c1(self.ctx)
                 self.ctx = c0c1.2
                 _ = c0c1.0 >>- self.emit
@@ -691,7 +703,7 @@ enum rtmp {
                 guard let result = self.stages[safe: self.stage]?(buf, self.ctx) else {
                     return .gone
                 }
-                switch(result.0) {
+                switch result.0 {
                 case .error(let error):
                     return .error(error)
                 case .gone:
@@ -699,7 +711,7 @@ enum rtmp {
                 default: ()
                 }
                 if result.3 == true {
-                    self.stage = self.stage + 1
+                    self.stage += 1
                 }
                 if result.2.started == true {
                     return self.onComplete(result.2)

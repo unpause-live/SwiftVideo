@@ -165,8 +165,8 @@ func buildComputeKernel(_ context: ComputeContext, name: String, source: String)
     let (program, errcode) = source.withCString { (cstr: UnsafePointer<Int8>?) -> (cl_program?, cl_int) in
         var errcode: cl_int = 0
         var mutStr: UnsafePointer<Int8>? = UnsafePointer(cstr)
-        let p = clCreateProgramWithSource(context.clContext(), 1, &mutStr, [source.count], &errcode)
-        return (p, errcode)
+        let pid = clCreateProgramWithSource(context.clContext(), 1, &mutStr, [source.count], &errcode)
+        return (pid, errcode)
     }
 
     try checkCLError(errcode)
@@ -516,10 +516,10 @@ private func getComputeKernel( _ context: ComputeContext, _ kernel: ComputeKerne
     return kernelFunction
 }
 
-private func setUniforms<T>( _ context: ComputeContext,
-                                 _ kernel: cl_kernel,
-                                 _ uniforms: T?,
-                                 _ index: Int) -> cl_mem? {
+private func setUniforms<T>(_ context: ComputeContext,
+                            _ kernel: cl_kernel,
+                            _ uniforms: T?,
+                            _ index: Int) -> cl_mem? {
 
     if var uniforms = uniforms {
         var err: cl_int = 0
@@ -574,7 +574,7 @@ private func createTexture(_ ctx: ComputeContext,
             default: return cl_image_format(image_channel_order: cl_uint(CL_RGBA),
                                             image_channel_data_type: cl_uint(CL_UNORM_INT8))
         } }()
-        var img_desc = cl_image_desc(image_type: cl_uint(CL_MEM_OBJECT_IMAGE2D),
+        var imgDesc = cl_image_desc(image_type: cl_uint(CL_MEM_OBJECT_IMAGE2D),
                                      image_width: Int(plane.size.x),
                                      image_height: Int(plane.size.y),
                                      image_depth: 1,
@@ -588,7 +588,7 @@ private func createTexture(_ ctx: ComputeContext,
         let texture = clCreateImage(ctx.clContext(),
                                     cl_mem_flags(bitPattern: Int64(CL_MEM_READ_WRITE)),
                                     &pixelFormat,
-                                    &img_desc,
+                                    &imgDesc,
                                     nil,
                                     &error)
         guard let tex = texture, CL_SUCCESS == error else {
@@ -616,8 +616,7 @@ private func createTexture(_ ctx: ComputeContext,
     guard let ioSurface = CVPixelBufferGetIOSurface(image.pixelBuffer) else {
         throw ComputeError.badInputData(description: "Image must be an IOSurface")
     }
-    return try (0..<min(planeCount, maxPlanes) as CountableRange).map {
-        idx in
+    return try (0..<min(planeCount, maxPlanes) as CountableRange).map { idx in
         var pixelFormat: cl_image_format = {
             if planeCount == 3 {
                 return cl_image_format(image_channel_order: cl_uint(CL_R),
@@ -632,7 +631,7 @@ private func createTexture(_ ctx: ComputeContext,
             return cl_image_format(image_channel_order: cl_uint(CL_BGRA),
                                    image_channel_data_type: cl_uint(CL_UNORM_INT8))
         }()
-        var img_desc = cl_image_desc(image_type: cl_uint(CL_MEM_OBJECT_IMAGE2D),
+        var imgDesc = cl_image_desc(image_type: cl_uint(CL_MEM_OBJECT_IMAGE2D),
                                      image_width: CVPixelBufferGetWidthOfPlane(image.pixelBuffer, idx),
                                      image_height: CVPixelBufferGetHeightOfPlane(image.pixelBuffer, idx),
                                      image_depth: 1,
@@ -643,15 +642,15 @@ private func createTexture(_ ctx: ComputeContext,
                                      num_samples: 0,
                                      buffer: nil)
         let surfRef = intptr_t(bitPattern: ioSurface.toOpaque())
-        var io_props: [cl_iosurface_properties_APPLE] = [Int(CL_IOSURFACE_REF_APPLE),
+        var ioProps: [cl_iosurface_properties_APPLE] = [Int(CL_IOSURFACE_REF_APPLE),
                                                          surfRef,
                                                          Int(CL_IOSURFACE_PLANE_APPLE), idx, 0]
         var error: cl_int = 0
         let texture = clCreateImageFromIOSurfaceWithPropertiesAPPLE(ctx.clContext(),
                                                       cl_mem_flags(bitPattern: Int64(CL_MEM_READ_WRITE)),
                                                       &pixelFormat,
-                                                      &img_desc,
-                                                      &io_props,
+                                                      &imgDesc,
+                                                      &ioProps,
                                                       &error)
 
         guard let tex = texture else {

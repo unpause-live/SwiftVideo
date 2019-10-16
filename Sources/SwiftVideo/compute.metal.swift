@@ -95,7 +95,7 @@ func buildComputeKernel(_ context: ComputeContext, name: String, source: String)
     let library = try context.device.makeLibrary(source: source, options: nil)
     return ComputeContext(other: context,
                           customLibrary: (context.customLibrary ??
-                            [String: MTLLibrary]()).merging([name: library]) { _, n in n })
+                            [String: MTLLibrary]()).merging([name: library]) { _, val in val })
 }
 
 // Creates a command buffer to be used for the current compute pass.
@@ -291,8 +291,7 @@ private func createTexture(_ ctx: ComputeContext, _ image: ImageBuffer, _ maxPla
     guard 3 >= planeCount else {
         throw ComputeError.badInputData(description: "Input images must have 3 planes or fewer")
     }
-    return try (0..<min(planeCount, maxPlanes) as CountableRange).map {
-        idx in
+    return try (0..<min(planeCount, maxPlanes) as CountableRange).map { idx in
         let pixelFormat: MTLPixelFormat = {
             if planeCount == 3 {
                 return .r8Unorm
@@ -326,7 +325,7 @@ private func createTexture(_ ctx: ComputeContext, _ image: ImageBuffer, _ maxPla
 //
 private func getComputeKernel( _ context: ComputeContext, _ kernel: ComputeKernel) throws -> MTLFunction {
     var function: MTLFunction?
-    switch (kernel) {
+    switch kernel {
     case .custom(let name):
         function = (context.customLibrary <??> { $0[name]?.makeFunction(name: name) } <|> nil)
     default:
@@ -348,8 +347,8 @@ private func makeThreadgroup(_ pipelineState: MTLComputePipelineState,
         let threadCount = bufferSize
         let maxMem = pipelineState.device.maxThreadgroupMemoryLength
         let threads = maxMem / mem
-        let w = sqrt(Double(threads))
-        let threadgroupSize = MTLSize(width: Int(floor(w)), height: Int(floor(w)), depth: 1)
+        let width = sqrt(Double(threads))
+        let threadgroupSize = MTLSize(width: Int(floor(width)), height: Int(floor(w)), depth: 1)
         return (threadCount, threadgroupSize)
     } else {
         let threadgroupWidth = pipelineState.threadExecutionWidth

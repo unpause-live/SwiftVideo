@@ -286,7 +286,7 @@ private class FlavorSession {
             if let handler = handler {
                 self.inflightRpcHandler[callId] = handler
             }
-        } catch(let error) {
+        } catch let error {
             print("Caught error \(error)")
         }
     }
@@ -788,7 +788,7 @@ private class FlavorPublisher: Terminal<CodedMediaSample>, FlavorMediaSession, L
                         bytes: bytes)
                 let tx: Terminal<NetworkEvent> = mix() >>> strongSelf.bus
                 return .just(event) >>- tx
-            } catch (let error) {
+            } catch let error {
                 return .error(EventError("flavor.publish", -1, "Serialization error \(error)"))
             }
         }

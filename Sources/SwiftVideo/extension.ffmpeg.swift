@@ -17,6 +17,7 @@
 import CFFmpeg
 import SwiftFFmpeg
 
+// swiftlint:disable identifier_name
 extension AVCodecID {
     public static let OPUS = AV_CODEC_ID_OPUS
     public static let SMPTE_KLV = AV_CODEC_ID_SMPTE_KLV

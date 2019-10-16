@@ -18,7 +18,9 @@ public class AppleAudioPlayback: Terminal<AudioSample> {
             if strongSelf.unit == nil {
                 var asbd = AudioStreamBasicDescription(mSampleRate: Float64(sample.sampleRate()),
                                                        mFormatID: kAudioFormatLinearPCM,
-                                                       mFormatFlags: kAudioFormatFlagIsPacked | kAudioFormatFlagIsFloat | kAudioFormatFlagIsNonInterleaved,
+                                                       mFormatFlags: kAudioFormatFlagIsPacked |
+                                                            kAudioFormatFlagIsFloat |
+                                                            kAudioFormatFlagIsNonInterleaved,
                                                        mBytesPerPacket: 4,
                                                        mFramesPerPacket: 1,
                                                        mBytesPerFrame: 4,
@@ -40,9 +42,12 @@ public class AppleAudioPlayback: Terminal<AudioSample> {
                         strongSelf.unit = unit
                         var callback = AURenderCallbackStruct(inputProc: ioProc, inputProcRefCon: bridge(strongSelf))
                         var flag: UInt32 = 1
-                        AudioUnitSetProperty(unit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Global, 0, &callback, UInt32(MemoryLayout<AURenderCallbackStruct>.size))
-                        AudioUnitSetProperty(unit, kAudioOutputUnitProperty_EnableIO, kAudioUnitScope_Output, 0, &flag, 4)
-                        AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &asbd, UInt32(MemoryLayout<AudioStreamBasicDescription>.size))
+                        AudioUnitSetProperty(unit, kAudioUnitProperty_SetRenderCallback,
+                            kAudioUnitScope_Global, 0, &callback, UInt32(MemoryLayout<AURenderCallbackStruct>.size))
+                        AudioUnitSetProperty(unit, kAudioOutputUnitProperty_EnableIO,
+                            kAudioUnitScope_Output, 0, &flag, 4)
+                        AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat,
+                            kAudioUnitScope_Input, 0, &asbd, UInt32(MemoryLayout<AudioStreamBasicDescription>.size))
                         AudioUnitInitialize(unit)
                         AudioOutputUnitStart(unit)
                         AudioUnitSetParameter(unit, kHALOutputParam_Volume, kAudioUnitScope_Global, 0, 0.1, 0)
@@ -71,22 +76,22 @@ public class AppleAudioPlayback: Terminal<AudioSample> {
 }
 
 private func ioProc(inRefCon: UnsafeMutableRawPointer,
-                      ioActionFlags: UnsafeMutablePointer<AudioUnitRenderActionFlags>,
-                      audioTimestamp: UnsafePointer<AudioTimeStamp>,
-                      inBusNumber: UInt32,
-                      inNumberFrames: UInt32,
-                      ioData: UnsafeMutablePointer<AudioBufferList>?) -> OSStatus {
+                    ioActionFlags: UnsafeMutablePointer<AudioUnitRenderActionFlags>,
+                    audioTimestamp: UnsafePointer<AudioTimeStamp>,
+                    inBusNumber: UInt32,
+                    inNumberFrames: UInt32,
+                    ioData: UnsafeMutablePointer<AudioBufferList>?) -> OSStatus {
     guard let buffers = UnsafeMutableAudioBufferListPointer(ioData) else {
         return -1
     }
-    let me: AppleAudioPlayback = bridge(from: inRefCon)
-    if me.ptsOffset == nil {
-        me.ptsOffset =  me.pts - TimePoint(Int64(audioTimestamp.pointee.mSampleTime), me.pts.scale)
+    let this: AppleAudioPlayback = bridge(from: inRefCon)
+    if this.ptsOffset == nil {
+        this.ptsOffset =  this.pts - TimePoint(Int64(audioTimestamp.pointee.mSampleTime), this.pts.scale)
     }
-    guard let ptsOffset = me.ptsOffset else {
+    guard let ptsOffset = this.ptsOffset else {
         return -1
     }
-    let windowStart = me.pts - ptsOffset
+    let windowStart = this.pts - ptsOffset
     let windowEnd = windowStart + TimePoint(Int64(inNumberFrames), windowStart.scale)
     buffers.forEach {
         guard let ptr = $0.mData else {
@@ -94,10 +99,10 @@ private func ioProc(inRefCon: UnsafeMutableRawPointer,
         }
         memset(ptr, 0, Int($0.mDataByteSize))
     }
-    let samples = Array(me.samples)
+    let samples = Array(this.samples)
     samples.forEach { sample in
-        let sampleStart = rescale(sample.pts(), me.pts.scale)
-        let sampleEnd = sampleStart + TimePoint(Int64(sample.numberSamples()), me.pts.scale)
+        let sampleStart = rescale(sample.pts(), this.pts.scale)
+        let sampleEnd = sampleStart + TimePoint(Int64(sample.numberSamples()), this.pts.scale)
         if windowEnd > sampleStart && windowStart < sampleEnd {
             let readOffset = min(Int(max(windowStart.value - sampleStart.value, 0)), sample.sampleCount) * 4
             let writeOffset = min(Int(max(sampleStart.value - windowStart.value, 0)), Int(inNumberFrames)) * 4
@@ -115,7 +120,7 @@ private func ioProc(inRefCon: UnsafeMutableRawPointer,
             }
         }
     }
-    me.pts = windowEnd
+    this.pts = windowEnd
     return noErr
 }
 #endif

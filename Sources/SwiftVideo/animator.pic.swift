@@ -28,7 +28,10 @@ public protocol Animator {
 
 public class PictureAnimator: Tx<PictureSample, PictureSample>, Animator {
 
-    public init(_ clock: Clock, canvasSize: Vector2, parent: PictureAnimator? = nil, parentAnchors: [PictureAnchor] = [.anchorTopLeft]) {
+    public init(_ clock: Clock,
+                canvasSize: Vector2,
+                parent: PictureAnimator? = nil,
+                parentAnchors: [PictureAnchor] = [.anchorTopLeft]) {
         self.clock = clock
         self.currentState = nil
         self.nextState = nil
@@ -76,7 +79,8 @@ public class PictureAnimator: Tx<PictureSample, PictureSample>, Animator {
         }
     }
 
-    func computedState(_ sample: PictureSample, parentState: ComputedPictureState? = nil) throws -> ComputedPictureState {
+    func computedState(_ sample: PictureSample,
+                       parentState: ComputedPictureState? = nil) throws -> ComputedPictureState {
         guard let currentState = self.currentState else {
             throw AnimatorError.noCurrentState
         }
@@ -88,7 +92,13 @@ public class PictureAnimator: Tx<PictureSample, PictureSample>, Animator {
             return seconds(now - currentStartTime) / seconds(transitionDuration)
         }()
 
-        return computePictureState(sample, parentState?.matrix, currentState, next: self.nextState, pct: pct, anchors: self.anchors, initialParentState: self.initialParentState)
+        return computePictureState(sample,
+            parentState?.matrix,
+            currentState,
+            next: self.nextState,
+            pct: pct,
+            anchors: self.anchors,
+            initialParentState: self.initialParentState)
     }
 
     func setParent( _ parent: PictureAnimator? ) {
@@ -136,7 +146,11 @@ struct ComputedPictureState {
     let opacity: Float
 }
 
-private func computePositionSize(_ basePos: Vector3, _ baseSize: Vector3, _ parentPos: Vector3, _ parentSizeDelta: Vector3, _ anchors: [PictureAnchor]) -> (Vector3, Vector3) {
+private func computePositionSize(_ basePos: Vector3,
+                                 _ baseSize: Vector3,
+                                 _ parentPos: Vector3,
+                                 _ parentSizeDelta: Vector3,
+                                 _ anchors: [PictureAnchor]) -> (Vector3, Vector3) {
     let relPos = basePos + Vector3(parentPos.x, parentPos.y, 0)
     var verts = [ relPos, relPos+Vector3(baseSize.x, 0, 0), relPos+Vector3(0, baseSize.y, 0) ]
     let anchors = Set(anchors)
@@ -201,18 +215,22 @@ func computePictureState(_ sample: PictureSample,
     } ?? current
 
     let (parentPos, parentSize) = parent.map {
-        (Vector3($0.m41, $0.m42, $0.m43), Vector3(sqrt($0.m11 * $0.m11 + $0.m12 * $0.m12), sqrt($0.m21 * $0.m21 + $0.m22 * $0.m22), 0))
+        (Vector3($0.m41, $0.m42, $0.m43),
+            Vector3(sqrt($0.m11 * $0.m11 + $0.m12 * $0.m12), sqrt($0.m21 * $0.m21 + $0.m22 * $0.m22), 0))
     } ?? (Vector3(0, 0, 0), Vector3(0, 0, 0))
     let initialParentSize = initialParentState.map {
-        Vector3(sqrt($0.matrix.m11 * $0.matrix.m11 + $0.matrix.m12 * $0.matrix.m12), sqrt($0.matrix.m21 * $0.matrix.m21 + $0.matrix.m22 * $0.matrix.m22), 0)
+        Vector3(sqrt($0.matrix.m11 * $0.matrix.m11 + $0.matrix.m12 * $0.matrix.m12),
+            sqrt($0.matrix.m21 * $0.matrix.m21 + $0.matrix.m22 * $0.matrix.m22), 0)
     } ?? Vector3(0, 0, 0)
     let parentSizeDelta = (parentSize - initialParentSize)
     let add = state.picOrigin == .originTopLeft ? Vector3(0, 0, 0) : -Vector3(state.size.x / 2, state.size.y / 2, 0)
 
-    let (relPos, size) = computePositionSize(Vector3(state.picPos), Vector3(state.size, 0), parentPos, parentSizeDelta, anchors)
+    let (relPos, size) = computePositionSize(Vector3(state.picPos),
+                            Vector3(state.size, 0), parentPos, parentSizeDelta, anchors)
     let pos = relPos + add
     let borderPos = pos - Vector3(state.borderSize.x, state.borderSize.y, 0)
-    let borderSize = Vector3(state.borderSize.x + size.x + state.borderSize.z, state.borderSize.y + size.y + state.borderSize.w, 1)
+    let borderSize = Vector3(state.borderSize.x + size.x + state.borderSize.z,
+                        state.borderSize.y + size.y + state.borderSize.w, 1)
 
     let textureMatrix: Matrix4 = {
         let origAspect = sample.size().x / sample.size().y
@@ -221,11 +239,13 @@ func computePictureState(_ sample: PictureSample,
         case .aspectFit:
             let scalex = origAspect > geomAspect ? 1.0 : origAspect / geomAspect
             let scaley = origAspect <= geomAspect  ? 1.0 : geomAspect / origAspect
-            return Matrix4(translation: Vector3(state.textureOffset, 0) + Vector3((1.0 - scalex) / 2, (1.0 - scaley) / 2, 0)) * Matrix4(scale: Vector3(scalex, scaley, 1.0))
+            return Matrix4(translation: Vector3(state.textureOffset, 0) +
+                Vector3((1.0 - scalex) / 2, (1.0 - scaley) / 2, 0)) * Matrix4(scale: Vector3(scalex, scaley, 1.0))
         case .aspectFill:
             let scalex = origAspect <= geomAspect ? 1.0 : origAspect / geomAspect
             let scaley = origAspect > geomAspect ? 1.0 :  geomAspect / origAspect
-            return Matrix4(translation: Vector3(state.textureOffset, 0) + Vector3((1.0 - scalex) / 2, (1.0 - scaley) / 2, 0)) * Matrix4(scale: Vector3(scalex, scaley, 1.0))
+            return Matrix4(translation: Vector3(state.textureOffset, 0) +
+                Vector3((1.0 - scalex) / 2, (1.0 - scaley) / 2, 0)) * Matrix4(scale: Vector3(scalex, scaley, 1.0))
         default:
             return Matrix4.identity
         }
@@ -234,7 +254,8 @@ func computePictureState(_ sample: PictureSample,
     let computedState = ComputedPictureState(
         matrix: Matrix4(translation: pos) * Matrix4(rotation: Vector4(0, 0, 1, state.rotation)) * Matrix4(scale: size),
         textureMatrix: textureMatrix,
-        borderMatrix: Matrix4(translation: borderPos) * Matrix4(rotation: Vector4(0, 0, 1, state.rotation)) * Matrix4(scale: borderSize),
+        borderMatrix: Matrix4(translation: borderPos) *
+            Matrix4(rotation: Vector4(0, 0, 1, state.rotation)) * Matrix4(scale: borderSize),
         fillColor: Vector4(state.getFillColor()),
         opacity: 1.0 - state.transparency
     )
@@ -282,6 +303,7 @@ extension Vector3 {
     public init(_ vec: Vec3) {
         self.init(vec.x, vec.y, vec.z)
     }
+    //swiftlint:disable:next identifier_name
     public init(_ vec: Vec2, _ z: Float = 0) {
         self.init(vec.x, vec.y, z)
     }

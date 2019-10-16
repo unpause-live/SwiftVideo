@@ -112,6 +112,7 @@ func computeAudioState( _ current: ElementState, next: ElementState?, pct: Float
         }
         } ?? current
 
-    return ComputedAudioState(matrix: Matrix3(translation: Vector2(state.audioPos)) * Matrix3(scale: Vector2(state.audioGain, state.audioGain)),
+    return ComputedAudioState(matrix: Matrix3(translation: Vector2(state.audioPos)) *
+                Matrix3(scale: Vector2(state.audioGain, state.audioGain)),
                               gain: state.audioGain)
 }

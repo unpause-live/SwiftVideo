@@ -281,12 +281,12 @@ public class AudioMixer: Source<AudioSample> {
                 let ptr = backingPtr.bindMemory(to: Int16.self)
                 let inptr = UnsafeRawPointer(baseAddress).bindMemory(to: Int16.self, capacity: inputSize / 2)
                 let channelCount = gain.count
-                for i in 0..<(numberBytes/2) {
-                    let channel = i % channelCount
-                    let value = Int64(Float(inptr[i +
+                for idx in 0..<(numberBytes/2) {
+                    let channel = idx % channelCount
+                    let value = Int64(Float(inptr[idx +
                                 (inputStartOffset/2)]) * gain[channel]) +
-                                Int64(ptr[i + (backingStartOffset/2)])
-                    ptr[i + (backingStartOffset/2)] = Int16(max(Int64(Int16.min), min(Int64(Int16.max), value)))
+                                Int64(ptr[idx + (backingStartOffset/2)])
+                    ptr[idx + (backingStartOffset/2)] = Int16(max(Int64(Int16.min), min(Int64(Int16.max), value)))
                 }
             }
         }
@@ -308,11 +308,11 @@ public class AudioMixer: Source<AudioSample> {
     private let idWorkspace: String
 }
 
-func smoothstep<T: BinaryFloatingPoint>(_ edge0: T, _ edge1: T, _ x: T) -> T {
-    let x = clamp(0.0, 1.0, (x - edge0) / (edge1 - edge0))
-    return x * x * (3 - 2 * x)
+func smoothstep<T: BinaryFloatingPoint>(_ edge0: T, _ edge1: T, _ val: T) -> T {
+    let val = clamp(0.0, 1.0, (val - edge0) / (edge1 - edge0))
+    return val * val * (3 - 2 * val)
 }
 
-func clamp<T: BinaryFloatingPoint>(_ lower: T, _ upper: T, _ x: T) -> T {
-    return max(min(upper, x), lower)
+func clamp<T: BinaryFloatingPoint>(_ lower: T, _ upper: T, _ val: T) -> T {
+    return max(min(upper, val), lower)
 }

@@ -60,17 +60,16 @@ public final class Connection: Source<NetworkEvent>, ChannelInboundHandler {
     private weak var ctx: ChannelHandlerContext?
 
     public init(_ clock: Clock,
-         uuid: String? = nil,
-         connected: @escaping (_ ctx: Connection) -> Void,
-         ended: @escaping (_ ctx: Connection) -> Void) {
+                uuid: String? = nil,
+                connected: @escaping (_ ctx: Connection) -> Void,
+                ended: @escaping (_ ctx: Connection) -> Void) {
 
         self.ended = ended
         self.connected = connected
         self.clock = clock
         self.ident = uuid ?? UUID().uuidString
         super.init()
-        super.set {
-            [weak self] event in
+        super.set { [weak self] event in
             guard let strongSelf = self else {
                 print("no longer here")
                 return .gone
@@ -121,7 +120,7 @@ public final class Connection: Source<NetworkEvent>, ChannelInboundHandler {
                                  workspaceId: "network",
                                  bytes: bytes)
         let result = self.emit(event)
-        switch(result) {
+        switch result {
         case .error(let error):
             print("got error \(error)")
             self.close()
@@ -223,7 +222,8 @@ public func tlsClient(group: EventLoopGroup,
             return channel.pipeline.addHandler(tlsHandler).flatMap { _ in
                 //channel.pipeline.addHandler(BackPressureHandler()).flatMap { _ in
                     print("connected here, creating Connection object")
-                    return channel.pipeline.addHandler(Connection(clock, uuid: uuid, connected: connected, ended: ended))
+                    return channel.pipeline.addHandler(Connection(
+                        clock, uuid: uuid, connected: connected, ended: ended))
                 //}
             }
         }

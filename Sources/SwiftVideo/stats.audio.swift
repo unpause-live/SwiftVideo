@@ -20,42 +20,42 @@ public func audioStats() -> Tx<AudioSample, AudioSample> {
     return Tx { sample in
         let channels = sample.numberChannels()
         if let info = sample.info() {
-            var peak: Array<Float> = Array(repeating: 0, count: channels)
-            var rms: Array<Float> = Array(repeating: 0, count: channels)
+            var peak: [Float] = Array(repeating: 0, count: channels)
+            var rms: [Float] = Array(repeating: 0, count: channels)
             switch sample.format() {
             case .s16i, .s16p:
-                var accum: Array<Int> = Array(repeating: 0, count: channels)
-                var i16peak: Array<Int> = Array(repeating: 0, count: channels)
+                var accum: [Int] = Array(repeating: 0, count: channels)
+                var i16peak: [Int] = Array(repeating: 0, count: channels)
                 iterate(sample, as: Int16.self) { (channel, sample) in
-                    let a = abs(Int(sample))
-                    if a > i16peak[channel] {
-                        i16peak[channel] = a
+                    let val = abs(Int(sample))
+                    if val > i16peak[channel] {
+                        i16peak[channel] = val
                     }
-                    let sq = Int(sample)*Int(sample)
-                    accum[channel] += sq
+                    let sqr = Int(sample)*Int(sample)
+                    accum[channel] += sqr
                 }
-                for i in 0..<channels {
-                    peak[i] = Float(i16peak[i]) / Float(32768)
-                    rms[i] = sqrt(Float(accum[i])/Float(sample.numberSamples()))/Float(32768)
+                for idx in 0..<channels {
+                    peak[idx] = Float(i16peak[idx]) / Float(32768)
+                    rms[idx] = sqrt(Float(accum[idx])/Float(sample.numberSamples()))/Float(32768)
                 }
             case .f32i, .f32p:
                 iterate(sample, as: Float.self) { (channel, sample) in
-                    let a = abs(sample)
-                    if a > peak[channel] {
-                        peak[channel] = a
+                    let val = abs(sample)
+                    if val > peak[channel] {
+                        peak[channel] = val
                     }
-                    let sq = sample*sample
-                    rms[channel] += sq
+                    let sqr = sample*sample
+                    rms[channel] += sqr
                 }
-                for i in 0..<channels {
-                    rms[i] = sqrt(rms[i]/Float(sample.numberSamples()))
+                for idx in 0..<channels {
+                    rms[idx] = sqrt(rms[idx]/Float(sample.numberSamples()))
                 }
             default:
                 ()
             }
-            for i in 0..<channels {
-                info.addSample("audio.peak.\(i)", Double(peak[i]))
-                info.addSample("audio.rms.\(i)", Double(rms[i]))
+            for idx in 0..<channels {
+                info.addSample("audio.peak.\(idx)", Double(peak[idx]))
+                info.addSample("audio.rms.\(idx)", Double(rms[idx]))
             }
         }
         return .just(sample)
@@ -63,6 +63,7 @@ public func audioStats() -> Tx<AudioSample, AudioSample> {
 }
 
 // Channel Index, Sample Data Type,
+// swiftlint:disable:next identifier_name
 private func iterate<T>(_ sample: AudioSample, as: T.Type, fn: (Int, T) -> Void) {
     let planar = isPlanar(sample.format())
     let samples = sample.numberSamples()
@@ -76,9 +77,9 @@ private func iterate<T>(_ sample: AudioSample, as: T.Type, fn: (Int, T) -> Void)
         }
         buffer.withUnsafeBytes { ptr in
             let bound = ptr.bindMemory(to: T.self)
-            for i in 0..<count {
-                let channel = planar ? idx : i % channels
-                fn(channel, bound[i])
+            for elem in 0..<count {
+                let channel = planar ? idx : elem % channels
+                fn(channel, bound[elem])
             }
         }
     }

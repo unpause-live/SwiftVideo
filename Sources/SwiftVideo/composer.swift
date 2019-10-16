@@ -20,16 +20,17 @@ import BrightFutures
 import Logging
 
 public class Composer {
+    // swiftlint:disable:next function_body_length
     public init(_ clock: Clock,
-        assetId: String,
-        workspaceId: String,
-        workspaceToken: String?,
-        compute: ComputeContext,
-        composition: RpcMakeComposition,
-        audioBus: Bus<AudioSample>,
-        pictureBus: Bus<PictureSample>,
-        epoch: Int64? = nil,
-        logger: Logging.Logger = Logger(label: "SwiftVideo")) {
+                assetId: String,
+                workspaceId: String,
+                workspaceToken: String?,
+                compute: ComputeContext,
+                composition: RpcMakeComposition,
+                audioBus: Bus<AudioSample>,
+                pictureBus: Bus<PictureSample>,
+                epoch: Int64? = nil,
+                logger: Logging.Logger = Logger(label: "SwiftVideo")) {
 
         self.idAsset = assetId
         self.idWorkspace = workspaceId
@@ -37,7 +38,8 @@ public class Composer {
         self.clock = clock
         self.computeContext = compute
         self.logger = logger
-        let frameDuration = composition.video.hasFrameDuration ? composition.video.frameDuration : TimePoint(1000, 30000)
+        let frameDuration = composition.video.hasFrameDuration ?
+            composition.video.frameDuration : TimePoint(1000, 30000)
         let statsReport = StatsReport(assetId: assetId, clock: clock)
         let sampleRate = Int(composition.audio.sampleRate > 0 ? composition.audio.sampleRate : 48000)
         let epoch = epoch ?? clock.toUnixTime(clock.current())
@@ -59,14 +61,13 @@ public class Composer {
                                   statsReport: statsReport,
                                   epoch: epoch)
         let videoMixer = VideoMixer(clock,
-                                  workspaceId: workspaceId,
-                                  frameDuration: frameDuration,
-                                  outputSize: canvasSize,
-                                  outputFormat: outputFormat,
-                                  computeContext: compute,
-                                  assetId: assetId,
-                                  statsReport: statsReport,
-                                  epoch: epoch)
+                  workspaceId: workspaceId, frameDuration: frameDuration,
+                  outputSize: canvasSize,
+                  outputFormat: outputFormat,
+                  computeContext: compute,
+                  assetId: assetId,
+                  statsReport: statsReport,
+                  epoch: epoch)
         self.pictureTx = videoMixer >>> pictureBus
         self.audioTx = audioMixer >>> audioStats() >>> audioBus
         self.audioBus = audioBus
@@ -76,7 +77,9 @@ public class Composer {
         self.curScene = ""
         self.scenes = composition.composition.scenes
         self.elements = Dictionary(uniqueKeysWithValues: composition.composition.scenes.reduce(Set<String>())
-          { $0.union($1.value.elements.keys) }.map { ($0, ElementAnimator(PictureAnimator(clock, canvasSize: canvasSize), SoundAnimator(clock), [:])) })
+          { $0.union($1.value.elements.keys) }.map { ($0,
+                ElementAnimator(PictureAnimator(clock, canvasSize: canvasSize),
+                SoundAnimator(clock), [:])) })
         // setup complete, set default scene
         self.setScene(composition.composition.initialScene)
     }
@@ -84,7 +87,8 @@ public class Composer {
     public func bind(_ assetId: String, elementId: String) {
         if let element = elements[elementId] {
             logger.info("found element \(elementId), connecting")
-            self.elements[elementId] = ElementAnimator(element.picAnimator, element.sounAnimator, element.states, assetId: assetId)
+            self.elements[elementId] = ElementAnimator(element.picAnimator,
+                element.sounAnimator, element.states, assetId: assetId)
         }
         connectElement(elementId, setInitialState: true)
     }
@@ -135,24 +139,24 @@ public class Composer {
     }
 
     private func runCommand(_ command: RpcComposerCommand.Command,
-      action: @escaping (RpcComposerCommand.Command.OneOf_Command) -> Future<[Bool], Never>?) {
+                            action: @escaping (RpcComposerCommand.Command.OneOf_Command) -> Future<[Bool], Never>?) {
         guard let oneof = command.command else {
           return
         }
         let future: Future<[Bool], Never>? = {
           switch oneof {
-              case .scene(let sceneId):
-                  setScene(sceneId)
-                  return action(oneof)
-              case .elementState(let state):
-                  return setState(state.elementID, state.stateID, state.duration)
-              case .bind(let req):
-                  bind(req.assetID, elementId: req.elementID)
-                  return action(oneof)
-              case .loadFile, .playFile, .stopFile:
-                  return action(oneof)
-              case .setText:
-                  return action(oneof)
+          case .scene(let sceneId):
+              setScene(sceneId)
+              return action(oneof)
+          case .elementState(let state):
+              return setState(state.elementID, state.stateID, state.duration)
+          case .bind(let req):
+              bind(req.assetID, elementId: req.elementID)
+              return action(oneof)
+          case .loadFile, .playFile, .stopFile:
+              return action(oneof)
+          case .setText:
+              return action(oneof)
           }
         }()
 
@@ -168,13 +172,16 @@ public class Composer {
         }
     }
 
-    public func runCommand(_ command: RpcComposerCommand, action: @escaping (RpcComposerCommand.Command.OneOf_Command) -> Future<[Bool], Never>?) {
+    public func runCommand(_ command: RpcComposerCommand,
+                           action: @escaping (RpcComposerCommand.Command.OneOf_Command) -> Future<[Bool], Never>?) {
         for command in command.commands {
             runCommand(command, action: action)
         }
     }
 
-    public func setState(_ elementId: String, _ stateId: String, _ duration: TimePoint = TimePoint(0, 1000)) -> Future<[Bool], Never>? {
+    public func setState(_ elementId: String,
+                         _ stateId: String,
+                         _ duration: TimePoint = TimePoint(0, 1000)) -> Future<[Bool], Never>? {
         if let element = elements[elementId],
            let state = element.states[stateId] {
             elements[elementId]?.currentState = stateId
@@ -200,8 +207,10 @@ public class Composer {
           let pic = self.pictureBus <<| (assetFilter(assetId) >>> GPUBarrierUpload(computeContext)
                 >>> Repeater(self.clock, interval: videoMixer.frameDuration) >>> pictureAnim >>> self.videoMixer)
           let soun = self.audioBus <<| (assetFilter(assetId) >>> AudioSampleRateConversion(
-            audioMixer.getSampleRate(), audioMixer.getChannels(), audioMixer.getAudioFormat()) >>> audioAnim  >>> self.audioMixer)
-          self.elements[elementId] = ElementAnimator(pictureAnim, audioAnim, states, picTx: pic, audioTx: soun, assetId: assetId)
+            audioMixer.getSampleRate(), audioMixer.getChannels(), audioMixer.getAudioFormat()) >>>
+                audioAnim  >>> self.audioMixer)
+          self.elements[elementId] = ElementAnimator(pictureAnim,
+                                            audioAnim, states, picTx: pic, audioTx: soun, assetId: assetId)
           if let initialState = self.scenes[self.currentScene()]?.elements[elementId]?.initialState,
             setInitialState == true {
               _ = setState(elementId, initialState)
@@ -212,7 +221,8 @@ public class Composer {
     private func disconnectElement(_ elementId: String) {
         if let element = self.elements[elementId],
           let assetId = element.assetId {
-            self.elements[elementId] = ElementAnimator(element.picAnimator, element.sounAnimator, element.states, assetId: assetId)
+            self.elements[elementId] = ElementAnimator(element.picAnimator,
+                element.sounAnimator, element.states, assetId: assetId)
         }
     }
     let idAsset: String

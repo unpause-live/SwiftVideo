@@ -14,8 +14,13 @@
    limitations under the License.
 */
 
+// swiftlint:disable force_cast
+
 public protocol Renameable: Event {
-    static func make(_ other: Renameable, assetId: String, constituents: [MediaConstituent], eventInfo: EventInfo?) -> Renameable
+    static func make(_ other: Renameable,
+                     assetId: String,
+                     constituents: [MediaConstituent],
+                     eventInfo: EventInfo?) -> Renameable
     func pts() -> TimePoint
     func dts() -> TimePoint
     func constituents() -> [MediaConstituent]?
@@ -30,7 +35,8 @@ private class AssetRenamer<T>: Tx<T, T> where T: Renameable {
                 return .gone
             }
             if strongSelf.statsReport == nil {
-                strongSelf.statsReport = (sample.info() <??> { StatsReport(assetId: assetId, other: $0) } <|> StatsReport(assetId: assetId))
+                strongSelf.statsReport = (sample.info() <??> {
+                    StatsReport(assetId: assetId, other: $0) } <|> StatsReport(assetId: assetId))
             }
             return .just(T.make(sample,
                                 assetId: assetId,
@@ -46,13 +52,20 @@ private class AssetRenamer<T>: Tx<T, T> where T: Renameable {
 }
 
 extension CodedMediaSample: Renameable {
-    public static func make(_ other: Renameable, assetId: String, constituents: [MediaConstituent], eventInfo: EventInfo?) -> Renameable {
-        return CodedMediaSample(other as! CodedMediaSample, assetId: assetId, constituents: constituents, eventInfo: eventInfo)
+    public static func make(_ other: Renameable,
+                            assetId: String,
+                            constituents: [MediaConstituent],
+                            eventInfo: EventInfo?) -> Renameable {
+        return CodedMediaSample(other as! CodedMediaSample,
+            assetId: assetId, constituents: constituents, eventInfo: eventInfo)
     }
 }
 
 extension AudioSample: Renameable {
-    public static func make(_ other: Renameable, assetId: String, constituents: [MediaConstituent], eventInfo: EventInfo?) -> Renameable {
+    public static func make(_ other: Renameable,
+                            assetId: String,
+                            constituents: [MediaConstituent],
+                            eventInfo: EventInfo?) -> Renameable {
         return AudioSample(other as! AudioSample, assetId: assetId, constituents: constituents, eventInfo: eventInfo)
     }
     public func dts() -> TimePoint {
@@ -61,8 +74,12 @@ extension AudioSample: Renameable {
 }
 
 extension PictureSample: Renameable {
-    public static func make(_ other: Renameable, assetId: String, constituents: [MediaConstituent], eventInfo: EventInfo?) -> Renameable {
-        return PictureSample(other as! PictureSample, assetId: assetId, constituents: constituents, eventInfo: eventInfo)
+    public static func make(_ other: Renameable,
+                            assetId: String,
+                            constituents: [MediaConstituent],
+                            eventInfo: EventInfo?) -> Renameable {
+        return PictureSample(other as! PictureSample,
+            assetId: assetId, constituents: constituents, eventInfo: eventInfo)
     }
     public func dts() -> TimePoint {
         return pts()
@@ -100,7 +117,8 @@ public func makeAudioTranscoder(_ fmt: MediaFormat,
         throw EncodeError.invalidMediaFormat
     }
     if bitrate > 0 {
-        return assetRename(newAssetId) >>> FFmpegAudioDecoder() >>> AudioSampleRateConversion(sampleRate, 2, .s16i) >>> FFmpegAudioEncoder(fmt, bitrate: bitrate)
+        return assetRename(newAssetId) >>> FFmpegAudioDecoder() >>>
+            AudioSampleRateConversion(sampleRate, 2, .s16i) >>> FFmpegAudioEncoder(fmt, bitrate: bitrate)
     } else {
         return Tx { .just([$0]) } |>> assetRename(newAssetId)
     }

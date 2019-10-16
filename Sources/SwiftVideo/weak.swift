@@ -38,8 +38,11 @@ enum ConversionError: Error {
 }
 
 extension String {
+    // swiftlint:disable:next identifier_name
     public func toJSON<T: Decodable>(_ as: T.Type) throws -> T {
-        guard let data = self.data(using: .utf8, allowLossyConversion: false) else { throw ConversionError.cannotConvertToData }
+        guard let data = self.data(using: .utf8, allowLossyConversion: false) else {
+          throw ConversionError.cannotConvertToData
+        }
         return try JSONDecoder().decode(T.self, from: data)
     }
 }

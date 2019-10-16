@@ -213,9 +213,12 @@ public class StatsReport {
         let sampleIndex = (self.samples.count + bucketIndexForTime(now) - 2) % self.samples.count
         let sampleTime = now - duration
         let currentSamples = self.samples[sampleIndex]
-        let dResults = currentSamples.doubleSamples.reduce([String: String]()) { $0.merging(compute(sampleTime, $1.0, duration: duration, samples: $1.1)) { $1 } }
-        let tResults = currentSamples.timepointSamples.reduce([String: String]()) { $0.merging(compute(sampleTime, $1.0, duration: duration, samples: $1.1)) { $1 } }
-        let iResults = currentSamples.intSamples.reduce([String: String]()) { $0.merging(compute(sampleTime, $1.0, duration: duration, samples: $1.1)) { $1 } }
+        let dResults = currentSamples.doubleSamples.reduce([String: String]()) {
+            $0.merging(compute(sampleTime, $1.0, duration: duration, samples: $1.1)) { $1 } }
+        let tResults = currentSamples.timepointSamples.reduce([String: String]()) {
+            $0.merging(compute(sampleTime, $1.0, duration: duration, samples: $1.1)) { $1 } }
+        let iResults = currentSamples.intSamples.reduce([String: String]()) {
+            $0.merging(compute(sampleTime, $1.0, duration: duration, samples: $1.1)) { $1 } }
         let results: [String: String] = [dResults, tResults, iResults].reduce([:]) { $0.merging($1) { $1 } }
         self.results = StatsResult(assetId: self.assetId(),
             eventTime: Date() - TimeInterval(seconds(duration)),
@@ -225,7 +228,10 @@ public class StatsReport {
         self.samples[sampleIndex].clear()
     }
 
-    private func compute(_ now: TimePoint, _ name: String, duration: TimePoint, samples: [Sample<TimePoint>]) -> [String: String] {
+    private func compute(_ now: TimePoint,
+                         _ name: String,
+                         duration: TimePoint,
+                         samples: [Sample<TimePoint>]) -> [String: String] {
         guard samples.count > 0 else {
             return [String: String]()
         }
@@ -245,14 +251,19 @@ public class StatsReport {
         let peak = fseconds(byVal[byVal.count-1].value)
         let low = fseconds(byVal[0].value)
         let perPeriod = total / fseconds(duration)
+        // swiftlint:disable line_length
         let report = String(format: """
         { \"name\": \"\(name)\", \"period\": \(period), \"type\": \"time\", \"median\": %.5f, \"mean\": %.5f, \"peak\": %.5f, \"low\": %.5f, \"total\": %.5f,
           \"averagePerSecond\": %.5f, \"count\": %d}
         """, median, mean, peak, low, total, perPeriod, byVal.count)
+        // swiftlint:enable line_length
         return [fullname: report]
     }
 
-    private func compute(_ now: TimePoint, _ name: String, duration: TimePoint, samples: [Sample<Double>]) -> [String: String] {
+    private func compute(_ now: TimePoint,
+                         _ name: String,
+                         duration: TimePoint,
+                         samples: [Sample<Double>]) -> [String: String] {
         guard samples.count > 0 else {
             return [String: String]()
         }
@@ -281,7 +292,10 @@ public class StatsReport {
         return [fullname: report]
     }
 
-     private func compute(_ now: TimePoint, _ name: String, duration: TimePoint, samples: [Sample<Int>]) -> [String: String] {
+     private func compute(_ now: TimePoint,
+                          _ name: String,
+                          duration: TimePoint,
+                          samples: [Sample<Int>]) -> [String: String] {
         guard samples.count > 0 else {
             return [String: String]()
         }
@@ -302,10 +316,12 @@ public class StatsReport {
         let peak = byVal[byVal.count-1].value
         let low = byVal[0].value
         let perPeriod = Double(total) / fseconds(duration)
+        // swiftlint:disable line_length
         let report = String(format: """
         { \"name\": \"\(name)\", \"period\": \(period), \"type\": \"int\", \"median\": %d, \"mean\": %.5f, \"peak\": %d, \"low\": %d, \"total\": %d,
           \"averagePerSecond\": %.5f, \"count\": %d }
         """, median, mean, peak, low, total, perPeriod, byVal.count)
+        // swiftlint:enable line_length
         return [fullname: report]
     }
 

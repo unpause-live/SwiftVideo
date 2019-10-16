@@ -96,7 +96,7 @@ public class VideoMixer: Source<PictureSample> {
             self.clContext = nil
         }
     }
-
+    // swiftlint:disable:next identifier_name
     func mix(at: ClockTickEvent) {
         let next = at.time() + frameDuration
         let pts = at.time() - epoch
@@ -192,7 +192,6 @@ public class VideoMixer: Source<PictureSample> {
     private var clContext: ComputeContext?
     private var result: EventBox<PictureSample>
     private var samples: [[String: PictureSample]]
-   // private var pts : TimePoint
     private let idAsset: String
     private let idWorkspace: String
 }

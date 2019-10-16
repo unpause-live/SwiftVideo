@@ -1,6 +1,6 @@
 included:
   - Sources
-  - Tests
+
 excluded:
   - Sources/CFreeType
   - Sources/CSwiftVideo

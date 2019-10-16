@@ -156,7 +156,7 @@ public class GPUBarrierUpload: Tx<PictureSample, PictureSample> {
                     let sample = try uploadComputePicture(context, pict: $0)
                     $0.info()?.endTimer("gpu.upload")
                     return .just(sample)
-                } catch (let error) {
+                } catch let error {
                     return .error(EventError("barrier.upload", -1, "\(error)", assetId: $0.assetId()))
                 }
             } else {
@@ -213,7 +213,7 @@ public class GPUBarrierDownload: Tx<PictureSample, PictureSample> {
                     let sample = try downloadComputePicture(context, pict: $0)
                     $0.info()?.endTimer("gpu.download")
                     return .just(sample)
-                } catch (let error) {
+                } catch let error {
                     return .error(EventError("barrier.download", -1, "\(error)", assetId: $0.assetId()))
                 }
             } else {

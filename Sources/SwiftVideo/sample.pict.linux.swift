@@ -20,11 +20,11 @@ import Foundation
 
 public struct ImageBuffer {
     public init(pixelFormat: PixelFormat,
-         bufferType: BufferType,
-         size: Vector2,
-         computeTextures: [ComputeBuffer] = [ComputeBuffer](),
-         buffers: [Data] = [Data](),
-         planes: [Plane] = [Plane]()) throws {
+                bufferType: BufferType,
+                size: Vector2,
+                computeTextures: [ComputeBuffer] = [ComputeBuffer](),
+                buffers: [Data] = [Data](),
+                planes: [Plane] = [Plane]()) throws {
         guard computeTextures.count > 0 || buffers.count > 0 else {
             throw ComputeError.badInputData(description: "Must provide either compute textures or buffers")
         }
@@ -68,11 +68,14 @@ public struct ImageBuffer {
 }
 
 extension ImageBuffer {
-    public func withUnsafeMutableRawPointer<T>(forPlane plane: Int, fn: (UnsafeMutableRawPointer?) throws -> T) rethrows -> T {
+    // swiftlint:disable identifier_name
+    public func withUnsafeMutableRawPointer<T>(forPlane plane: Int,
+                                               fn: (UnsafeMutableRawPointer?) throws -> T) rethrows -> T {
         var buffer = self.buffers[safe: plane]
         let result = try buffer?.withUnsafeMutableBytes { try fn(UnsafeMutableRawPointer($0)) }
         return try result ?? fn(nil)
     }
+    // swiftlint:enable identifier_name
 }
 
 public final class PictureSample: PictureEvent {
@@ -192,7 +195,7 @@ public final class PictureSample: PictureEvent {
         self.alpha = opacity
     }
 
-    public init( _ img: ImageBuffer,
+    public init(_ img: ImageBuffer,
                 assetId: String,
                 workspaceId: String,
                 workspaceToken: String? = nil,
@@ -280,25 +283,28 @@ func createPictureSample(_ size: Vector2,
     let height = Int(size.y)
     let (buffers, planes) = try { () -> ([Data], [Plane]) in
             switch format {
-                case .nv12:
-                    return ([Data(count: width*height), Data(count: width*(height/2))],
-                            [Plane(size: size, stride: width, bitDepth: 8, components: [.y]),
-                             Plane(size: size/2, stride: width, bitDepth: 8, components: [.cb, .cr])])
-                case .BGRA, .RGBA:
-                    return ([Data(count: width*4*height)], [Plane(size: size, stride: width*4, bitDepth: 8, components: [.r, .g, .b, .a])])
-                case .yuvs:
-                    return([Data(count: width*2*height)], [Plane(size: size, stride: width*2, bitDepth: 8, components: [.cr, .y, .cb, .y])])
-                case .zvuy:
-                    return([Data(count: width*2*height)], [Plane(size: size, stride: width*2, bitDepth: 8, components: [.y, .cb, .y, .cr])])
-                case .y420p:
-                    return ([Data(count: width*height),
-                             Data(count: (width/2)*(height/2)),
-                             Data(count: (width/2)*(height/2))],
-                            [Plane(size: size, stride: width, bitDepth: 8, components: [.y]),
-                             Plane(size: size/2, stride: width/2, bitDepth: 8, components: [.cb]),
-                             Plane(size: size/2, stride: width/2, bitDepth: 8, components: [.cr])])
-                default:
-                    throw ComputeError.badInputData(description: "Invalid pixel format")
+            case .nv12:
+                return ([Data(count: width*height), Data(count: width*(height/2))],
+                        [Plane(size: size, stride: width, bitDepth: 8, components: [.y]),
+                         Plane(size: size/2, stride: width, bitDepth: 8, components: [.cb, .cr])])
+            case .BGRA, .RGBA:
+                return ([Data(count: width*4*height)], [Plane(
+                    size: size, stride: width*4, bitDepth: 8, components: [.r, .g, .b, .a])])
+            case .yuvs:
+                return([Data(count: width*2*height)], [Plane(
+                    size: size, stride: width*2, bitDepth: 8, components: [.cr, .y, .cb, .y])])
+            case .zvuy:
+                return([Data(count: width*2*height)], [Plane(
+                    size: size, stride: width*2, bitDepth: 8, components: [.y, .cb, .y, .cr])])
+            case .y420p:
+                return ([Data(count: width*height),
+                         Data(count: (width/2)*(height/2)),
+                         Data(count: (width/2)*(height/2))],
+                        [Plane(size: size, stride: width, bitDepth: 8, components: [.y]),
+                         Plane(size: size/2, stride: width/2, bitDepth: 8, components: [.cb]),
+                         Plane(size: size/2, stride: width/2, bitDepth: 8, components: [.cr])])
+            default:
+                throw ComputeError.badInputData(description: "Invalid pixel format")
             }
         }()
 

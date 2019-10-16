@@ -34,7 +34,8 @@ public class FFmpegVideoEncoder: Tx<PictureSample, CodedMediaSample> {
         self.keyframeInterval = rescale(keyframeInterval, kTimebase)
         self.lastKeyframe = TimePoint(-keyframeInterval.value, kTimebase)
         self.frameNumber = 0
-        self.timestamps = Array(repeating: TimePoint(0, kTimebase), count: Int(frameDuration.scale / frameDuration.value) * 10)
+        self.timestamps = Array(repeating: TimePoint(0, kTimebase),
+                                count: Int(frameDuration.scale / frameDuration.value) * 10)
 
         print("keyframeinterval = \(keyframeInterval.toString())")
         super.init()
@@ -54,9 +55,10 @@ public class FFmpegVideoEncoder: Tx<PictureSample, CodedMediaSample> {
         if self.codecContext == nil {
             do {
                 try setupContext(sample)
-            } catch (let error) {
+            } catch let error {
                 print("setupContext error \(error)")
-                return .error(EventError("enc.video.ffmpeg", -1, "Codec setup error \(error)", assetId: sample.assetId()))
+                return .error(EventError("enc.video.ffmpeg",
+                    -1, "Codec setup error \(error)", assetId: sample.assetId()))
             }
         }
 
@@ -138,22 +140,22 @@ public class FFmpegVideoEncoder: Tx<PictureSample, CodedMediaSample> {
         defer {
             sample.unlock()
         }
-        for i in 0..<imageBuffer.planes.count {
-            try imageBuffer.withUnsafeMutableRawPointer(forPlane: i) {
-                guard let ptr = frame.data[i], let src = $0 else {
+        for plane in 0..<imageBuffer.planes.count {
+            try imageBuffer.withUnsafeMutableRawPointer(forPlane: plane) {
+                guard let ptr = frame.data[plane], let src = $0 else {
                     throw AVError.tryAgain
                 }
                 let dst = UnsafeMutableRawPointer(ptr)
-                let srcStride = imageBuffer.planes[i].stride
-                let dstStride = Int(frame.linesize[i])
-                let srcHeight = Int(imageBuffer.planes[i].size.y)
+                let srcStride = imageBuffer.planes[plane].stride
+                let dstStride = Int(frame.linesize[plane])
+                let srcHeight = Int(imageBuffer.planes[plane].size.y)
                 if srcStride == dstStride {
                     let bytes = srcHeight * srcStride
                     dst.copyMemory(from: src, byteCount: bytes)
                 } else {
-                    for j in 0..<srcHeight {
+                    for idx in 0..<srcHeight {
                         let toCopy = min(srcStride, dstStride)
-                        (dst+(dstStride*j)).copyMemory(from: src+(srcStride*j), byteCount: toCopy)
+                        (dst+(dstStride*idx)).copyMemory(from: src+(srcStride*idx), byteCount: toCopy)
                     }
                 }
             }
@@ -163,11 +165,11 @@ public class FFmpegVideoEncoder: Tx<PictureSample, CodedMediaSample> {
     private func setupContext(_ sample: PictureSample) throws {
         let name: String = try {
             switch format {
-                case .avc: return "libx264" //return hwaccel ? "h264_nvenc" : "libx264"
-                case .hevc: return "libx265" //return hwaccel ? "h265_nvenc" : "libx265"
-                case .vp8: return "libvpx"
-                case .vp9: return "libpvx-vp9"
-                default: throw EncodeError.invalidMediaFormat
+            case .avc: return "libx264" //return hwaccel ? "h264_nvenc" : "libx264"
+            case .hevc: return "libx265" //return hwaccel ? "h265_nvenc" : "libx265"
+            case .vp8: return "libvpx"
+            case .vp9: return "libpvx-vp9"
+            default: throw EncodeError.invalidMediaFormat
             }
         }()
         let pixelFormat = try getAVPixelFormat(sample.pixelFormat())
@@ -208,38 +210,43 @@ public class FFmpegVideoEncoder: Tx<PictureSample, CodedMediaSample> {
 private func getAVPixelFormat(_ format: PixelFormat) throws -> AVPixelFormat {
     return try {
             switch format {
-                case .y420p: return .YUV420P
-                case .yuvs: return .YUYV422
-                case .zvuy: return .UYVY422
-                case .y422p: return .YUV422P
-                case .y444p: return .YUV444P
-                case .nv12: return .NV12
-                case .nv21: return .NV21
-                default: throw EncodeError.invalidPixelFormat
+            case .y420p: return .YUV420P
+            case .yuvs: return .YUYV422
+            case .zvuy: return .UYVY422
+            case .y422p: return .YUV422P
+            case .y444p: return .YUV444P
+            case .nv12: return .NV12
+            case .nv21: return .NV21
+            default: throw EncodeError.invalidPixelFormat
             }
         }()
 }
 private func codecOptions(_ context: AVCodecContext,
-        format: MediaFormat,
-        settings: EncoderSpecificSettings?,
-        bitrate: Int?,
-        crf: Int?) -> [String: String] {
+                          format: MediaFormat,
+                          settings: EncoderSpecificSettings?,
+                          bitrate: Int?,
+                          crf: Int?) -> [String: String] {
     switch format {
-        case .avc:
-            return x264opts(context, settings: settings, bitrate, crf)
-        case .vp8, .vp9:
-            return ["slices": "4", "threads": "4"]
-        default:
-            return [:]
+    case .avc:
+        return x264opts(context, settings: settings, bitrate, crf)
+    case .vp8, .vp9:
+        return ["slices": "4", "threads": "4"]
+    default:
+        return [:]
     }
 }
 
-private func x264opts(_ context: AVCodecContext, settings: EncoderSpecificSettings?, _ bitrate: Int?, _ crf: Int?) -> [String: String] {
-    let avcSettings = settings <??> { if case .avc(let settings) = $0 { return settings }; return AVCSettings() } <|> AVCSettings()
+private func x264opts(_ context: AVCodecContext,
+                      settings: EncoderSpecificSettings?,
+                      _ bitrate: Int?, _ crf: Int?) -> [String: String] {
+    let avcSettings = settings <??> {
+        if case .avc(let settings) = $0 { return settings }
+        return AVCSettings() } <|> AVCSettings()
     if avcSettings.useHWAccel {
         return [:]
     }
-    var x264str = "annexb=0:aud=0:sync-lookahead=0:no-mbtree:sliced-threads" // mandatory, data is expected in AVC (ISO/IEC 14496-15) format.
+    // annexb=0 is mandatory, data is expected in AVC (ISO/IEC 14496-15) format.
+    var x264str = "annexb=0:aud=0:sync-lookahead=0:no-mbtree:sliced-threads"
     x264str += ":slices=4"
     if !avcSettings.useBFrames {
         x264str += ":bframes=0"
@@ -264,7 +271,10 @@ private func avcDecoderConfigurationRecord(_ config: Data) -> Data? {
     guard spsSize+4+4 < config.count else {
         return nil
     }
-    let ppsSize = Int(config[spsSize+4] << 24) | Int(config[spsSize+5] << 16)  |  Int(config[spsSize+6] << 8) | Int(config[spsSize+7])
+    let ppsSize = Int(config[spsSize+4] << 24) |
+        Int(config[spsSize+5] << 16) |
+        Int(config[spsSize+6] << 8) |
+        Int(config[spsSize+7])
     guard spsSize+ppsSize+8 <= config.count else {
         return nil
     }
