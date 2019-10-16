@@ -47,7 +47,7 @@ final class sampleRateConversionTests: XCTestCase {
                 assetId: "blank",
                 workspaceId: "test")
 
-            .just(sample) >>- tx
+            EventBox<AudioSample>.just(sample) >>- tx
             pts = pts + audioPacketDuration
             clock.step()
         }
