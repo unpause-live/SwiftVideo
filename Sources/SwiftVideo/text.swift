@@ -184,7 +184,8 @@ public class TextRenderer: Tx<TextSample, PictureSample> {
                 if let bitmap = glyph.bitmap.buffer {
                     let top = max(ascender - Int(glyph.bitmap_top), 0)
                     for y in top..<min(top+Int(glyph.bitmap.rows), height) {
-                        for x in lhs+Int(glyph.bitmap_left)..<min(lhs+Int(glyph.bitmap_left)+Int(glyph.bitmap.width), stride) {
+                        for x in lhs+Int(glyph.bitmap_left)..<min(lhs+Int(glyph.bitmap_left)+
+                                Int(glyph.bitmap.width), stride) {
                             let srcx = x - (lhs+Int(glyph.bitmap_left))
                             let srcy = y - top
                             let srcIdx = Int(glyph.bitmap.width) * srcy + srcx
