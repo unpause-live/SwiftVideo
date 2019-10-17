@@ -3,7 +3,7 @@ import Foundation
 import AudioToolbox
 
 public class AppleAudioPlayback: Terminal<AudioSample> {
-    public override init() {
+    public init(_ gain: Float = 1.0) {
         self.unit = nil
         self.samples = []
         self.pts = TimePoint(0, 1000)
@@ -38,7 +38,9 @@ public class AppleAudioPlayback: Terminal<AudioSample> {
                 if let component = AudioComponentFindNext(nil, &desc),
                      AudioComponentInstanceNew(component, &unit) == noErr {
                     if let unit = unit {
+                        
                         strongSelf.pts = rescale(sample.pts(), Int64(sample.sampleRate()))
+                        print("setting pts=\(sample.pts().toString()) new=\(strongSelf.pts.toString())")
                         strongSelf.unit = unit
                         var callback = AURenderCallbackStruct(inputProc: ioProc, inputProcRefCon: bridge(strongSelf))
                         var flag: UInt32 = 1
@@ -50,11 +52,12 @@ public class AppleAudioPlayback: Terminal<AudioSample> {
                             kAudioUnitScope_Input, 0, &asbd, UInt32(MemoryLayout<AudioStreamBasicDescription>.size))
                         AudioUnitInitialize(unit)
                         AudioOutputUnitStart(unit)
-                        AudioUnitSetParameter(unit, kHALOutputParam_Volume, kAudioUnitScope_Global, 0, 0.1, 0)
+                        AudioUnitSetParameter(unit, kHALOutputParam_Volume, kAudioUnitScope_Global, 0, gain, 0)
                     }
                 }
             }
             if sample.pts() < strongSelf.pts {
+                print("sample.pts=\(sample.pts().toString()) pts=\(strongSelf.pts.toString())")
                 strongSelf.pts = rescale(sample.pts(), Int64(sample.sampleRate()))
                 strongSelf.samples.removeAll(keepingCapacity: true)
                 strongSelf.ptsOffset = nil
@@ -69,6 +72,13 @@ public class AppleAudioPlayback: Terminal<AudioSample> {
             AudioOutputUnitStop(unit)
         }
     }
+
+    public func setGain(_ gain: Float) {
+        if let unit = self.unit {
+            AudioUnitSetParameter(unit, kHALOutputParam_Volume, kAudioUnitScope_Global, 0, gain, 0)
+        }
+    }
+
     private var unit: AudioUnit?
     fileprivate var samples: [AudioSample]
     fileprivate var pts: TimePoint
@@ -86,7 +96,7 @@ private func ioProc(inRefCon: UnsafeMutableRawPointer,
     }
     let this: AppleAudioPlayback = bridge(from: inRefCon)
     if this.ptsOffset == nil {
-        this.ptsOffset =  this.pts - TimePoint(Int64(audioTimestamp.pointee.mSampleTime), this.pts.scale)
+        this.ptsOffset = TimePoint(Int64(audioTimestamp.pointee.mSampleTime), this.pts.scale)
     }
     guard let ptsOffset = this.ptsOffset else {
         return -1
