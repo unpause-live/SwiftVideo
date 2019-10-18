@@ -105,21 +105,11 @@ public struct ComputeContext {
 }
 
 func availableComputeDevices() -> [ComputeDevice] {
-    return getPlatforms().flatMap(getDevices)
+    getPlatforms().flatMap(getDevices)
 }
 
 func createComputeContext(sharing ctx: ComputeContext) -> ComputeContext? {
-    let ctx = ComputeContext(device: ctx.device, ctx: ctx.context.ctx, logger: ctx.logger)
-    do {
-        return try OpenCLKernel.allCases.reduce(ctx) {
-            try buildComputeKernel($0,
-                                   name: String(describing: $1),
-                                   source: kOpenCLKernelMatrixFuncs + "\n" + $1.rawValue)
-        }
-    } catch {
-        ctx.logger.error("Caught error building kernels \(error)")
-        return nil
-    }
+    ComputeContext(device: ctx.device, ctx: ctx.context.ctx, logger: ctx.logger)
 }
 
 func createComputeContext(_ device: ComputeDevice,
@@ -206,9 +196,44 @@ func buildComputeKernel(_ context: ComputeContext, name: String, source: String)
     }
 }
 
+private func maybeBuildKernel( _ context: ComputeContext, _ kernel: ComputeKernel) throws -> ComputeContext {
+    let name: String = {
+        if case .custom(let name) = kernel {
+            return name
+        }
+        return String(describing: kernel)
+    }()
+    guard context.library()[name] == nil else {
+        return context
+    }
+    let defaultKernel = OpenCLKernel.allCases.first { String(describing: $0) == name }
+    guard let source = defaultKernel?.rawValue else {
+        throw ComputeError.computeKernelNotFound(kernel)
+    }
+    return try buildComputeKernel(context, name: name, source: kOpenCLKernelMatrixFuncs + "\n" + source)
+}
+
+// Retrieve a predefined or custom kernel from the library
+// Can throw ComputError.computeKernelNotFound
+//
+private func getComputeKernel( _ context: ComputeContext, _ kernel: ComputeKernel) throws -> (cl_program, cl_kernel) {
+    var function: (cl_program, cl_kernel)?
+    switch kernel {
+    case .custom(let name):
+        function = context.library()[name]
+    default:
+        let name = String(describing: kernel)
+        function = context.library()[name]
+    }
+    guard let kernelFunction = function else {
+        throw ComputeError.computeKernelNotFound(kernel)
+    }
+    return kernelFunction
+}
+
 func beginComputePass(_ context: ComputeContext) -> ComputeContext {
     // no-op on OpenCL
-    return context
+    context
 }
 
 // Used for multiple input images and an output target.
@@ -244,6 +269,7 @@ func runComputeKernel<T>(_ context: ComputeContext,
                          requiredMemory: Int? = nil,
                          uniforms: T? = nil,
                          blends: Bool = false) throws -> ComputeContext {
+    let context = try maybeBuildKernel(context, kernel)
     let kernelFunction = try getComputeKernel(context, kernel)
     guard let commandQueue = context.commandQueue else {
         throw ComputeError.badContextState(description: "No command queue")
@@ -497,24 +523,6 @@ func downloadComputePicture(_ ctx: ComputeContext, pict: PictureSample) throws -
     return PictureSample(pict, img: image)
 }
 #endif
-
-// Retrieve a predefined or custom kernel from the library
-// Can throw ComputError.computeKernelNotFound
-//
-private func getComputeKernel( _ context: ComputeContext, _ kernel: ComputeKernel) throws -> (cl_program, cl_kernel) {
-    var function: (cl_program, cl_kernel)?
-    switch kernel {
-    case .custom(let name):
-        function = context.library()[name]
-    default:
-        let name = String(describing: kernel)
-        function = context.library()[name]
-    }
-    guard let kernelFunction = function else {
-        throw ComputeError.computeKernelNotFound(kernel)
-    }
-    return kernelFunction
-}
 
 private func setUniforms<T>(_ context: ComputeContext,
                             _ kernel: cl_kernel,
