@@ -47,6 +47,7 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
             do {
                 try setupContext(sample)
             } catch let err {
+                print("Context setup error \(err)")
                 return .error(EventError("dec.video.ffmpeg",
                                 -2, "Error creating codec context \(err)", assetId: sample.assetId()))
             }
@@ -104,6 +105,7 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
     }
 
     private func makePictureSample(_ frame: AVFrame, sample: CodedMediaSample) -> EventBox<PictureSample> {
+        let pixelFormat = fromFfPixelFormat(frame)
         let data = (0..<3).compactMap { idx -> Data? in
             guard let data = frame.data[idx], frame.linesize[idx] > 0 else {
                 return nil
@@ -119,20 +121,6 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
                 return Data(bytesNoCopy: data, count: Int(frame.linesize[idx]) * Int(height), deallocator: .none)
             }
         }
-
-        let pixelFormat: PixelFormat = {
-            switch frame.pixelFormat {
-            case .YUV420P: return .y420p
-            case .YUYV422: return .yuvs
-            case .UYVY422: return .zvuy
-            case .YUV422P: return .y422p
-            case .YUV444P: return .y444p
-            case .NV12: return .nv12
-            case .NV21: return .nv21
-            default: return .invalid
-            }
-        }()
-
         let planes = (0..<3).compactMap { idx -> Plane? in
             guard frame.linesize[idx] > 0 else {
                 return nil
@@ -142,7 +130,7 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
                 case .y420p, .nv12, .nv21:
                     return idx == 0 ? Vector2(Float(frame.width),
                                         Float(frame.height)) : Vector2(Float(frame.width/2), Float(frame.height/2))
-                case .yuvs, .zvuy, .y444p:
+                case .yuvs, .zvuy, .y444p, .BGRA, .RGBA:
                     return Vector2(Float(frame.width), Float(frame.height))
                 case .y422p:
                     return idx == 0 ? Vector2(Float(frame.width),
@@ -167,6 +155,7 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
                                  time: sample.time(),
                                  pts: pts))
         } catch let error {
+            print("caught error \(error)")
             return .error(EventError("dec.video.ffmpeg",
                             -5, "Error creating image \(error)", assetId: sample.assetId()))
         }
@@ -181,8 +170,10 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
                 case .vp8: return AVCodec.findDecoderById(.VP8)
                 case .vp9: return AVCodec.findDecoderById(.VP9)
                 case .png: return AVCodec.findDecoderById(.PNG)
+                case .apng: return AVCodec.findDecoderById(.APNG)
                 default: return nil
                 } }()
+        print("Decoding using \(codec)")
         if let codec = self.codec {
             let ctx = AVCodecContext(codec: codec)
             self.codecContext = ctx
@@ -204,4 +195,16 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
     var codec: AVCodec?
     var codecContext: AVCodecContext?
     var extradata: UnsafeMutableRawPointer?
+}
+
+private func fromFfPixelFormat(_ frame: AVFrame) -> PixelFormat {
+    [.YUV420P: .y420p,
+     .YUYV422: .yuvs,
+     .UYVY422: .zvuy,
+     .YUV422P: .y422p,
+     .YUV444P: .y444p,
+     .NV12: .nv12,
+     .NV21: .nv21,
+     .BGRA: .BGRA,
+     .RGBA: .RGBA][frame.pixelFormat] ?? .invalid
 }

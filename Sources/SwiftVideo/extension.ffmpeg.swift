@@ -26,3 +26,5 @@ extension AVCodecID {
 extension AVMediaType: Hashable {}
 
 extension AVCodecID: Hashable {}
+
+extension AVPixelFormat: Hashable {}

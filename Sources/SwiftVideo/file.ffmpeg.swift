@@ -42,7 +42,9 @@ public class FileSource: Source<CodedMediaSample> {
                 let codecParams = val.codecParameters
                 let timebase = TimePoint(Int64(val.timebase.num), Int64(val.timebase.den))
                 let codecMap: [AVCodecID: MediaFormat] =
-                    [.H264: .avc, .HEVC: .hevc, .VP8: .vp8, .VP9: .vp9, .AAC: .aac, .OPUS: .opus, .PNG: .png]
+                    [.H264: .avc, .HEVC: .hevc, .VP8: .vp8, .VP9: .vp9,
+                     .AAC: .aac, .OPUS: .opus,
+                     .PNG: .png, .APNG: .apng]
                 let typeMap: [AVMediaType: MediaType] =
                     [.audio: .audio, .video: .video, .data: .data, .subtitle: .subtitle]
                 let extradata: Data? = {
@@ -51,6 +53,7 @@ public class FileSource: Source<CodedMediaSample> {
                     }
                     return Data(bytes: ptr, count: codecParams.extradataSize)
                 }()
+                print("Opening file \(url), codec is \(codecParams.codecId)")
                 guard let codec = codecMap[codecParams.codecId], let type = typeMap[val.mediaType] else {
                     return nil
                 }
@@ -64,6 +67,7 @@ public class FileSource: Source<CodedMediaSample> {
                                         startTime: startTime,
                                         extradata: extradata))
             })
+        print("streams = \(streams)")
         if streams.count == 0 {
             throw FileError.unsupported
         }

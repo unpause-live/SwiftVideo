@@ -99,11 +99,12 @@ public enum MediaFormat: SwiftProtobuf.Enum {
 
   /// image
   case png // = 8
-  case jpg // = 9
-  case gif // = 10
+  case apng // = 9
+  case jpg // = 10
+  case gif // = 11
 
   /// data
-  case klv // = 11
+  case klv // = 12
 
   /// subtitle
   case srt // = 13
@@ -126,9 +127,10 @@ public enum MediaFormat: SwiftProtobuf.Enum {
     case 6: self = .vp9
     case 7: self = .uncompressed
     case 8: self = .png
-    case 9: self = .jpg
-    case 10: self = .gif
-    case 11: self = .klv
+    case 9: self = .apng
+    case 10: self = .jpg
+    case 11: self = .gif
+    case 12: self = .klv
     case 13: self = .srt
     case 14: self = .webvtt
     case 15: self = .utf8Text
@@ -147,9 +149,10 @@ public enum MediaFormat: SwiftProtobuf.Enum {
     case .vp9: return 6
     case .uncompressed: return 7
     case .png: return 8
-    case .jpg: return 9
-    case .gif: return 10
-    case .klv: return 11
+    case .apng: return 9
+    case .jpg: return 10
+    case .gif: return 11
+    case .klv: return 12
     case .srt: return 13
     case .webvtt: return 14
     case .utf8Text: return 15
@@ -173,6 +176,7 @@ extension MediaFormat: CaseIterable {
     .vp9,
     .uncompressed,
     .png,
+    .apng,
     .jpg,
     .gif,
     .klv,
@@ -430,9 +434,10 @@ extension MediaFormat: SwiftProtobuf._ProtoNameProviding {
     6: .same(proto: "vp9"),
     7: .same(proto: "uncompressed"),
     8: .same(proto: "png"),
-    9: .same(proto: "jpg"),
-    10: .same(proto: "gif"),
-    11: .same(proto: "klv"),
+    9: .same(proto: "apng"),
+    10: .same(proto: "jpg"),
+    11: .same(proto: "gif"),
+    12: .same(proto: "klv"),
     13: .same(proto: "srt"),
     14: .same(proto: "webvtt"),
     15: .same(proto: "utf8Text"),

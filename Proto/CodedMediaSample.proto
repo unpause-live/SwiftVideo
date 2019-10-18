@@ -37,10 +37,11 @@ enum MediaFormat {
     uncompressed = 7;
     // image
     png = 8;
-    jpg = 9;
-    gif = 10;
+    apng = 9;
+    jpg = 10;
+    gif = 11;
     // data
-    klv = 11;
+    klv = 12;
     // subtitle
     srt = 13; 
     webvtt = 14;

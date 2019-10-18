@@ -92,6 +92,10 @@ public func componentsForPlane(_ pixelFormat: PixelFormat, _ idx: Int) -> [Compo
         return [.y, .cb, .y, .cr]
     case .zvuy:
         return [.cb, .y, .cr, .y]
+    case .BGRA:
+        return [.b, .g, .r, .a]
+    case .RGBA:
+        return [.r, .g, .b, .a]
     default:
         return []
     }
