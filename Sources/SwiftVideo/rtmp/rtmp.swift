@@ -312,7 +312,7 @@ public class Rtmp {
 public class RtmpPublisher: Terminal<CodedMediaSample>, LivePublisher {
     fileprivate init(_ clock: Clock, conn: Connection, ctx: rtmp.Context, bufferSize: TimePoint, uuid: String?) {
         self.conn = conn
-        self.tx = nil
+        self.serialize = nil
         self.ctx = ctx
         let ident = uuid ?? UUID().uuidString
         self.ident = ident
@@ -328,46 +328,10 @@ public class RtmpPublisher: Terminal<CodedMediaSample>, LivePublisher {
             if strongSelf.epoch == nil {
                 strongSelf.epoch = clock.current() - sample.dts()
             }
-            guard let epoch = strongSelf.epoch else {
-                return .gone
-            }
-            if strongSelf.sentProps {
-                let scheduleTime = epoch + bufferSize + sample.dts()
-                clock.schedule(scheduleTime) { [weak self] _ in
-                    self?.queue.async { [weak self] in
-                        guard let strongSelf = self, let tx = strongSelf.tx else {
-                            return
-                        }
-                        self?.result = .just(sample) >>- (tx >>> Tx { .nothing($0.info()) })
-                    }
-                }
-                let result = strongSelf.result
-                strongSelf.result = nil
-                return result ?? .nothing(nil)
-            } else {
-                let has = strongSelf.props.contains {
-                    switch $0 {
-                    case .video:
-                        return sample.mediaType() == .video
-                    case .audio:
-                        return sample.mediaType() == .audio
-                    }
-                }
-                if !has {
-                    do {
-                        try strongSelf.props.append(basicMediaDescription(sample))
-                    } catch let error {
-                        return .error(EventError("rtmp.mediaDescription", -1, "\(error)", assetId: sample.assetId()))
-                    }
-                }
-                if strongSelf.props.count > 1 {
-                    return strongSelf.sendMetadata()
-                }
-                return .nothing(sample.info())
-            }
+            return strongSelf.handle(sample)
         }
         let serialize = rtmp.Serialize(ctx)
-        self.tx = serialize >>> Tx {
+        self.serialize = serialize >>> Tx {
             $0.info()?.addSample("net.rtmp.write", $0.data().readableBytes)
             return .just($0)
         } >>> conn
@@ -429,16 +393,57 @@ public class RtmpPublisher: Terminal<CodedMediaSample>, LivePublisher {
         return ctx.encoder
     }
 
+    private func handle(_ sample: CodedMediaSample) -> EventBox<ResultEvent> {
+        guard let epoch = self.epoch else {
+            return .gone
+        }
+        if self.sentProps {
+            //let scheduleTime = epoch + bufferSize + sample.dts()
+            //clock.schedule(scheduleTime) { [weak self] _ in
+                self.queue.async { [weak self] in
+                    guard let strongSelf = self,
+                          let txn = strongSelf.serialize else {
+                        return
+                    }
+                    strongSelf.result = .just(sample) >>- (txn >>> Tx { .nothing($0.info()) })
+                }
+            //}
+            let result = self.result
+            self.result = nil
+            return result ?? .nothing(nil)
+        } else {
+            let has = self.props.contains {
+                switch $0 {
+                case .video:
+                    return sample.mediaType() == .video
+                case .audio:
+                    return sample.mediaType() == .audio
+                }
+            }
+            if !has {
+                do {
+                    try self.props.append(basicMediaDescription(sample))
+                } catch let error {
+                    return .error(EventError("rtmp.mediaDescription", -1, "\(error)", assetId: sample.assetId()))
+                }
+            }
+            if self.props.count > 1 {
+                return self.sendMetadata()
+            }
+            return .nothing(sample.info())
+        }
+    }
+
     private func sendUnpublish() {
-        guard let tx = self.recv else {
+        guard let txn = self.recv else {
             return
         }
         let result = rtmp.states.unpublish(ctx)
         ctx = result.1
-        _ = result.0 >>- tx
+        _ = result.0 >>- txn
     }
     private func sendMetadata() -> EventBox<ResultEvent> {
-        guard let tx = self.recv, sentProps == false else {
+        guard let txn = self.recv, sentProps == false else {
             return .nothing(nil)
         }
         sentProps = true
@@ -452,7 +457,7 @@ public class RtmpPublisher: Terminal<CodedMediaSample>, LivePublisher {
                                assetId: ctx.assetId,
                                workspaceId: ctx.app ?? "",
                                workspaceToken: ctx.playPath,
-                               bytes: bytes)) >>- tx
+                               bytes: bytes)) >>- txn
             } else {
                 return .nothing(nil)
             }
@@ -468,7 +473,7 @@ public class RtmpPublisher: Terminal<CodedMediaSample>, LivePublisher {
     private var ctx: rtmp.Context
     private let conn: Connection
     private let ident: String
-    private var tx: Tx<CodedMediaSample, NetworkEvent>?
+    private var serialize: Tx<CodedMediaSample, NetworkEvent>?
     private var recv: Terminal<NetworkEvent>?
 }
 

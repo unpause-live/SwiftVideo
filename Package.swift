@@ -48,8 +48,9 @@ let package = Package(
         .target(name: "CSwiftVideo", dependencies: [], cxxSettings: [.define("linux", .when(platforms: [.linux]))]),
         .target(
             name: "SwiftVideo",
-            dependencies: ["NIO", "CSwiftVideo", "NIOSSL", "NIOExtras", "NIOFoundationCompat", "VectorMath", "BrightFutures",
-                            "SwiftFFmpeg", "SwiftProtobuf", "NIOWebSocket", "NIOHTTP1", "CFreeType", "Logging"],
+            dependencies: ["NIO", "CSwiftVideo", "NIOSSL", "NIOExtras", "NIOFoundationCompat",
+                           "VectorMath", "BrightFutures", "SwiftFFmpeg", "SwiftProtobuf", "NIOWebSocket",
+                           "NIOHTTP1", "CFreeType", "Logging"],
             swiftSettings: [
                 .define("GPGPU_OCL", .when(platforms: [.linux, .macOS])),
                 .define("GPGPU_METAL", .when(platforms: [.iOS, .tvOS]))

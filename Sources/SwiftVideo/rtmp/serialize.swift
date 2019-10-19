@@ -18,6 +18,7 @@ import NIO
 import Foundation
 
 extension rtmp {
+    // swiftlint:disable:next type_name
     enum serialize {
 
         static func serializeMedia(_ sample: CodedMediaSample,
