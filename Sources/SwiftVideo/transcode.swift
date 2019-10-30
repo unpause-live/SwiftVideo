@@ -94,7 +94,8 @@ public func makeVideoTranscoder(_ fmt: MediaFormat,
                                 bitrate: Int,
                                 keyframeInterval: TimePoint,
                                 newAssetId: String,
-                                settings: EncoderSpecificSettings) throws -> Tx<CodedMediaSample, CodedMediaSample> {
+                                settings: EncoderSpecificSettings? = nil) throws
+        -> Tx<CodedMediaSample, CodedMediaSample> {
     guard [.avc, .hevc, .vp8, .vp9, .av1].contains(where: { $0 == fmt }) else {
         throw EncodeError.invalidMediaFormat
     }

@@ -36,7 +36,10 @@ let leftFile = "file:///Users/james/dev/test-data/movies/spring.mp4"
 let rightFile = "file:///Users/james/dev/test-data/movies/bbc_audio_sync.mp4"
 let rtmpDestination = "rtmp://localhost/app/playPath"
 
-var rtmpPublisher: (Tx<AudioSample, [ResultEvent]>, Terminal<PictureSample>)?
+typealias ExamplePublisher = (Tx<AudioSample, [ResultEvent]>, Terminal<PictureSample>)
+typealias ExampleSource = (Terminal<CodedMediaSample>, Terminal<CodedMediaSample>, Terminal<CodedMediaSample>)
+
+var rtmpPublisher: ExamplePublisher?
 
 // In order for the composer to bind elements to assets, it must be given access to a pool of samples that the
 // elements can pull from and the result will be pushed to. This means that the sources you wish to use must feed 
@@ -44,6 +47,7 @@ var rtmpPublisher: (Tx<AudioSample, [ResultEvent]>, Terminal<PictureSample>)?
 // particular implementation of a holistic composer that handles binding and rebinding assets to animators to mixers.
 let pictureBus = Bus<PictureSample>(clock)
 let audioBus = Bus<AudioSample>(clock)
+let codedBus = Bus<CodedMediaSample>(clock)
 
 let width = 1280
 let height = 720
@@ -99,7 +103,7 @@ let composer = Composer(clock,
     audioBus: audioBus,
     pictureBus: pictureBus)
 
-func makeFileSource(_ url: String, _ ident: String) throws -> (Terminal<CodedMediaSample>, Terminal<CodedMediaSample>) {
+func makeFileSource(_ url: String, _ ident: String) throws -> ExampleSource {
     let src = try FileSource(clock, url: url, assetId: ident, workspaceId: "sandbox")
     // Here we are composing transformations: taking the encoded media from the file source, decoding it, and 
     // preparing the samples in a useful format for the mixers.  In the case of audio samples, we are doing a sample
@@ -112,9 +116,11 @@ func makeFileSource(_ url: String, _ ident: String) throws -> (Terminal<CodedMed
     //
     // The result of one of the compositions below is a Tx<CodedMediaSample, ResultEvent> which contains all of the
     // transformation functions specified. Tx<CodedMediaSample, ResultEvent> is equivalent to Terminal<CodedMediaSample>
-    return (src >>> mediaTypeFilter(.video) >>> FFmpegVideoDecoder() >>> GPUBarrierUpload(compute) >>> pictureBus,
-            src >>> mediaTypeFilter(.audio) >>> FFmpegAudioDecoder() >>>
-                    AudioSampleRateConversion(48000, 2, .s16i) >>> audioBus)
+    return (src >>> codedBus,
+            codedBus <<| mediaTypeFilter(.audio) >>> FFmpegAudioDecoder() >>>
+                    AudioSampleRateConversion(48000, 2, .s16i) >>> audioBus,
+            codedBus <<| mediaTypeFilter(.video) >>> FFmpegVideoDecoder() >>>
+                GPUBarrierUpload(compute) >>> pictureBus)
 }
 
 let onEnded: LiveOnEnded = { print("\($0) ended") ; rtmpPublisher = nil }
