@@ -14,7 +14,9 @@
    limitations under the License.
 */
 
-// This example is going to use the Transcode class to transcode a file and output it to an RTMP endpoint.
+// This example is going to use the transcoder functions to transcode a file and output it to an RTMP endpoint.
+// The transcoder functions return compositions containing the appropriate operations to transcode a CodedMediaSample
+// into one (or more) different CodedMediaSamples of the same media type (audio, video)
 
 import SwiftVideo
 import Foundation
@@ -44,13 +46,19 @@ let onEnded: LiveOnEnded = {
 // RTMP connection established, here we create the encoders and compose the outputs.
 let onConnection: LiveOnConnection = { pub, sub in
     if let pub = pub,
-       let txn = pub as? Terminal<CodedMediaSample> {
+       let publisher = pub as? Terminal<CodedMediaSample> {
         do {
             let src = try FileSource(clock, url: inputFile, assetId: "file", workspaceId: "sandbox")
+
+            // Here we are composing transformations: taking the encoded media from the file source, filtering based
+            // on the media type (audio or video), and transcoding the samples. You'll notice that when we compose
+            // the rtmp publisher at the end of the composition here we use a standard composition operator for 
+            // video (>>>) and for audio we use a mapping composition operator (|>>).  The mapping operator 
+            // will take a list of samples and map them to the publisher, returning a list of the result type.
             videoTranscoder = try codedBus <<| mediaTypeFilter(.video) >>> makeVideoTranscoder(.avc,
-                bitrate: 3_000_000, keyframeInterval: TimePoint(2000, 1000), newAssetId: "new") >>> txn
+                bitrate: 3_000_000, keyframeInterval: TimePoint(2000, 1000), newAssetId: "new") >>> publisher
             audioTranscoder = try codedBus <<| mediaTypeFilter(.audio) >>>
-                    makeAudioTranscoder(.aac, bitrate: 96_000, sampleRate: 48000, newAssetId: "new") |>> txn
+                    makeAudioTranscoder(.aac, bitrate: 96_000, sampleRate: 48000, newAssetId: "new") |>> publisher
             fileSource = src >>> codedBus
         } catch {
             print("Exception loading file \(error)")
