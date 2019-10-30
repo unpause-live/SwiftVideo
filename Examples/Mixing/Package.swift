@@ -18,12 +18,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "RtmpServer",
+    name: "Mixing",
     platforms: [
        .macOS(.v10_14),
        .iOS("11.0")
     ],
-    products: [.executable(name: "rtmpServer", targets: ["RtmpServer"])],
+    products: [.executable(name: "mixing", targets: ["Mixing"])],
     dependencies: [.package(path:"../../")],
-    targets: [.target(name: "RtmpServer", dependencies: ["SwiftVideo"])]
+    targets: [.target(name: "Mixing", dependencies: ["SwiftVideo"])]
 )

@@ -24,7 +24,7 @@ public class Composer {
     public init(_ clock: Clock,
                 assetId: String,
                 workspaceId: String,
-                workspaceToken: String?,
+                workspaceToken: String? = nil,
                 compute: ComputeContext,
                 composition: RpcMakeComposition,
                 audioBus: Bus<AudioSample>,
@@ -101,11 +101,11 @@ public class Composer {
     }
 
     public func setScene(_ sceneId: String) {
-        //self.videoMixer.queue.async { [weak self] in
-          //guard let strongSelf = self else {
-          //    return
-          //}
-          let strongSelf = self
+        self.videoMixer.queue.async { [weak self] in
+          guard let strongSelf = self else {
+              return
+          }
+          //let strongSelf = self
           if let scene = strongSelf.scenes[sceneId] {
               strongSelf.curScene = sceneId
               // setup animations
@@ -120,15 +120,14 @@ public class Composer {
                     assetId: element.1.assetId))
               })
               // 2. connect elements used in the scene
-              scene.elements.forEach { element in
+                scene.elements.forEach { element in
                   strongSelf.connectElement(element.0, setInitialState: true)
                   if let slot = strongSelf.elements[element.0] {
                       slot.setParent(strongSelf.elements[element.1.parent])
                   }
-              }
-          }
-        //}
-
+                }
+            }
+        }
     }
 
     public func currentScene() -> String {
