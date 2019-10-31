@@ -18,8 +18,9 @@ import SwiftFFmpeg
 import Foundation
 import VectorMath
 
+private let kTimebase: Int64 = 600600
+
 public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
-    private let kTimebase: Int64 = 600600
     public override init() {
         self.codec = nil
         self.codecContext = nil
@@ -104,64 +105,6 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
         return .nothing(sample.info())
     }
 
-    private func makePictureSample(_ frame: AVFrame, sample: CodedMediaSample) -> EventBox<PictureSample> {
-        let pixelFormat = fromFfPixelFormat(frame)
-        let data = (0..<3).compactMap { idx -> Data? in
-            guard let data = frame.data[idx], frame.linesize[idx] > 0 else {
-                return nil
-            }
-            if idx == 0 {
-                return Data(bytesNoCopy: data,
-                    count: Int(frame.linesize[idx]) * Int(frame.height),
-                    deallocator: .custom({ _, _ in
-                        frame.unref()
-                    }))
-            } else {
-                let height = frame.pixelFormat == .YUV420P ? frame.height / 2 : frame.height
-                return Data(bytesNoCopy: data, count: Int(frame.linesize[idx]) * Int(height), deallocator: .none)
-            }
-        }
-        let planes = (0..<3).compactMap { idx -> Plane? in
-            guard frame.linesize[idx] > 0 else {
-                return nil
-            }
-            let size: Vector2 = {
-                switch pixelFormat {
-                case .y420p, .nv12, .nv21:
-                    return idx == 0 ? Vector2(Float(frame.width),
-                                        Float(frame.height)) : Vector2(Float(frame.width/2), Float(frame.height/2))
-                case .yuvs, .zvuy, .y444p, .BGRA, .RGBA:
-                    return Vector2(Float(frame.width), Float(frame.height))
-                case .y422p:
-                    return idx == 0 ? Vector2(Float(frame.width),
-                                        Float(frame.height)) : Vector2(Float(frame.width/2), Float(frame.height))
-                default: return Vector2(0, 0)
-                }
-            }()
-            let components: [Component] = componentsForPlane(pixelFormat, idx)
-            return Plane(size: size, stride: Int(frame.linesize[idx]), bitDepth: 8, components: components)
-        }
-        do {
-            let image = try ImageBuffer(pixelFormat: pixelFormat,
-                                bufferType: .cpu,
-                                size: Vector2(Float(frame.width), Float(frame.height)),
-                                buffers: data,
-                                planes: planes)
-            let pts = TimePoint(frame.pts, kTimebase)
-            return .just(PictureSample(image,
-                                 assetId: sample.assetId(),
-                                 workspaceId: sample.workspaceId(),
-                                 workspaceToken: sample.workspaceToken(),
-                                 time: sample.time(),
-                                 pts: pts))
-        } catch let error {
-            print("caught error \(error)")
-            return .error(EventError("dec.video.ffmpeg",
-                            -5, "Error creating image \(error)", assetId: sample.assetId()))
-        }
-
-    }
-
     private func setupContext(_ sample: CodedMediaSample) throws {
         self.codec = {
                 switch sample.mediaFormat() {
@@ -173,7 +116,6 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
                 case .apng: return AVCodec.findDecoderById(.APNG)
                 default: return nil
                 } }()
-        print("Decoding using \(codec)")
         if let codec = self.codec {
             let ctx = AVCodecContext(codec: codec)
             self.codecContext = ctx
@@ -192,9 +134,77 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
             try context.openCodec()
         }
     }
+
     var codec: AVCodec?
     var codecContext: AVCodecContext?
     var extradata: UnsafeMutableRawPointer?
+}
+
+private func frameData(_ frame: AVFrame) -> [Data] {
+    (0..<3).compactMap { idx -> Data? in
+        guard let data = frame.data[idx], frame.linesize[idx] > 0 else {
+            return nil
+        }
+        if idx == 0 {
+            return Data(bytesNoCopy: data,
+                count: Int(frame.linesize[idx]) * Int(frame.height),
+                deallocator: .custom({ _, _ in
+                    frame.unref()
+                }))
+        } else {
+            let height = frame.pixelFormat == .YUV420P ? frame.height / 2 : frame.height
+            return Data(bytesNoCopy: data, count: Int(frame.linesize[idx]) * Int(height), deallocator: .none)
+        }
+    }
+}
+
+private func planeSize(_ frame: AVFrame, _ idx: Int, _ pixelFormat: PixelFormat) -> Vector2 {
+    switch pixelFormat {
+    case .y420p, .nv12, .nv21:
+        return idx == 0 ? Vector2(Float(frame.width),
+                            Float(frame.height)) : Vector2(Float(frame.width/2), Float(frame.height/2))
+    case .yuvs, .zvuy, .y444p, .BGRA, .RGBA:
+        return Vector2(Float(frame.width), Float(frame.height))
+    case .y422p:
+        return idx == 0 ? Vector2(Float(frame.width),
+                            Float(frame.height)) : Vector2(Float(frame.width/2), Float(frame.height))
+    default: return Vector2(0, 0)
+    }
+}
+
+private func framePlanes(_ frame: AVFrame, pixelFormat: PixelFormat) -> [Plane] {
+    (0..<3).compactMap { idx -> Plane? in
+        guard frame.linesize[idx] > 0 else {
+            return nil
+        }
+        let size = planeSize(frame, idx, pixelFormat)
+        let components: [Component] = componentsForPlane(pixelFormat, idx)
+        return Plane(size: size, stride: Int(frame.linesize[idx]), bitDepth: 8, components: components)
+    }
+}
+
+private func makePictureSample(_ frame: AVFrame, sample: CodedMediaSample) -> EventBox<PictureSample> {
+    let pixelFormat = fromFfPixelFormat(frame)
+    let data = frameData(frame)
+    let planes = framePlanes(frame, pixelFormat: pixelFormat)
+    do {
+        let image = try ImageBuffer(pixelFormat: pixelFormat,
+                            bufferType: .cpu,
+                            size: Vector2(Float(frame.width), Float(frame.height)),
+                            buffers: data,
+                            planes: planes)
+        let pts = TimePoint(frame.pts, kTimebase)
+        return .just(PictureSample(image,
+                             assetId: sample.assetId(),
+                             workspaceId: sample.workspaceId(),
+                             workspaceToken: sample.workspaceToken(),
+                             time: sample.time(),
+                             pts: pts))
+    } catch let error {
+        print("caught error \(error)")
+        return .error(EventError("dec.video.ffmpeg",
+                        -5, "Error creating image \(error)", assetId: sample.assetId()))
+    }
 }
 
 private func fromFfPixelFormat(_ frame: AVFrame) -> PixelFormat {

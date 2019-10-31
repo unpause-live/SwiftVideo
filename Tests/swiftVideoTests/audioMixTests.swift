@@ -30,6 +30,7 @@ func lcm<T: FixedWidthInteger>(_ lhs: T, _ rhs: T) -> T {
     return res != 0 ? (lhs / res &* rhs) : 0
 }
 
+// swiftlint:disable:next type_name
 final class audioMixTests: XCTestCase {
     let duration = TimePoint(60 * 60 * 1000, 1000)
 

@@ -38,7 +38,7 @@ public class AppleAudioPlayback: Terminal<AudioSample> {
                 if let component = AudioComponentFindNext(nil, &desc),
                      AudioComponentInstanceNew(component, &unit) == noErr {
                     if let unit = unit {
-                        
+
                         strongSelf.pts = rescale(sample.pts(), Int64(sample.sampleRate()))
                         print("setting pts=\(sample.pts().toString()) new=\(strongSelf.pts.toString())")
                         strongSelf.unit = unit

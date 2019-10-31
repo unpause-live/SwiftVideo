@@ -23,6 +23,7 @@ import NIOExtras
 
 public typealias XCTestCaseClosure = (XCTestCase) throws -> Void
 
+// swiftlint:disable:next type_name
 final class rtmpTests: XCTestCase {
 
 #if os(Linux)

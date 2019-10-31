@@ -7,6 +7,11 @@ jobs:
     steps:
       - checkout
       - run:
-          name: SwiftVideo Tests
+          name: Public interface tests
           command: |
-            swift test -c release
+            swift test -c release --filter swiftVideoTests
+      # disable for now since clang crashes when running this command for some reason.
+      # - run:
+      #     name: Internal tests
+      #     command: |
+      #       swift test --filter swiftVideoInternalTests

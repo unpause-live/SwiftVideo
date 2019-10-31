@@ -18,6 +18,7 @@ import XCTest
 import Foundation
 import SwiftVideo
 
+// swiftlint:disable:next type_name
 final class sampleRateConversionTests: XCTestCase {
 
     func sampleCountTest() {

@@ -18,8 +18,9 @@ import SwiftFFmpeg
 import Foundation
 import VectorMath
 
+private let kTimebase: Int64 = 96000
+
 public class FFmpegAudioDecoder: Tx<CodedMediaSample, AudioSample> {
-    private let kTimebase: Int64 = 96000
     public override init() {
         self.codec = nil
         self.codecContext = nil
@@ -75,85 +76,39 @@ public class FFmpegAudioDecoder: Tx<CodedMediaSample, AudioSample> {
             return .nothing(sample.info())
         }
 
-        let pts = rescale(sample.pts(), kTimebase)
-        let dts = rescale(sample.dts(), kTimebase)
-        let packet = AVPacket()
-        let size = sample.data().count
-        var data = sample.data()
+        let packetSize = try sendPacket(sample, ctx: codecCtx)
 
-        try packet.makeWritable()
-
-        data.withUnsafeMutableBytes {
-            guard let buffer = packet.buffer,
-                  let baseAddress = $0.baseAddress else {
-                return
-            }
-            buffer.realloc(size: size)
-            memcpy(buffer.data, baseAddress, size)
+        guard packetSize > 0 else {
+            return .nothing(sample.info())
         }
-        packet.data = packet.buffer?.data
-        packet.size = size
-        packet.pts = pts.value
-        packet.dts = dts.value
 
-        if packet.size > 0 {
-            try codecCtx.sendPacket(packet)
-            do {
-                let frame = AVFrame()
-                try codecCtx.receiveFrame(frame)
+        do {
+            let frame = AVFrame()
+            try codecCtx.receiveFrame(frame)
 
-                let channelCt = codecCtx.channelCount
-                let sampleCt = frame.sampleCount
-                let sampleRate = codecCtx.sampleRate
-                let (format, bytesPerSample) = { () -> (AudioFormat, Int) in
-                    switch frame.sampleFormat {
-                    case .s16:
-                        return (.s16i, codecCtx.sampleFormat.bytesPerSample * channelCt)
-                    case .s16p:
-                        return (.s16p, codecCtx.sampleFormat.bytesPerSample)
-                    case .flt:
-                        return (.f32i, codecCtx.sampleFormat.bytesPerSample * channelCt)
-                    case .fltp:
-                        return (.f32p, codecCtx.sampleFormat.bytesPerSample)
-                    case .dbl:
-                        return (.f64i, codecCtx.sampleFormat.bytesPerSample * channelCt)
-                    case .dblp:
-                        return (.f64p, codecCtx.sampleFormat.bytesPerSample)
-                    default:
-                        return (.invalid, 0)
-                    }
-                }()
-                let data = (0..<channelCt).compactMap { idx -> Data? in
-                    guard let data = frame.data[idx], bytesPerSample > 0 else {
-                        return nil
-                    }
-                    if idx == 0 {
-                        return Data(bytesNoCopy: data, count: bytesPerSample * sampleCt, deallocator: .custom({ _, _ in
-                                frame.unref()
-                            }))
-                    } else {
-                        return Data(bytesNoCopy: data, count: bytesPerSample * sampleCt, deallocator: .none)
-                    }
-                }
-                let pts = self.pts ?? rescale(TimePoint(frame.pts, kTimebase), Int64(sampleRate))
-                let dur = TimePoint(Int64(sampleCt), Int64(sampleRate))
-                self.pts = pts + dur
-                let sample = AudioSample(data,
-                                         frequency: sampleRate,
-                                         channels: channelCt,
-                                         format: format,
-                                         sampleCount: sampleCt,
-                                         time: sample.time(),
-                                         pts: pts,
-                                         assetId: sample.assetId(),
-                                         workspaceId: sample.workspaceId(),
-                                         workspaceToken: sample.workspaceToken())
-                return .just(sample)
-            } catch let error as AVError where error == .tryAgain {
-                return .nothing(sample.info())
-            }
+            let channelCt = codecCtx.channelCount
+            let sampleCt = frame.sampleCount
+            let sampleRate = codecCtx.sampleRate
+            let (format, bytesPerSample) = sampleFormatFromFrame(frame,
+                            codecCtx.sampleFormat.bytesPerSample, channelCt)
+            let data = dataFromFrame(frame, bytesPerSample, sampleCt, channelCt)
+            let pts = self.pts ?? rescale(TimePoint(frame.pts, kTimebase), Int64(sampleRate))
+            let dur = TimePoint(Int64(sampleCt), Int64(sampleRate))
+            self.pts = pts + dur
+            let sample = AudioSample(data,
+                                     frequency: sampleRate,
+                                     channels: channelCt,
+                                     format: format,
+                                     sampleCount: sampleCt,
+                                     time: sample.time(),
+                                     pts: pts,
+                                     assetId: sample.assetId(),
+                                     workspaceId: sample.workspaceId(),
+                                     workspaceToken: sample.workspaceToken())
+            return .just(sample)
+        } catch let error as AVError where error == .tryAgain {
+            return .nothing(sample.info())
         }
-        return .nothing(sample.info())
     }
 
     private func setupContext(_ sample: CodedMediaSample) throws {
@@ -187,4 +142,69 @@ public class FFmpegAudioDecoder: Tx<CodedMediaSample, AudioSample> {
     var codec: AVCodec?
     var codecContext: AVCodecContext?
     var extradata: UnsafeMutableRawPointer?
+}
+
+private func sampleFormatFromFrame(_ frame: AVFrame, _ bytesPerSample: Int, _ channels: Int) -> (AudioFormat, Int) {
+    switch frame.sampleFormat {
+    case .s16:
+        return (.s16i, bytesPerSample * channels)
+    case .s16p:
+        return (.s16p, bytesPerSample)
+    case .flt:
+        return (.f32i, bytesPerSample * channels)
+    case .fltp:
+        return (.f32p, bytesPerSample)
+    case .dbl:
+        return (.f64i, bytesPerSample * channels)
+    case .dblp:
+        return (.f64p, bytesPerSample)
+    default:
+        return (.invalid, 0)
+    }
+}
+
+private func dataFromFrame(_ frame: AVFrame, _ bytesPerSample: Int, _ sampleCt: Int, _ channels: Int) -> [Data] {
+    guard bytesPerSample > 0, sampleCt > 0 else {
+        return []
+    }
+    return (0..<channels).compactMap { idx -> Data? in
+        guard let data = frame.data[idx] else {
+            return nil
+        }
+        if idx == 0 {
+            return Data(bytesNoCopy: data, count: bytesPerSample * sampleCt, deallocator: .custom({ _, _ in
+                    frame.unref()
+                }))
+        } else {
+            return Data(bytesNoCopy: data, count: bytesPerSample * sampleCt, deallocator: .none)
+        }
+    }
+}
+
+private func sendPacket(_ sample: CodedMediaSample, ctx: AVCodecContext) throws -> Int {
+    let pts = rescale(sample.pts(), kTimebase)
+    let dts = rescale(sample.dts(), kTimebase)
+    let packet = AVPacket()
+    let size = sample.data().count
+    var data = sample.data()
+
+    try packet.makeWritable()
+
+    data.withUnsafeMutableBytes {
+        guard let buffer = packet.buffer,
+              let baseAddress = $0.baseAddress else {
+            return
+        }
+        buffer.realloc(size: size)
+        memcpy(buffer.data, baseAddress, size)
+    }
+    packet.data = packet.buffer?.data
+    packet.size = size
+    packet.pts = pts.value
+    packet.dts = dts.value
+
+    if packet.size > 0 {
+        try ctx.sendPacket(packet)
+    }
+    return packet.size
 }

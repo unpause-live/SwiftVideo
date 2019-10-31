@@ -59,7 +59,13 @@ let package = Package(
                 .linkedLibrary("bsd", .when(platforms: [.linux]))]),
         .testTarget(
             name: "swiftVideoTests",
-            dependencies: ["SwiftVideo"])
+            dependencies: ["SwiftVideo", "CSwiftVideo"]),
+        .testTarget(
+            name: "swiftVideoInternalTests",
+            dependencies: ["SwiftVideo", "CSwiftVideo"],
+            swiftSettings: [
+              .define("DISABLE_INTERNAL", .when(configuration: .release))
+            ])
     ],
     swiftLanguageVersions: [.v5],
     cxxLanguageStandard: .cxx1z

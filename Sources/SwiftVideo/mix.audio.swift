@@ -238,9 +238,9 @@ public class AudioMixer: Source<AudioSample> {
         let channelCount = self.channelCount
         let dimensions = min(channelCount-1, 2)
         let theta = Float.pi*2.0 / Float(channelCount)
-        let theta_2 = theta/2
+        let halfTheta = theta/2
         let gains = (0..<channelCount).map { idx -> Float in
-            let pos = Vector2(cos(theta*Float(idx)+theta_2), sin(theta*Float(idx)+theta_2))
+            let pos = Vector2(cos(theta*Float(idx)+halfTheta), sin(theta*Float(idx)+halfTheta))
             let mag = pos - position.0
             switch dimensions {
             case 0:

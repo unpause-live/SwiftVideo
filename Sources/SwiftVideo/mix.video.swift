@@ -143,13 +143,11 @@ public class VideoMixer: Source<PictureSample> {
                 _ = strongSelf.emit(sample)
                 result = .nothing(strongSelf.statsReport)
             } catch let error {
-                print("[mix] caught error \(String(describing: error))")
                 result = .error(EventError("mix.video", -2, "Compute error \(error)",
                                            at.time(),
                                            assetId: strongSelf.idAsset))
             }
             strongSelf.result = result
-
         }
     }
 
