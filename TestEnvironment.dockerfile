@@ -24,6 +24,6 @@ RUN export SWIFT_VER=swift-5.1.1-RELEASE && \
     cd / && \
     rm -rf /tmp/swift
 
-RUN apt-get install -y ocl-icd-opencl-dev
+RUN apt-get install -y ocl-icd-opencl-dev libfreetype6-dev libbsd-dev
 
 RUN rm -rf /var/lib/apt/lists/*
