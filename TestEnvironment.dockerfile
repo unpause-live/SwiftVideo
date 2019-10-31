@@ -1,6 +1,6 @@
 FROM ubuntu:18.04
 
-RUN apt update && apt-get install -y wget gnupg2 git
+RUN apt update && apt-get install -y build-essential wget gnupg2 git
 
 RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 8CF63AD3F06FC659 && \
     cp /etc/apt/sources.list /etc/apt/sources.list.save && \
@@ -24,6 +24,5 @@ RUN export SWIFT_VER=swift-5.1.1-RELEASE && \
     cd / && \
     rm -rf /tmp/swift
 
-RUN apt-get install -y libatomic1
 
 RUN rm -rf /var/lib/apt/lists/*
