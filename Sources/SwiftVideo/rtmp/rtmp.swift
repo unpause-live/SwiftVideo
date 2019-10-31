@@ -394,9 +394,9 @@ public class RtmpPublisher: Terminal<CodedMediaSample>, LivePublisher {
     }
 
     private func handle(_ sample: CodedMediaSample) -> EventBox<ResultEvent> {
-        guard let epoch = self.epoch else {
-            return .gone
-        }
+        // guard let epoch = self.epoch else {
+        //     return .gone
+        // }
         if self.sentProps {
             //let scheduleTime = epoch + bufferSize + sample.dts()
             //clock.schedule(scheduleTime) { [weak self] _ in

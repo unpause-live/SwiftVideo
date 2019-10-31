@@ -190,6 +190,42 @@ private func computePositionSize(_ basePos: Vector3,
    return (verts[0], Vector3(verts[1].x-verts[0].x, verts[2].y-verts[0].y, 1.0))
 }
 
+private func computeElementState(_ current: ElementState, _ next: ElementState, _ pct: Float) -> ElementState {
+    ElementState.with {
+        $0.picPos = interpolate(current.picPos, next.picPos, pct)
+        $0.size = interpolate(current.size, next.size, pct)
+        $0.textureOffset = interpolate(current.textureOffset, next.textureOffset, pct)
+        $0.rotation = interpolate(current.rotation, next.rotation, pct)
+        $0.transparency = interpolate(current.transparency, next.transparency, pct)
+        $0.picAspect = next.picAspect
+        $0.picOrigin = next.picOrigin
+        $0.fillColor = interpolate(current.getFillColor(), next.getFillColor(), pct)
+        $0.borderSize = interpolate(current.borderSize, next.borderSize, pct)
+    }
+}
+
+private func computeTextureMatrix(_ sampleSize: Vector2,
+                                  _ geometrySize: Vector3,
+                                  _ textureOffset: Vec2,
+                                  _ aspect: AspectMode) -> Matrix4 {
+    let origAspect = sampleSize.x / sampleSize.y
+    let geomAspect = geometrySize.x / geometrySize.y
+    switch aspect {
+    case .aspectFit:
+        let scalex = origAspect > geomAspect ? 1.0 : origAspect / geomAspect
+        let scaley = origAspect <= geomAspect ? 1.0 : geomAspect / origAspect
+        return Matrix4(translation: Vector3(textureOffset, 0) +
+            Vector3((1.0 - scalex) / 2, (1.0 - scaley) / 2, 0)) * Matrix4(scale: Vector3(scalex, scaley, 1.0))
+    case .aspectFill:
+        let scalex = origAspect <= geomAspect ? 1.0 : origAspect / geomAspect
+        let scaley = origAspect > geomAspect ? 1.0 :  geomAspect / origAspect
+        return Matrix4(translation: Vector3(textureOffset, 0) +
+            Vector3((1.0 - scalex) / 2, (1.0 - scaley) / 2, 0)) * Matrix4(scale: Vector3(scalex, scaley, 1.0))
+    default:
+        return Matrix4.identity
+    }
+}
+
 func computePictureState(_ sample: PictureSample,
                          _ parent: Matrix4? = nil,
                          _ current: ElementState,
@@ -201,17 +237,7 @@ func computePictureState(_ sample: PictureSample,
         guard let pct = pct else {
             return current
         }
-        return ElementState.with {
-            $0.picPos = interpolate(current.picPos, next.picPos, pct)
-            $0.size = interpolate(current.size, next.size, pct)
-            $0.textureOffset = interpolate(current.textureOffset, next.textureOffset, pct)
-            $0.rotation = interpolate(current.rotation, next.rotation, pct)
-            $0.transparency = interpolate(current.transparency, next.transparency, pct)
-            $0.picAspect = next.picAspect
-            $0.picOrigin = next.picOrigin
-            $0.fillColor = interpolate(current.getFillColor(), next.getFillColor(), pct)
-            $0.borderSize = interpolate(current.borderSize, next.borderSize, pct)
-        }
+        return computeElementState(current, next, pct)
     } ?? current
 
     let (parentPos, parentSize) = parent.map {
@@ -232,24 +258,7 @@ func computePictureState(_ sample: PictureSample,
     let borderSize = Vector3(state.borderSize.x + size.x + state.borderSize.z,
                         state.borderSize.y + size.y + state.borderSize.w, 1)
 
-    let textureMatrix: Matrix4 = {
-        let origAspect = sample.size().x / sample.size().y
-        let geomAspect = size.x / size.y
-        switch state.picAspect {
-        case .aspectFit:
-            let scalex = origAspect > geomAspect ? 1.0 : origAspect / geomAspect
-            let scaley = origAspect <= geomAspect  ? 1.0 : geomAspect / origAspect
-            return Matrix4(translation: Vector3(state.textureOffset, 0) +
-                Vector3((1.0 - scalex) / 2, (1.0 - scaley) / 2, 0)) * Matrix4(scale: Vector3(scalex, scaley, 1.0))
-        case .aspectFill:
-            let scalex = origAspect <= geomAspect ? 1.0 : origAspect / geomAspect
-            let scaley = origAspect > geomAspect ? 1.0 :  geomAspect / origAspect
-            return Matrix4(translation: Vector3(state.textureOffset, 0) +
-                Vector3((1.0 - scalex) / 2, (1.0 - scaley) / 2, 0)) * Matrix4(scale: Vector3(scalex, scaley, 1.0))
-        default:
-            return Matrix4.identity
-        }
-    }()
+    let textureMatrix: Matrix4 = computeTextureMatrix(sample.size(), size, state.textureOffset, state.picAspect)
 
     let computedState = ComputedPictureState(
         matrix: Matrix4(translation: pos) * Matrix4(rotation: Vector4(0, 0, 1, state.rotation)) * Matrix4(scale: size),

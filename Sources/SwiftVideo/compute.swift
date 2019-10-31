@@ -86,38 +86,25 @@ struct ImageUniforms {
 // Find a default compute kernel
 // Throws ComputeError.invalidValue if not found
 func defaultComputeKernelFromString(_ str: String) throws -> ComputeKernel {
-    switch(str) {
-    case "img_nv12_nv12":
-        return .img_nv12_nv12
-    case "img_bgra_nv12":
-        return .img_bgra_nv12
-    case "img_rgba_nv12":
-        return .img_rgba_nv12
-    case "img_bgra_bgra":
-        return .img_bgra_bgra
-    case "img_y420p_y420p":
-        return .img_y420p_y420p
-    case "img_y420p_nv12":
-        return .img_y420p_nv12
-    case "img_clear_nv12":
-        return .img_clear_nv12
-    case "img_clear_yuvs":
-        return .img_clear_yuvs
-    case "img_clear_bgra", "img_clear_rgba":
-        return .img_clear_bgra
-    case "img_rgba_y420p":
-        return .img_rgba_y420p
-    case "img_bgra_y420p":
-        return .img_bgra_y420p
-    case "img_clear_y420p":
-        return .img_clear_y420p
-    case "snd_s16i_s16i":
-        return .snd_s16i_s16i
-    case "me_fullsearch":
-        return .me_fullsearch
-    default:
+    let kernelMap: [String: ComputeKernel] = [
+        "img_nv12_nv12": .img_nv12_nv12,
+        "img_bgra_nv12": .img_bgra_nv12,
+        "img_rgba_nv12": .img_rgba_nv12,
+        "img_bgra_bgra": .img_bgra_bgra,
+        "img_y420p_y420p": .img_y420p_y420p,
+        "img_y420p_nv12": .img_y420p_nv12,
+        "img_clear_nv12": .img_clear_nv12,
+        "img_clear_yuvs": .img_clear_yuvs,
+        "img_clear_bgra": .img_clear_bgra,
+        "img_clear_rgba": .img_clear_bgra,
+        "img_rgba_y420p": .img_rgba_y420p,
+        "img_bgra_y420p": .img_bgra_y420p,
+        "img_clear_y420p": .img_clear_y420p
+    ]
+    guard let kernel = kernelMap[str] else {
         throw ComputeError.invalidValue
     }
+    return kernel
 }
 
 public func hasAvailableComputeDevices(forType search: ComputeDeviceType) -> Bool {
