@@ -149,11 +149,14 @@ public class TextRenderer: Tx<TextSample, PictureSample> {
 #endif
             // Destructuring in Swift doesn't allow you to mix mutable and immutable values unless you use
             // a Switch statement.
-            switch try backingBuffer(pic, height: props.height) {
+            switch try backingBuffer(pic, width: width, height: props.height) {
             case (var buffer, let stride):
                 renderText(sample.value(), buffer: &buffer, fontFace: fontFace, fontProps: props, stride: stride)
             }
 #if os(Linux)
+            guard let imageBuffer = pic.imageBuffer() else {
+                return .nothing(nil)
+            }
             return .just(PictureSample(pic, img: ImageBuffer(imageBuffer, buffers: [buffer])))
 #else
             return .just(pic)
@@ -173,7 +176,7 @@ private typealias BackingType = Data
 private typealias BackingType = UnsafeMutablePointer<UInt8>
 #endif
 
-private func backingBuffer(_ pic: PictureSample, height: Int) throws -> (BackingType, Int) {
+private func backingBuffer(_ pic: PictureSample, width: Int height: Int) throws -> (BackingType, Int) {
 #if os(Linux)
     guard let imageBuffer = pic.imageBuffer(),
           let buffer = imageBuffer.buffers[safe: 0] else {
