@@ -19,7 +19,6 @@ import XCTest
 #if !os(macOS)
 public func allTests() -> [XCTestCaseEntry] {
     return [
-        testCase(computeTests.allTests),
         testCase(sampleRateConversionTests.allTests),
         testCase(busTests.allTests),
         testCase(timePointTests.allTests),

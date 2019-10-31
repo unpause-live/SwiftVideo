@@ -1,3 +1,4 @@
+#if !DISABLE_INTERNAL
 import XCTest
 import Foundation
 import CSwiftVideo
@@ -40,3 +41,4 @@ final class computeTests: XCTestCase {
         ("defaultKernelSearch", defaultKernelSearch)
     ]
 }
+#endif

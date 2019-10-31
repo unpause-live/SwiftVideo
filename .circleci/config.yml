@@ -9,4 +9,5 @@ jobs:
       - run:
           name: SwiftVideo Tests
           command: |
-            swift test -c release
+            swift test --filter swiftVideoInternalTests
+            swift test -c release --filter swiftVideoTests

@@ -16,10 +16,14 @@
 
 import XCTest
 
-import swiftVideoTests
-import swiftVideoInternalTests
-
-var tests = [XCTestCaseEntry]()
-tests += swiftVideoTests.allTests()
-tests += swiftVideoInternalTests.allTests()
-XCTMain(tests)
+#if !os(macOS)
+public func allTests() -> [XCTestCaseEntry] {
+#if !DISABLE_INTERNAL
+    return [
+        testCase(computeTests.allTests)
+    ]
+#else
+    return []
+#endif
+}
+#endif
