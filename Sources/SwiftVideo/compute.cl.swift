@@ -707,31 +707,26 @@ private func getPlatforms() -> [Platform] {
 }
 
 private func checkCLError(_ errcode: Int32) throws {
-    guard CL_SUCCESS == errcode else {
-        switch errcode {
-        case CL_INVALID_PROGRAM:
-            throw ComputeError.invalidProgram
-        case CL_INVALID_VALUE:
-            throw ComputeError.invalidValue
-        case CL_INVALID_DEVICE:
-            throw ComputeError.invalidDevice
-        case CL_INVALID_BINARY:
-            throw ComputeError.unknownError
-        case CL_INVALID_BUILD_OPTIONS:
-            throw ComputeError.unknownError
-        case CL_INVALID_OPERATION:
-            throw ComputeError.invalidOperation
-        case CL_COMPILER_NOT_AVAILABLE:
-            throw ComputeError.compilerNotAvailable
-        case CL_BUILD_PROGRAM_FAILURE:
-            throw ComputeError.unknownError
-        case CL_OUT_OF_HOST_MEMORY:
-            throw ComputeError.outOfMemory
-        default:
-            throw ComputeError.unknownError
-        }
+    let errorMap = [
+        CL_INVALID_PROGRAM: ComputeError.invalidProgram,
+        CL_INVALID_VALUE: ComputeError.invalidValue,
+        CL_INVALID_DEVICE: ComputeError.invalidDevice,
+        CL_INVALID_BINARY: ComputeError.unknownError,
+        CL_INVALID_BUILD_OPTIONS: ComputeError.unknownError,
+        CL_INVALID_OPERATION: ComputeError.invalidOperation,
+        CL_COMPILER_NOT_AVAILABLE: ComputeError.compilerNotAvailable,
+        CL_BUILD_PROGRAM_FAILURE: ComputeError.unknownError,
+        CL_OUT_OF_HOST_MEMORY: ComputeError.outOfMemory
+    ]
+    guard CL_SUCCESS != errcode else {
+        return
     }
+    guard let error = errorMap[errcode] else {
+        throw ComputeError.unknownError
+    }
+    throw error
 }
+
 private func getDeviceInfo<T>(_ deviceId: cl_device_id, _ info: Int32) -> T? where T: BinaryInteger {
     var val: T = 0
     let res = clGetDeviceInfo(deviceId, cl_device_info(info), MemoryLayout<T>.size, &val, nil)

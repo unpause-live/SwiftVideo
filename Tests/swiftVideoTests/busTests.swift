@@ -19,6 +19,7 @@ import Foundation
 import SwiftVideo
 import CSwiftVideo
 
+// swiftlint:disable:next type_name
 final class busTests: XCTestCase {
 
     struct TestEvent: Event {

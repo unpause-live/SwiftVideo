@@ -1,5 +1,9 @@
+import XCTest
+import Foundation
+import CSwiftVideo
 @testable import SwiftVideo
 
+// swiftlint:disable:next type_name
 final class computeTests: XCTestCase {
     func defaultKernelSearch() {
         let kernels = [
@@ -20,7 +24,12 @@ final class computeTests: XCTestCase {
         kernels.forEach {
             do {
                 let result = try defaultComputeKernelFromString($0)
-                XCTAssertEqual($0, String(describing: result))
+                // img_clear_rgba uses img_clear_bgra
+                if $0 != "img_clear_rgba" {
+                    XCTAssertEqual($0, String(describing: result))
+                } else {
+                    XCTAssertEqual("img_clear_bgra", String(describing: result))
+                }
             } catch {
                 print("Caught error \(error)")
                 XCTAssertEqual(0, 1)

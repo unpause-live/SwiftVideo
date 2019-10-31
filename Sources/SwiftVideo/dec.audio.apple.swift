@@ -49,10 +49,10 @@ public class AppleAudioDecoder: Tx<CodedMediaSample, AudioSample> {
                                                         mDataByteSize: UInt32(sample.data().count))])
                 var packetSize = UInt32(self.samplesPerPacket)
                 let audioBufferList = AudioBufferList.allocate(maximumBuffers: Int(asbd.mChannelsPerFrame))
-                for i in 0..<Int(asbd.mChannelsPerFrame) {
+                (0..<Int(asbd.mChannelsPerFrame)).forEach { idx in
                     audioBufferList[i] = AudioBuffer(mNumberChannels: 1,
-                                                 mDataByteSize: UInt32(dataLength/Int(asbd.mChannelsPerFrame)),
-                                                 mData: baseAddress+(i*self.samplesPerPacket*Int(asbd.mBytesPerPacket)))
+                                            mDataByteSize: UInt32(dataLength/Int(asbd.mChannelsPerFrame)),
+                                            mData: baseAddress+(idx*self.samplesPerPacket*Int(asbd.mBytesPerPacket)))
                 }
                 return AudioConverterFillComplexBuffer(converter,
                                                        ioProc,
