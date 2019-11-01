@@ -11,8 +11,8 @@ jobs:
           command: |
             swift test -c release --filter swiftVideoTests
       #disable for now since clang crashes when running this command for some reason.
-      - run:
-          name: Internal tests
-          command: |
-            rm -rf .build
-            swift test --filter swiftVideoInternalTests
+      # - run:
+      #     name: Internal tests
+      #     command: |
+      #       rm -rf .build
+      #       swift test --filter swiftVideoInternalTests
