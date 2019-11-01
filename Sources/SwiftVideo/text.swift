@@ -85,6 +85,7 @@ public class TextSample: Event {
 public enum TextError: Error {
     case ftError(Int32)
     case invalidUrl
+    case invalidBuffer
     case unknown
 }
 
@@ -131,82 +132,35 @@ public class TextRenderer: Tx<TextSample, PictureSample> {
     func handle(_ sample: TextSample) -> EventBox<PictureSample> {
         FT_Set_Char_Size(fontFace, 0, sample.pixelSize() * 64, 0, 0)
         FT_Select_Charmap(fontFace, FT_ENCODING_UNICODE)
-        let width = sample.value().unicodeScalars.reduce(0) { acc, next in
-            let idx = FT_Get_Char_Index(self.fontFace, FT_ULong(next.value))
-            if FT_Load_Glyph(self.fontFace, idx, FT_Int32(FT_LOAD_RENDER)) != 0 {
-                return acc
-            }
-            let face = self.fontFace.pointee
-            guard let glyph = face.glyph?.pointee else {
-                return acc
-            }
-            let width = acc + Int(glyph.advance.x >> 6) + ((glyph.advance.x & 0x3f) > 31 ? 1 : 0)
-            return width
-        }
-        let ascender = Int(self.fontFace.pointee.size.pointee.metrics.ascender / 64)
-        let descender = Int(self.fontFace.pointee.size.pointee.metrics.descender / 64)
-        let height = abs(descender) + ascender
+        let width = textWidth(sample.value(), fontFace)
+        let props = FontProperties(Int(self.fontFace.pointee.size.pointee.metrics.ascender / 64),
+                        Int(self.fontFace.pointee.size.pointee.metrics.descender / 64),
+                        color: sample.textColor())
         do {
             let pic = try createPictureSample(Vector2(Float(width),
-                            Float(height)),
+                            Float(props.height)),
                             .RGBA,
                             assetId: sample.assetId(),
                             workspaceId: sample.workspaceId(),
                             workspaceToken: sample.workspaceToken())
-            let color = sample.textColor()
-#if os(Linux)
-            guard let imageBuffer = pic.imageBuffer(),
-                  var buffer = imageBuffer.buffers[safe: 0] else {
-                return .nothing(sample.info())
-            }
-            let stride = width * 4
-#else
+#if !os(Linux)
             pic.lock()
-            defer {
-                pic.unlock()
-            }
-            guard let imageBuffer = pic.imageBuffer(),
-                  let rawPointer = CVPixelBufferGetBaseAddress(imageBuffer.pixelBuffer) else {
-                return .nothing(sample.info())
-            }
-            let stride = CVPixelBufferGetBytesPerRow(imageBuffer.pixelBuffer)
-            var buffer = rawPointer.bindMemory(to: UInt8.self, capacity: stride * height)
+            defer { pic.unlock() }
 #endif
-            _ = sample.value().unicodeScalars.reduce(0) { lhs, unic in
-                let idx = FT_Get_Char_Index(self.fontFace, FT_ULong(unic.value))
-                if FT_Load_Glyph(self.fontFace, idx, FT_Int32(FT_LOAD_RENDER)) != 0 {
-                    return lhs
-                }
-                let face = self.fontFace.pointee
-                guard let glyph = face.glyph?.pointee else {
-                    return lhs
-                }
-                if let bitmap = glyph.bitmap.buffer {
-                    let top = max(ascender - Int(glyph.bitmap_top), 0)
-                    // swiftlint:disable identifier_name
-                    for y in top..<min(top+Int(glyph.bitmap.rows), height) {
-                        for x in lhs+Int(glyph.bitmap_left)..<min(lhs+Int(glyph.bitmap_left)+Int(glyph.bitmap.width),
-                                stride) {
-                            let srcx = x - (lhs+Int(glyph.bitmap_left))
-                            let srcy = y - top
-                            let srcIdx = Int(glyph.bitmap.width) * srcy + srcx
-                            let dstIdx = stride * y + x * 4
-                            let gray = bitmap[srcIdx]
-                            buffer[dstIdx] = UInt8(Float(gray) * clamp(color.x, 0.0, 1.0))
-                            buffer[dstIdx+1] = UInt8(Float(gray) * clamp(color.y, 0.0, 1.0))
-                            buffer[dstIdx+2] = UInt8(Float(gray) * clamp(color.z, 0.0, 1.0))
-                            buffer[dstIdx+3] = gray
-                        }
-                    }
-                    // swiftlint:enable identifier_name
-                }
-                return lhs + Int(glyph.advance.x >> 6) + ((glyph.advance.x & 0x3f) > 31 ? 1 : 0)
-            }
+            // Destructuring in Swift doesn't allow you to mix mutable and immutable values unless you use
+            // a Switch statement.
+            switch try backingBuffer(pic, width: width, height: props.height) {
+            case (var buffer, let stride):
+                renderText(sample.value(), buffer: &buffer, fontFace: fontFace, fontProps: props, stride: stride)
 #if os(Linux)
-            return .just(PictureSample(pic, img: ImageBuffer(imageBuffer, buffers: [buffer])))
+                guard let imageBuffer = pic.imageBuffer() else {
+                    return .nothing(nil)
+                }
+                return .just(PictureSample(pic, img: ImageBuffer(imageBuffer, buffers: [buffer])))
 #else
-            return .just(pic)
+                return .just(pic)
 #endif
+            }
         } catch {
             return .error(EventError("text", -1, "\(error)", assetId: sample.assetId()))
         }
@@ -214,4 +168,96 @@ public class TextRenderer: Tx<TextSample, PictureSample> {
     let fontData: Data
     let fontFace: FT_Face
     let library: FT_Library?
+}
+
+#if os(Linux)
+private typealias BackingType = Data
+#else
+private typealias BackingType = UnsafeMutablePointer<UInt8>
+#endif
+
+#if os(Linux)
+private func backingBuffer(_ pic: PictureSample, width: Int, height: Int) throws -> (BackingType, Int) {
+    guard let imageBuffer = pic.imageBuffer(),
+          let buffer = imageBuffer.buffers[safe: 0] else {
+        throw TextError.invalidBuffer
+    }
+    let stride = width * 4
+    return (buffer, stride)
+}
+#else
+private func backingBuffer(_ pic: PictureSample, width: Int, height: Int) throws -> (BackingType, Int) {
+    guard let imageBuffer = pic.imageBuffer(),
+          let rawPointer = CVPixelBufferGetBaseAddress(imageBuffer.pixelBuffer) else {
+        throw TextError.invalidBuffer
+    }
+    let stride = CVPixelBufferGetBytesPerRow(imageBuffer.pixelBuffer)
+    let buffer = rawPointer.bindMemory(to: UInt8.self, capacity: stride * height)
+    return (buffer, stride)
+}
+#endif
+
+private struct FontProperties {
+    init(_ ascender: Int, _ descender: Int, color: Vector4) {
+        height = ascender + descender
+        self.ascender = ascender
+        self.descender = descender
+        self.color = color
+    }
+    let height: Int
+    let ascender: Int
+    let descender: Int
+    let color: Vector4
+}
+
+private func renderText(_ text: String,
+                        buffer: inout BackingType,
+                        fontFace: FT_Face,
+                        fontProps: FontProperties,
+                        stride: Int) {
+    _ = text.unicodeScalars.reduce(0) { (lhs: Int, unic: Unicode.Scalar) -> Int in
+        let idx = FT_Get_Char_Index(fontFace, FT_ULong(unic.value))
+        if FT_Load_Glyph(fontFace, idx, FT_Int32(FT_LOAD_RENDER)) != 0 {
+            return lhs
+        }
+        let face = fontFace.pointee
+        guard let glyph = face.glyph?.pointee else {
+            return lhs
+        }
+        if let bitmap = glyph.bitmap.buffer {
+            let top = max(fontProps.ascender - Int(glyph.bitmap_top), 0)
+            // swiftlint:disable identifier_name
+            for y in top..<min(top+Int(glyph.bitmap.rows), fontProps.height) {
+                for x in lhs+Int(glyph.bitmap_left)..<min(lhs+Int(glyph.bitmap_left)+Int(glyph.bitmap.width),
+                        stride) {
+                    let srcx = x - (lhs+Int(glyph.bitmap_left))
+                    let srcy = y - top
+                    let srcIdx = Int(glyph.bitmap.width) * srcy + srcx
+                    let dstIdx = stride * y + x * 4
+                    let gray = bitmap[srcIdx]
+                    buffer[dstIdx] = UInt8(Float(gray) * clamp(fontProps.color.x, 0.0, 1.0))
+                    buffer[dstIdx+1] = UInt8(Float(gray) * clamp(fontProps.color.y, 0.0, 1.0))
+                    buffer[dstIdx+2] = UInt8(Float(gray) * clamp(fontProps.color.z, 0.0, 1.0))
+                    buffer[dstIdx+3] = gray
+                }
+            }
+            // swiftlint:enable identifier_name
+        }
+        return lhs + Int(glyph.advance.x >> 6) + ((glyph.advance.x & 0x3f) > 31 ? 1 : 0)
+    }
+}
+
+private func textWidth(_ text: String, _ fontFace: FT_Face) -> Int {
+    text.unicodeScalars.reduce(0) { acc, next in
+        let idx = FT_Get_Char_Index(fontFace, FT_ULong(next.value))
+        if FT_Load_Glyph(fontFace, idx, FT_Int32(FT_LOAD_RENDER)) != 0 {
+            return acc
+        }
+        let face = fontFace.pointee
+        guard let glyph = face.glyph?.pointee else {
+            return acc
+        }
+        let width = acc + Int(glyph.advance.x >> 6) + ((glyph.advance.x & 0x3f) > 31 ? 1 : 0)
+        return width
+    }
 }

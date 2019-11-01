@@ -19,6 +19,8 @@ import NIOSSL
 import NIOExtras
 import Foundation
 
+// swiftlint:disable function_parameter_count
+
 public final class NetworkEvent: Event {
     public func type() -> String { return "network" }
     public func time() -> TimePoint { return timePoint }

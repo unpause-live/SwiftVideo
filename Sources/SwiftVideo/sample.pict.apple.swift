@@ -356,22 +356,7 @@ func createPictureSample(_ size: Vector2,
         throw ComputeError.invalidOperation
     }
 
-    let pixelFormat = try { () -> OSType in
-        switch format {
-        case .nv12:
-            return kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
-        case .BGRA, .RGBA:
-            return kCVPixelFormatType_32BGRA
-        case .yuvs:
-            return kCVPixelFormatType_422YpCbCr8_yuvs
-        case .zvuy:
-            return kCVPixelFormatType_422YpCbCr8
-        case .y420p:
-            return kCVPixelFormatType_420YpCbCr8Planar
-        default:
-            throw ComputeError.badInputData(description: "Invalid pixel format")
-        }
-        }()
+    let pixelFormat = try toCVPixelFormat(format)
 
     let options: CFDictionary = {
         if #available(iOS 9.0, macOS 10.11, tvOS 10.2, *) {
@@ -410,6 +395,22 @@ func createPictureSample(_ size: Vector2,
                          pts: TimePoint(0))
 }
 
+private func toCVPixelFormat( _ format: PixelFormat) throws -> OSType {
+    switch format {
+    case .nv12:
+        return kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
+    case .BGRA, .RGBA:
+        return kCVPixelFormatType_32BGRA
+    case .yuvs:
+        return kCVPixelFormatType_422YpCbCr8_yuvs
+    case .zvuy:
+        return kCVPixelFormatType_422YpCbCr8
+    case .y420p:
+        return kCVPixelFormatType_420YpCbCr8Planar
+    default:
+        throw ComputeError.badInputData(description: "Invalid pixel format")
+    }
+}
 private func fromCVPixelFormat(_ pixelBuffer: CVPixelBuffer) -> PixelFormat {
     let format = CVPixelBufferGetPixelFormatType(pixelBuffer)
     switch format {

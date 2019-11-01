@@ -29,13 +29,13 @@ let package = Package(
             targets:["SwiftVideo"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", from: "2.2.0"),
-        .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.0.0"),
-        .package(url: "https://github.com/nicklockwood/VectorMath.git", from: "0.3.3"),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.9.0"),
+        .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.3.1"),
+        .package(url: "https://github.com/nicklockwood/VectorMath.git", from: "0.4.0"),
         .package(url: "https://github.com/Thomvis/BrightFutures.git", from: "8.0.1"),
         .package(url: "https://github.com/sunlubo/SwiftFFmpeg", .revision("d20af574b48dfdb66a8bb49861f263d235d60fcf")),
-        .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.5.0"),
-        .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.1.1"),
+        .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.7.0"),
+        .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.4.3"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.1.1")
     ],
     targets: [
@@ -45,17 +45,26 @@ let package = Package(
             pkgConfig: "freetype2",
             providers: [.brew(["freetype2"]), .apt(["libfreetype6-dev"])]
         ),
-        .target(name: "CSwiftVideo", dependencies: [], cxxSettings: [.define("linux", .when(platforms: [.linux]))]),
+        .target(name: "CSwiftVideo",
+                dependencies: [],
+                cSettings: [
+                  .define("linux", .when(platforms: [.linux]))],
+                cxxSettings: [
+                  .define("linux", .when(platforms: [.linux]))]),
         .target(
             name: "SwiftVideo",
             dependencies: ["NIO", "CSwiftVideo", "NIOSSL", "NIOExtras", "NIOFoundationCompat",
                            "VectorMath", "BrightFutures", "SwiftFFmpeg", "SwiftProtobuf", "NIOWebSocket",
                            "NIOHTTP1", "CFreeType", "Logging"],
+            cSettings: [
+                .define("linux", .when(platforms: [.linux])),
+                .define("CL_USE_DEPRECATED_OPENCL_1_2_APIS")],
             swiftSettings: [
                 .define("GPGPU_OCL", .when(platforms: [.linux, .macOS])),
                 .define("GPGPU_METAL", .when(platforms: [.iOS, .tvOS]))
             ],
-            linkerSettings: [.linkedLibrary("OpenCL", .when(platforms: [.linux])),
+            linkerSettings: [
+                .linkedLibrary("OpenCL", .when(platforms: [.linux])),
                 .linkedLibrary("bsd", .when(platforms: [.linux]))]),
         .testTarget(
             name: "swiftVideoTests",
