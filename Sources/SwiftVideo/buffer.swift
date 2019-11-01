@@ -96,7 +96,7 @@ public enum buffer {
     public static func fromUnsafeBytes(_ bytes: UnsafePointer<Int8>?, _ size: Int) -> ByteBuffer {
         let allocator = ByteBufferAllocator()
         var buf = allocator.buffer(capacity: size)
-        buf.writeWithUnsafeMutableBytes { (ptr) -> Int in
+        buf.writeWithUnsafeMutableBytes(minimumWritableBytes: size) { (ptr) -> Int in
             guard let dst = ptr.baseAddress, let src = bytes else {
                 return 0
             }

@@ -14,4 +14,5 @@ jobs:
       - run:
           name: Internal tests
           command: |
+            rm -rf .build
             swift test --filter swiftVideoInternalTests

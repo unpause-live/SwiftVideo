@@ -29,13 +29,13 @@ let package = Package(
             targets:["SwiftVideo"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", from: "2.2.0"),
-        .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.0.0"),
-        .package(url: "https://github.com/nicklockwood/VectorMath.git", from: "0.3.3"),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.9.0"),
+        .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.3.1"),
+        .package(url: "https://github.com/nicklockwood/VectorMath.git", from: "0.4.0"),
         .package(url: "https://github.com/Thomvis/BrightFutures.git", from: "8.0.1"),
         .package(url: "https://github.com/sunlubo/SwiftFFmpeg", .revision("d20af574b48dfdb66a8bb49861f263d235d60fcf")),
-        .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.5.0"),
-        .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.1.1"),
+        .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.7.0"),
+        .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.4.3"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.1.1")
     ],
     targets: [
