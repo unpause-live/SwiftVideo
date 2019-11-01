@@ -143,10 +143,8 @@ public class TextRenderer: Tx<TextSample, PictureSample> {
                             assetId: sample.assetId(),
                             workspaceId: sample.workspaceId(),
                             workspaceToken: sample.workspaceToken())
-#if !os(Linux)
             pic.lock()
             defer { pic.unlock() }
-#endif
             // Destructuring in Swift doesn't allow you to mix mutable and immutable values unless you use
             // a Switch statement.
             switch try backingBuffer(pic, width: width, height: props.height) {
