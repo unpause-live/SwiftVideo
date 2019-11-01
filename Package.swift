@@ -45,17 +45,26 @@ let package = Package(
             pkgConfig: "freetype2",
             providers: [.brew(["freetype2"]), .apt(["libfreetype6-dev"])]
         ),
-        .target(name: "CSwiftVideo", dependencies: [], cxxSettings: [.define("linux", .when(platforms: [.linux]))]),
+        .target(name: "CSwiftVideo",
+                dependencies: [],
+                cSettings: [
+                  .define("linux", .when(platforms: [.linux]))],
+                cxxSettings: [
+                  .define("linux", .when(platforms: [.linux]))]),
         .target(
             name: "SwiftVideo",
             dependencies: ["NIO", "CSwiftVideo", "NIOSSL", "NIOExtras", "NIOFoundationCompat",
                            "VectorMath", "BrightFutures", "SwiftFFmpeg", "SwiftProtobuf", "NIOWebSocket",
                            "NIOHTTP1", "CFreeType", "Logging"],
+            cSettings: [
+                .define("linux", .when(platforms: [.linux])),
+                .define("CL_USE_DEPRECATED_OPENCL_1_2_APIS")],
             swiftSettings: [
                 .define("GPGPU_OCL", .when(platforms: [.linux, .macOS])),
                 .define("GPGPU_METAL", .when(platforms: [.iOS, .tvOS]))
             ],
-            linkerSettings: [.linkedLibrary("OpenCL", .when(platforms: [.linux])),
+            linkerSettings: [
+                .linkedLibrary("OpenCL", .when(platforms: [.linux])),
                 .linkedLibrary("bsd", .when(platforms: [.linux]))]),
         .testTarget(
             name: "swiftVideoTests",

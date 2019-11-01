@@ -72,7 +72,9 @@ extension ImageBuffer {
     public func withUnsafeMutableRawPointer<T>(forPlane plane: Int,
                                                fn: (UnsafeMutableRawPointer?) throws -> T) rethrows -> T {
         var buffer = self.buffers[safe: plane]
-        let result = try buffer?.withUnsafeMutableBytes { try fn(UnsafeMutableRawPointer($0)) }
+        let result = try buffer?.withUnsafeMutableBytes {
+            try fn($0.baseAddress)
+        }
         return try result ?? fn(nil)
     }
     // swiftlint:enable identifier_name

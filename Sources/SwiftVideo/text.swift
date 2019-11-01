@@ -152,15 +152,15 @@ public class TextRenderer: Tx<TextSample, PictureSample> {
             switch try backingBuffer(pic, width: width, height: props.height) {
             case (var buffer, let stride):
                 renderText(sample.value(), buffer: &buffer, fontFace: fontFace, fontProps: props, stride: stride)
-            }
 #if os(Linux)
-            guard let imageBuffer = pic.imageBuffer() else {
-                return .nothing(nil)
-            }
-            return .just(PictureSample(pic, img: ImageBuffer(imageBuffer, buffers: [buffer])))
+                guard let imageBuffer = pic.imageBuffer() else {
+                    return .nothing(nil)
+                }
+                return .just(PictureSample(pic, img: ImageBuffer(imageBuffer, buffers: [buffer])))
 #else
-            return .just(pic)
+                return .just(pic)
 #endif
+            }
         } catch {
             return .error(EventError("text", -1, "\(error)", assetId: sample.assetId()))
         }
@@ -176,15 +176,17 @@ private typealias BackingType = Data
 private typealias BackingType = UnsafeMutablePointer<UInt8>
 #endif
 
-private func backingBuffer(_ pic: PictureSample, width: Int height: Int) throws -> (BackingType, Int) {
 #if os(Linux)
+private func backingBuffer(_ pic: PictureSample, width: Int, height: Int) throws -> (BackingType, Int) {
     guard let imageBuffer = pic.imageBuffer(),
           let buffer = imageBuffer.buffers[safe: 0] else {
         throw TextError.invalidBuffer
     }
     let stride = width * 4
     return (buffer, stride)
+}
 #else
+private func backingBuffer(_ pic: PictureSample, width: Int, height: Int) throws -> (BackingType, Int) {
     guard let imageBuffer = pic.imageBuffer(),
           let rawPointer = CVPixelBufferGetBaseAddress(imageBuffer.pixelBuffer) else {
         throw TextError.invalidBuffer
@@ -192,8 +194,8 @@ private func backingBuffer(_ pic: PictureSample, width: Int height: Int) throws 
     let stride = CVPixelBufferGetBytesPerRow(imageBuffer.pixelBuffer)
     let buffer = rawPointer.bindMemory(to: UInt8.self, capacity: stride * height)
     return (buffer, stride)
-#endif
 }
+#endif
 
 private struct FontProperties {
     init(_ ascender: Int, _ descender: Int, color: Vector4) {
