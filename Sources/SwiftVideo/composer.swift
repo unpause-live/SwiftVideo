@@ -101,31 +101,25 @@ public class Composer {
     }
 
     public func setScene(_ sceneId: String) {
-        self.videoMixer.queue.async { [weak self] in
-          guard let strongSelf = self else {
-              return
-          }
-          //let strongSelf = self
-          if let scene = strongSelf.scenes[sceneId] {
-              strongSelf.curScene = sceneId
-              // setup animations
-              // 1. disconnect current elements
-              strongSelf.elements = Dictionary(uniqueKeysWithValues: strongSelf.elements.map { element in
-                let states = strongSelf.scenes[sceneId]?.elements[element.0]?.states
-                element.1.picAnimator.setParent(nil)
-                element.1.sounAnimator.setParent(nil)
-                return (element.0, ElementAnimator(element.1.picAnimator,
-                    element.1.sounAnimator,
-                    states ?? [:],
-                    assetId: element.1.assetId))
-              })
-              // 2. connect elements used in the scene
-                scene.elements.forEach { element in
-                  strongSelf.connectElement(element.0, setInitialState: true)
-                  if let slot = strongSelf.elements[element.0] {
-                      slot.setParent(strongSelf.elements[element.1.parent])
-                  }
-                }
+      if let scene = self.scenes[sceneId] {
+          self.curScene = sceneId
+          // setup animations
+          // 1. disconnect current elements
+          self.elements = Dictionary(uniqueKeysWithValues: self.elements.map { element in
+            let states = self.scenes[sceneId]?.elements[element.0]?.states
+            element.1.picAnimator.setParent(nil)
+            element.1.sounAnimator.setParent(nil)
+            return (element.0, ElementAnimator(element.1.picAnimator,
+                element.1.sounAnimator,
+                states ?? [:],
+                assetId: element.1.assetId))
+          })
+          // 2. connect elements used in the scene
+            scene.elements.forEach { element in
+              self.connectElement(element.0, setInitialState: true)
+              if let slot = self.elements[element.0] {
+                  slot.setParent(self.elements[element.1.parent])
+              }
             }
         }
     }
