@@ -36,7 +36,7 @@ A transform is based on the `Tx` class, it can either be a subclass or it can us
 need to retain any state. On a basic level, transforms provide a function in the form `A -> EventBox<B>` and the previous
 transform's result is flatmapped to this transform. For example:
 
-```
+```swift
 let x = EventBox<Int>.just(1)
 let y = x >>- Tx { .just(Float($0)) }
 
