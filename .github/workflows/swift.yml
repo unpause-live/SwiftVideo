@@ -1,0 +1,15 @@
+name: Swift
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Run public tests
+      run: swift test -c release --filter swiftVideoTests
+    - name: Run internal tests
+      run: swift test --filter swiftVideoInternalTests
