@@ -24,9 +24,9 @@ final class statsTests: XCTestCase {
 
     func statsTest() {
         let clock = StepClock(stepSize: TimePoint(1000, 30000))
-        let stats = StatsReport(period: TimePoint(5000, 1000), clock: clock)
+        let stats = StatsReport(period: TimePoint(5000 * 30, 1000 * 30), clock: clock)
 
-        while clock.current() <= TimePoint(10000, 1000) {
+        while clock.current() <= TimePoint(10000 * 30, 1000 * 30) {
             stats.addSample("test", 1)
             _ = clock.step()
         }
@@ -37,8 +37,8 @@ final class statsTests: XCTestCase {
         """
         guard let reportJson = report?.results["test.5.00"] else {
             XCTAssertTrue(false)
-            fatalError("reportJson missing")
             dump(report?.results)
+            fatalError("reportJson missing")
         }
         XCTAssertEqual(json, reportJson)
     }
