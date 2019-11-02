@@ -4,8 +4,9 @@ on: [push]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
+    container:
+      image: unpause/swiftvideo:latest
 
     steps:
     - uses: actions/checkout@v1
