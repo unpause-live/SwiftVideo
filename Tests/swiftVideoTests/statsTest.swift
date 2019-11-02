@@ -30,7 +30,6 @@ final class statsTests: XCTestCase {
             stats.addSample("test", 1)
             _ = clock.step()
         }
-        _ = clock.step()
         let report = stats.report()
         let json = """
         { \"name\": \"test\", \"period\": 5.00, \"type\": \"int\", \"median\": 1, \"mean\": 1.00000, \"peak\": 1, \"low\": 1, \"total\": 150,
@@ -39,6 +38,7 @@ final class statsTests: XCTestCase {
         guard let reportJson = report?.results["test.5.00"] else {
             XCTAssertTrue(false)
             fatalError("reportJson missing")
+            dump(report?.results)
         }
         XCTAssertEqual(json, reportJson)
     }
