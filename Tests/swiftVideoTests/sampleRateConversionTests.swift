@@ -30,14 +30,14 @@ final class sampleRateConversionTests: XCTestCase {
         let clock = StepClock(stepSize: audioPacketDuration)
         var pts = TimePoint(0, 44100)
         var newPts = TimePoint(0, 48000)
-        let tx = src >>> Terminal<AudioSample> { sample in
+        let txn = src >>> Terminal<AudioSample> { sample in
             XCTAssertEqual(newPts.scale, sample.pts().scale)
             XCTAssertEqual(newPts.value, sample.pts().value)
             newPts.value += Int64(sample.numberSamples())
             return .nothing(sample.info())
         }
 
-        for i in 0..<100000 {
+        for _ in 0..<100000 {
             let sample = AudioSample(buffers,
                 frequency: 44100,
                 channels: 1,
@@ -48,8 +48,8 @@ final class sampleRateConversionTests: XCTestCase {
                 assetId: "blank",
                 workspaceId: "test")
 
-            EventBox<AudioSample>.just(sample) >>- tx
-            pts = pts + audioPacketDuration
+            EventBox<AudioSample>.just(sample) >>- txn
+            pts += audioPacketDuration
             clock.step()
         }
 

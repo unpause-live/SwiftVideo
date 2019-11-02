@@ -36,8 +36,8 @@ final class statsTests: XCTestCase {
           \"averagePerSecond\": 30.00000, \"count\": 150 }
         """
         guard let reportJson = report?.results["test.5.00"] else {
+            print("failure...report=\(report) results=\(report?.results)")
             XCTAssertTrue(false)
-            dump(report?.results)
             fatalError("reportJson missing")
         }
         XCTAssertEqual(json, reportJson)

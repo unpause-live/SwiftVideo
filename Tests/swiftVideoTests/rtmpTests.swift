@@ -36,7 +36,8 @@ final class rtmpTests: XCTestCase {
         self.clock = clock
         self.group = MultiThreadedEventLoopGroup(numberOfThreads: 4)
         self.quiesce = ServerQuiescingHelper(group: group)
-        self.buffers = [1009, 2087, 1447, 2221, 2503, 3001, 4999, 2857, 9973, 8191, 7331, 3539, 44701, 47701, 65537, 65701, 99989, 99991, 111323].map {
+        self.buffers = [1009, 2087, 1447, 2221, 2503, 3001, 4999, 2857, 9973, 8191, 7331,
+            3539, 44701, 47701, 65537, 65701, 99989, 99991, 111323].map {
             var data = Data(count: $0)
             data[4] = 0x5
             return data
@@ -52,19 +53,19 @@ final class rtmpTests: XCTestCase {
             if let pub = pub as? Terminal<CodedMediaSample>, let strongSelf = self {
                 strongSelf.publish = pub
                 strongSelf.clock.schedule(strongSelf.currentTs) { [weak self] in
-                    strongSelf.push($0.time())
+                    self?.push($0.time())
                 }
                 strongSelf.sampleInfo.remove(at: 0) // remove first sample that is not sent
                 for _ in 0...12 {
                     strongSelf.clock.step()
                 }
                 strongSelf.clock.schedule(strongSelf.currentTs) { [weak self] in
-                    strongSelf.push($0.time())
+                    self?.push($0.time())
                 }
                 let iterations = bufferSize.value / stepSize.value
                 for _ in 0...(iterations+1) {
                     strongSelf.clock.schedule(strongSelf.currentTs + stepSize) { [weak self] in
-                        strongSelf.push($0.time())
+                        self?.push($0.time())
                     }
                     strongSelf.clock.step()
                 }
@@ -90,10 +91,11 @@ final class rtmpTests: XCTestCase {
         let end = start + duration
         self.offset = offset
         _ = rtmp?.serve(host: "0.0.0.0", port: port, quiesce: self.quiesce, group: self.group)
-        rtmp?.connect(url: URL(string: "rtmp://localhost:\(port)/hi/hello")!, publishToPeer: true, group: self.group, workspaceId: "test", assetId: "test")
+        rtmp?.connect(url: URL(string: "rtmp://localhost:\(port)/hi/hello")!, publishToPeer: true,
+            group: self.group, workspaceId: "test", assetId: "test")
         let wallClock = WallClock()
 
-        while(currentTs < end) {
+        while currentTs < end {
             let currentReal = seconds(wallClock.current())
             let currentProgress = seconds(currentTs - start)
             let rate = currentProgress / currentReal
@@ -135,7 +137,8 @@ final class rtmpTests: XCTestCase {
         let pts = time + self.offset
         self.sampleInfo.append((pts, idx))
         currentIndex = idx
-        let sample = CodedMediaSample("test", "test", time, pts, nil, .video, .avc, buffers[idx], ["config": Data(count: 48)], "test")
+        let sample = CodedMediaSample("test", "test", time, pts, nil, .video, .avc, buffers[idx],
+            ["config": Data(count: 48)], "test")
         let result = .just(sample) >>- pub
     }
 

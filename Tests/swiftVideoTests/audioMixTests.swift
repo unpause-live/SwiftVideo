@@ -54,7 +54,7 @@ final class audioMixTests: XCTestCase {
             sampleRate: 48000,
             channelCount: 2,
             delay: delay)
-        let tx = mixer >>> receiver
+        let txn = mixer >>> receiver
         recur(clock, TimePoint(0, 48000)) { time in
             let sample = generator(time)
             _ = sample >>- mixer
