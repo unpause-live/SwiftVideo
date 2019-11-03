@@ -82,7 +82,6 @@ public class StatsReport {
     }
 
     public init(assetId: String?, other: StatsReport) {
-        print("init other")
         self.clock = other.clock
         self.results = other.results
         self.idAsset = assetId

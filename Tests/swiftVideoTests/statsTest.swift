@@ -30,13 +30,14 @@ final class statsTests: XCTestCase {
             stats.addSample("test", 1)
             _ = clock.step()
         }
+        sleep(1)
         let report = stats.report()
         let json = """
         { \"name\": \"test\", \"period\": 5.00, \"type\": \"int\", \"median\": 1, \"mean\": 1.00000, \"peak\": 1, \"low\": 1, \"total\": 150,
           \"averagePerSecond\": 30.00000, \"count\": 150 }
         """
         guard let reportJson = report?.results["test.5.00"] else {
-            print("failure...report=\(report) results=\(report?.results)")
+            print("failure...\(clock.current().toString()) report=\(report) results=\(report?.results)")
             XCTAssertTrue(false)
             fatalError("reportJson missing")
         }
