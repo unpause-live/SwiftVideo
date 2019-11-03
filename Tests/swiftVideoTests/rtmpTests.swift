@@ -49,7 +49,7 @@ final class rtmpTests: XCTestCase {
     func setupRtmp() {
         let bufferSize = TimePoint(0, 1000)
         let stepSize = TimePoint(16, 1000)
-        self.rtmp = Rtmp(self.clock, bufferSize: bufferSize, onEnded: { _ in () }) { [weak self] pub, sub in
+        let onConnection: LiveOnConnection = { [weak self] pub, sub in
             if let pub = pub as? Terminal<CodedMediaSample>, let strongSelf = self {
                 strongSelf.publish = pub
                 strongSelf.clock.schedule(strongSelf.currentTs) { [weak self] in
@@ -81,6 +81,8 @@ final class rtmpTests: XCTestCase {
             }
             return Future { $0(.success(true)) }
         }
+
+        self.rtmp = Rtmp(self.clock, bufferSize: bufferSize, onEnded: { _ in () }, onConnection: onConnection)
     }
 
     func rtmpTest(_ port: Int, _ duration: TimePoint, offset: TimePoint = TimePoint(0, 1000)) {
@@ -108,7 +110,7 @@ final class rtmpTests: XCTestCase {
         self.sampleInfo.removeAll(keepingCapacity: true)
         self.stx = nil
         self.rtmp = nil
-        //sleep(1)
+        sleep(1)
     }
 
     func basicTest() {
