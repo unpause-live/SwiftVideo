@@ -71,7 +71,7 @@ final class busTests: XCTestCase {
     func busDispatchTest() {
         let bus = Bus<TestEvent>()
         var count: Int = 0
-        let tx: Tx<TestEvent, TestEvent> = Tx { event in
+        let txn: Tx<TestEvent, TestEvent> = Tx { event in
             XCTAssertEqual(event.idx, count)
             count += 1
             return .just(event)
@@ -79,10 +79,10 @@ final class busTests: XCTestCase {
         let tx2: Tx<TestEvent, TestEvent> = Tx { _ in
             return .nothing(nil)
         }
-        _ = bus <<| tx
+        _ = bus <<| txn
         _ = bus <<| tx2
-        for i in 0..<100 {
-            _ = bus.append(.just(TestEvent(i)))
+        for idx in 0..<100 {
+            _ = bus.append(.just(TestEvent(idx)))
         }
         print("appended, waiting")
         sleep(3)
@@ -93,7 +93,7 @@ final class busTests: XCTestCase {
         let bus = HeterogeneousBus()
         var count: Int = 0
 
-        let tx: Tx<TestEvent, TestEvent> = Tx { event in
+        let txn: Tx<TestEvent, TestEvent> = Tx { event in
             XCTAssertEqual(event.idx, count)
             count += 1
             return .just(event)
@@ -104,10 +104,10 @@ final class busTests: XCTestCase {
         let event2 = TestEvent2()
         let pipe: Tx<TestEvent, ResultEvent> = mix() >>> bus
         let pipe2: Tx<TestEvent2, ResultEvent> = mix() >>> bus
-        let rcv = bus <<| filter() >>> tx
+        let rcv = bus <<| filter() >>> txn
         let rcv2 = bus <<| filter() >>> tx2
-        for i in 0..<100 {
-            _ = .just(TestEvent(i)) >>- pipe
+        for idx in 0..<100 {
+            _ = .just(TestEvent(idx)) >>- pipe
             _ = .just(event2) >>- pipe2
         }
         sleep(3)

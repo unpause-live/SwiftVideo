@@ -96,6 +96,7 @@ public final class StepClock: Clock {
         self.queue = DispatchQueue(label: "stepclock.\(assetId))")
     }
 
+    @discardableResult
     public func step() -> TimePoint {
         // swiftlint:disable:next shorthand_operator
         self.time = self.time + self.stepSize
