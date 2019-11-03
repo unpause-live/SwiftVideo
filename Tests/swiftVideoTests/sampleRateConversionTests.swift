@@ -18,6 +18,7 @@ import XCTest
 import Foundation
 import SwiftVideo
 
+// swiftlint:disable shorthand_operator
 // swiftlint:disable:next type_name
 final class sampleRateConversionTests: XCTestCase {
 
@@ -33,7 +34,7 @@ final class sampleRateConversionTests: XCTestCase {
         let txn = src >>> Terminal<AudioSample> { sample in
             XCTAssertEqual(newPts.scale, sample.pts().scale)
             XCTAssertEqual(newPts.value, sample.pts().value)
-            newPts.value += Int64(sample.numberSamples())
+            newPts.value = newPts.value + Int64(sample.numberSamples())
             return .nothing(sample.info())
         }
 
@@ -49,7 +50,7 @@ final class sampleRateConversionTests: XCTestCase {
                 workspaceId: "test")
 
             EventBox<AudioSample>.just(sample) >>- txn
-            pts += audioPacketDuration
+            pts = pts + audioPacketDuration
             clock.step()
         }
 
