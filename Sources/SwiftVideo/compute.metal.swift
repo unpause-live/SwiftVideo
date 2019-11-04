@@ -348,7 +348,7 @@ private func makeThreadgroup(_ pipelineState: MTLComputePipelineState,
         let maxMem = pipelineState.device.maxThreadgroupMemoryLength
         let threads = maxMem / mem
         let width = sqrt(Double(threads))
-        let threadgroupSize = MTLSize(width: Int(floor(width)), height: Int(floor(w)), depth: 1)
+        let threadgroupSize = MTLSize(width: Int(floor(width)), height: Int(floor(width)), depth: 1)
         return (threadCount, threadgroupSize)
     } else {
         let threadgroupWidth = pipelineState.threadExecutionWidth

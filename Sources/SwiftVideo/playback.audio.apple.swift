@@ -1,6 +1,7 @@
 #if os(macOS) || os(iOS) || os(tvOS)
 import Foundation
 import AudioToolbox
+import CoreAudio
 
 public class AppleAudioPlayback: Terminal<AudioSample> {
     public init(_ gain: Float = 1.0) {
@@ -27,9 +28,13 @@ public class AppleAudioPlayback: Terminal<AudioSample> {
                                                        mChannelsPerFrame: UInt32(sample.numberChannels()),
                                                        mBitsPerChannel: 32,
                                                        mReserved: 0)
-
+                #if os(macOS)
+                let subtype = kAudioUnitSubtype_HALOutput
+                #else
+                let subtype = kAudioUnitSubType_RemoteIO
+                #endif
                 var desc = AudioComponentDescription(componentType: kAudioUnitType_Output,
-                                                     componentSubType: kAudioUnitSubType_HALOutput,
+                                                     componentSubType: subtype,
                                                      componentManufacturer: kAudioUnitManufacturer_Apple,
                                                      componentFlags: 0,
                                                      componentFlagsMask: 0)

@@ -21,7 +21,7 @@ let package = Package(
     name: "SwiftVideo",
     platforms: [
        .macOS(.v10_14),
-       .iOS("11.0")
+       .iOS("13.1")
     ],
     products: [
         .library(
