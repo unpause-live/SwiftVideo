@@ -117,9 +117,8 @@ public class VideoMixer: Source<PictureSample> {
                 // clear the target image
                 ctx = try runComputeKernel(ctx, images: [PictureSample](), target: backing, kernel: clearKernel)
                 // sort images by z-index so lowest is drawn first
-                let images = strongSelf.samples.reduce([String: PictureSample]()) { acc, next in
-                        acc.merging(next) { lhs, _ in lhs }
-                    }.values.sorted { $0.zIndex() < $1.zIndex() }
+                let images = strongSelf.samples[0].merging(strongSelf.samples[1]) { lhs, _ in lhs }
+                                       .values.sorted { $0.zIndex() < $1.zIndex() }
                 strongSelf.samples[1].removeAll(keepingCapacity: true)
                 strongSelf.samples[1] = strongSelf.samples[0]
                 strongSelf.samples[0].removeAll(keepingCapacity: true)
