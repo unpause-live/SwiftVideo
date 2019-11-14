@@ -102,10 +102,8 @@ public class VideoMixer: Source<PictureSample> {
         let pts = at.time() - epoch
         clock.schedule(next) { [weak self] in self?.mix(at: $0) }
         queue.async { [weak self] in
-            guard let strongSelf = self else {
-                return
-            }
-            guard var ctx = strongSelf.clContext else {
+            guard let strongSelf = self,
+                  var ctx = strongSelf.clContext else {
                 return
             }
             var result: EventBox<PictureSample> = .nothing(nil)
@@ -122,6 +120,7 @@ public class VideoMixer: Source<PictureSample> {
                 let images = strongSelf.samples.reduce([String: PictureSample]()) { acc, next in
                         acc.merging(next) { lhs, _ in lhs }
                     }.values.sorted { $0.zIndex() < $1.zIndex() }
+                strongSelf.samples[1].removeAll(keepingCapacity: true)
                 strongSelf.samples[1] = strongSelf.samples[0]
                 strongSelf.samples[0].removeAll(keepingCapacity: true)
                 // draw images

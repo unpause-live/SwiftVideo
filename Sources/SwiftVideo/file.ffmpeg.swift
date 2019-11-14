@@ -53,7 +53,6 @@ public class FileSource: Source<CodedMediaSample> {
                     }
                     return Data(bytes: ptr, count: codecParams.extradataSize)
                 }()
-                print("Opening file \(url), codec is \(codecParams.codecId)")
                 guard let codec = codecMap[codecParams.codecId], let type = typeMap[val.mediaType] else {
                     return nil
                 }
@@ -67,7 +66,6 @@ public class FileSource: Source<CodedMediaSample> {
                                         startTime: startTime,
                                         extradata: extradata))
             })
-        print("streams = \(streams)")
         if streams.count == 0 {
             throw FileError.unsupported
         }
@@ -89,7 +87,7 @@ public class FileSource: Source<CodedMediaSample> {
     }
 
     public func play() {
-        self.parse()
+        self.refill()
     }
 
     private func parse() {
@@ -118,14 +116,16 @@ public class FileSource: Source<CodedMediaSample> {
                                           nil,
                                           workspaceToken: workspaceToken,
                                           eventInfo: nil)
+                lastRead = dts
                 self.clock.schedule(epoch + delta) { [weak self] _ in
                     guard let strongSelf = self else {
                         return
                     }
                     let result = strongSelf.emit(outsample)
+                    strongSelf.lastSent = outsample.dts()
                     switch result {
                     case .nothing, .just, .error:
-                        strongSelf.parse()
+                        strongSelf.refill()
                     default: ()
                     }
                 }
@@ -136,9 +136,26 @@ public class FileSource: Source<CodedMediaSample> {
             print("caught error \(error)")
         }
     }
+
+    private func refill() {
+        guard !filling else {
+            return
+        }
+        filling = true
+        defer {
+            filling = false
+        }
+        repeat {
+            parse()
+        } while (lastRead - lastSent) < TimePoint(2000, 1000)
+    }
+
     fileprivate let streams: [Int: StreamInfo]
     let clock: Clock
     let epoch: TimePoint
+    var filling = false
+    var lastRead = TimePoint(0, 1000)
+    var lastSent = TimePoint(0, 1000)
     let ctx: AVFormatContext
     let assetId: String
     let workspaceId: String
