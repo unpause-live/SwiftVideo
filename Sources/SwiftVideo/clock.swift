@@ -192,7 +192,7 @@ public func rescale(_ time: TimePoint, _ scale: Int64) -> TimePoint {
         let cscale = lcm(scale, time.scale)
         let lmul = cscale / time.scale
         let rmul = cscale / scale
-        let (num, den) = (lmul * time.value / (rmul == 0 ? 1 : rmul), scale)
+        let (num, den) = (lmul &* time.value / (rmul == 0 ? 1 : rmul), scale)
         return TimePoint(num, den)
     } else {
         return time

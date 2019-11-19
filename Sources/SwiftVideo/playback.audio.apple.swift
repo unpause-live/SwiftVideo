@@ -29,7 +29,7 @@ public class AppleAudioPlayback: Terminal<AudioSample> {
                                                        mBitsPerChannel: 32,
                                                        mReserved: 0)
                 #if os(macOS)
-                let subtype = kAudioUnitSubtype_HALOutput
+                let subtype = kAudioUnitSubType_HALOutput
                 #else
                 let subtype = kAudioUnitSubType_RemoteIO
                 #endif

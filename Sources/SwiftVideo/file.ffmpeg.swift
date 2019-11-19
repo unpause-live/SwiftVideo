@@ -34,8 +34,11 @@ public class FileSource: Source<CodedMediaSample> {
                 assetId: String,
                 workspaceId: String,
                 workspaceToken: String? = nil,
-                repeats: Bool = false) throws {
-        let fmtCtx = try AVFormatContext(url: url)
+                repeats: Bool = false,
+                onEnd: LiveOnEnded? = nil) throws {
+        let fmtCtx = try AVFormatContext()
+        fmtCtx.flags = [.fastSeek]
+        try fmtCtx.openInput(url)
         try fmtCtx.findStreamInfo()
         let streams: [Int: StreamInfo] =
             Dictionary(uniqueKeysWithValues: fmtCtx.streams.enumerated().compactMap { (idx, val) in
@@ -73,10 +76,12 @@ public class FileSource: Source<CodedMediaSample> {
         self.clock = clock
         self.epoch = clock.current()
         self.assetId = assetId
+        self.fnEnded = onEnd
         self.workspaceId = workspaceId
         self.workspaceToken = workspaceToken
         self.streams = streams
         self.repeats = repeats
+        self.queue = DispatchQueue(label: "file.\(assetId)")
         super.init()
     }
 
@@ -87,7 +92,23 @@ public class FileSource: Source<CodedMediaSample> {
     }
 
     public func play() {
+        running = true
+        epoch = clock.current() - tsBase
         self.refill()
+    }
+
+    public func reset() {
+         do {
+            ctx.flush()
+            // swiftlint:disable:next shorthand_operator
+            tsBase = tsBase + lastRead
+            for idx in 0..<ctx.streamCount {
+                try ctx.seekFrame(to: ctx.streams[idx].startTime, streamIndex: idx, flags: .backward)
+            }
+        } catch {
+            print("caught error seeking \(error)")
+        }
+        running = false
     }
 
     private func parse() {
@@ -95,9 +116,14 @@ public class FileSource: Source<CodedMediaSample> {
         do {
             try ctx.readFrame(into: pkt)
             if let stream = streams[pkt.streamIndex] {
-                let pts =
-                    (pkt.pts != AVTimestamp.noPTS) ? TimePoint(Int64(pkt.pts), stream.timebase.scale) : stream.timebase
-                let dts = (pkt.dts != AVTimestamp.noPTS) ? TimePoint(Int64(pkt.dts), stream.timebase.scale) : pts
+                let pts = tsBase +
+                    ((pkt.pts != AVTimestamp.noPTS) ?
+                        TimePoint(Int64(pkt.pts), stream.timebase.scale) :
+                        stream.timebase)
+                let dts = tsBase +
+                    ((pkt.dts != AVTimestamp.noPTS) ?
+                        TimePoint(Int64(pkt.dts), stream.timebase.scale) :
+                        pts)
                 let delta = dts - stream.startTime
                 guard let data = pkt.data else {
                     throw AVError.tryAgain
@@ -131,7 +157,15 @@ public class FileSource: Source<CodedMediaSample> {
                 }
             }
         } catch let error as AVError where error == .eof {
-            print("caught eof")
+            reset()
+            if repeats {
+                play()
+            } else {
+                running = false
+                if let fnEnded = self.fnEnded {
+                    fnEnded(self.assetId)
+                }
+            }
         } catch let error {
             print("caught error \(error)")
         }
@@ -142,20 +176,27 @@ public class FileSource: Source<CodedMediaSample> {
             return
         }
         filling = true
-        defer {
-            filling = false
+        queue.async { [weak self] in
+            guard let strongSelf = self else {
+                return
+            }
+            repeat {
+                strongSelf.parse()
+            } while (strongSelf.lastRead - strongSelf.lastSent) < TimePoint(2000, 1000)
+            strongSelf.filling = false
         }
-        repeat {
-            parse()
-        } while (lastRead - lastSent) < TimePoint(2000, 1000)
     }
 
     fileprivate let streams: [Int: StreamInfo]
     let clock: Clock
-    let epoch: TimePoint
+    var epoch: TimePoint
+    let queue: DispatchQueue
+    let fnEnded: LiveOnEnded?
     var filling = false
+    var running = false
     var lastRead = TimePoint(0, 1000)
     var lastSent = TimePoint(0, 1000)
+    var tsBase = TimePoint(0, 1000)
     let ctx: AVFormatContext
     let assetId: String
     let workspaceId: String

@@ -106,7 +106,11 @@ public class VideoMixer: Source<PictureSample> {
                   var ctx = strongSelf.clContext else {
                 return
             }
-            var result: EventBox<PictureSample> = .nothing(nil)
+            defer {
+                strongSelf.samples[1] = strongSelf.samples[0]
+                strongSelf.samples[0].removeAll(keepingCapacity: true)
+            }
+            let result: EventBox<PictureSample>
             do {
                 strongSelf.statsReport.endTimer("mix.video.delta")
                 strongSelf.statsReport.startTimer("mix.video.delta")
@@ -119,9 +123,6 @@ public class VideoMixer: Source<PictureSample> {
                 // sort images by z-index so lowest is drawn first
                 let images = strongSelf.samples[0].merging(strongSelf.samples[1]) { lhs, _ in lhs }
                                        .values.sorted { $0.zIndex() < $1.zIndex() }
-                strongSelf.samples[1].removeAll(keepingCapacity: true)
-                strongSelf.samples[1] = strongSelf.samples[0]
-                strongSelf.samples[0].removeAll(keepingCapacity: true)
                 // draw images
                 try images.forEach {
                     ctx = try applyComputeImage(ctx,

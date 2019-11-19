@@ -53,8 +53,9 @@ message RpcComposerCommand {
         string uri = 1;
         string assetId = 2;
         string workspaceToken = 3;
-        bool loop = 4;
+        bool loop = 4; 
         bool autoplay = 5;
+        bool closeOnEnd = 6; // default is to keep asset alive after end so you can play() again. Does nothing with loop = true
     }
     message Text {
         string value = 1;

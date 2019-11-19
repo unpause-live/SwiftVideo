@@ -227,6 +227,9 @@ public struct RpcComposerCommand {
 
     public var autoplay: Bool = false
 
+    /// default is to keep asset alive after end so you can play() again. Does nothing with loop = true
+    public var closeOnEnd: Bool = false
+
     public var unknownFields = SwiftProtobuf.UnknownStorage()
 
     public init() {}
@@ -795,6 +798,7 @@ extension RpcComposerCommand.Load: SwiftProtobuf.Message, SwiftProtobuf._Message
     3: .same(proto: "workspaceToken"),
     4: .same(proto: "loop"),
     5: .same(proto: "autoplay"),
+    6: .same(proto: "closeOnEnd"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -805,6 +809,7 @@ extension RpcComposerCommand.Load: SwiftProtobuf.Message, SwiftProtobuf._Message
       case 3: try decoder.decodeSingularStringField(value: &self.workspaceToken)
       case 4: try decoder.decodeSingularBoolField(value: &self.loop)
       case 5: try decoder.decodeSingularBoolField(value: &self.autoplay)
+      case 6: try decoder.decodeSingularBoolField(value: &self.closeOnEnd)
       default: break
       }
     }
@@ -826,6 +831,9 @@ extension RpcComposerCommand.Load: SwiftProtobuf.Message, SwiftProtobuf._Message
     if self.autoplay != false {
       try visitor.visitSingularBoolField(value: self.autoplay, fieldNumber: 5)
     }
+    if self.closeOnEnd != false {
+      try visitor.visitSingularBoolField(value: self.closeOnEnd, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -835,6 +843,7 @@ extension RpcComposerCommand.Load: SwiftProtobuf.Message, SwiftProtobuf._Message
     if lhs.workspaceToken != rhs.workspaceToken {return false}
     if lhs.loop != rhs.loop {return false}
     if lhs.autoplay != rhs.autoplay {return false}
+    if lhs.closeOnEnd != rhs.closeOnEnd {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
