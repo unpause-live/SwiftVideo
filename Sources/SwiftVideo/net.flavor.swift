@@ -382,7 +382,7 @@ private class FlavorSession {
                        workspaceToken: String? = nil,
                        callId: Int32? = nil,
                        streamId: Int32? = nil,
-                       formats: [MediaFormat] = [MediaFormat]()) {
+                       formats: [MediaFormat] = [.avc, .hevc, .vp8, .vp9, .opus, .aac]) {
         let maxSession: Int32 = zip(self.publishSessions.keys, self.subscribeSessions.keys)
             .reduce(Int32(0)) { max($0, $1.0) }
         let streamId = streamId ?? (maxSession + 1)
@@ -422,6 +422,7 @@ private class FlavorSession {
         self.publishSessions[streamId] = Weak(value: pub)
         _ = self.fnStreamEstablished(pub, nil).andThen { [weak self] in
             do {
+                print("fnStreamEstablished \($0)")
                 guard case .success(let result) = $0, result == true else {
                     if let callId = callId {
                         try self?.sendReply(callId, -2, payload: try flavor.BasicAtom(.dict(["reason":
@@ -581,7 +582,7 @@ private class FlavorSession {
                                        workspaceToken: parts[1],
                                        callId: callId,
                                        streamId: streamId,
-                                       formats: formats ?? [MediaFormat]())
+                                       formats: formats ?? [.avc, .hevc, .vp8, .vp9, .opus, .aac])
                 } catch {
                     print("caught error \(error)")
                     return
