@@ -36,7 +36,7 @@ public class FileSource: Source<CodedMediaSample> {
                 workspaceToken: String? = nil,
                 repeats: Bool = false,
                 onEnd: LiveOnEnded? = nil) throws {
-        let fmtCtx = try AVFormatContext()
+        let fmtCtx = AVFormatContext()
         fmtCtx.flags = [.fastSeek]
         try fmtCtx.openInput(url)
         try fmtCtx.findStreamInfo()

@@ -119,12 +119,13 @@ public class AudioSampleRateConversion: Tx<AudioSample, AudioSample> {
 
     private func makeContext(_ sample: AudioSample, frequency: Int, channelCount: Int, format: AudioFormat) {
         // source
+        // TODO: Support surround sound for > 2 channels
         let srcChannelLayout = sample.numberChannels() == 2 ? AVChannelLayout.CHL_STEREO : AVChannelLayout.CHL_MONO
         let srcSampleRate = sample.sampleRate()
         let srcSampleFmt = avSampleFormat(sample.format())
 
         // destination
-        let dstChannelLayout = AVChannelLayout.CHL_STEREO // TODO: Support surround sound for > 2 channels
+        let dstChannelLayout = channelCount > 1 ? AVChannelLayout.CHL_STEREO : AVChannelLayout.CHL_MONO
         let dstSampleRate = Int64(frequency)
         let dstSampleFmt = avSampleFormat(format)
 

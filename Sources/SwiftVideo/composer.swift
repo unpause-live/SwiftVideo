@@ -52,7 +52,7 @@ public class Composer {
         let canvasSize = Vector2(Scalar(composition.video.width), Scalar(composition.video.height))
         let audioMixer = AudioMixer(clock,
                                   workspaceId: workspaceId,
-                                  frameDuration: TimePoint(960, Int64(sampleRate)),
+                                  frameDuration: TimePoint(480, Int64(sampleRate)),
                                   sampleRate: sampleRate,
                                   channelCount: composition.audio.channels > 0 ? Int(composition.audio.channels) : 2,
                                   delay: TimePoint(1920, Int64(sampleRate)),

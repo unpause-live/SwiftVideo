@@ -58,24 +58,42 @@ public struct ImageBuffer {
         self.planes = other.planes
     }
 
-    let pixelFormat: PixelFormat
-    let bufferType: BufferType
-    let size: Vector2
+    public let pixelFormat: PixelFormat
+    public let bufferType: BufferType
+    public let size: Vector2
 
-    let computeTextures: [ComputeBuffer]
-    let buffers: [Data]
-    let planes: [Plane]
+    public let computeTextures: [ComputeBuffer]
+    public let buffers: [Data]
+    public let planes: [Plane]
 }
 
 extension ImageBuffer {
     // swiftlint:disable identifier_name
     public func withUnsafeMutableRawPointer<T>(forPlane plane: Int,
                                                fn: (UnsafeMutableRawPointer?) throws -> T) rethrows -> T {
-        var buffer = self.buffers[safe: plane]
-        let result = try buffer?.withUnsafeMutableBytes {
-            try fn($0.baseAddress)
+        if var buffer = self.buffers[safe: plane] {
+            return try buffer.withUnsafeMutableBytes {
+                try fn($0.baseAddress)
+            }
+        } else {
+            return try fn(nil)
         }
-        return try result ?? fn(nil)
+    }
+
+    private func unsafePointerForNext<T>(plane: Int,
+                                         ptrs: [UnsafeMutableRawPointer?],
+                                         fn: ([UnsafeMutableRawPointer?]) throws -> T) rethrows -> T {
+        try self.withUnsafeMutableRawPointer(forPlane: plane) {
+            if self.planes.count > plane+1 {
+                return try unsafePointerForNext(plane: plane+1, ptrs: ptrs + [$0], fn: fn)
+            } else {
+                return try fn(ptrs + [$0])
+            }
+        }
+    }
+
+    public func withUnsafeMutableRawPointerForAll<T>(fn: ([UnsafeMutableRawPointer?]) throws -> T) rethrows -> T {
+        try unsafePointerForNext(plane: 0, ptrs: [], fn: fn)
     }
     // swiftlint:enable identifier_name
 }
@@ -299,6 +317,7 @@ func createPictureSample(_ size: Vector2,
                 return([Data(count: width*2*height)], [Plane(
                     size: size, stride: width*2, bitDepth: 8, components: [.y, .cb, .y, .cr])])
             case .y420p:
+                // TODO: Would be better to allocate contiguous memory here and then use slices
                 return ([Data(count: width*height),
                          Data(count: (width/2)*(height/2)),
                          Data(count: (width/2)*(height/2))],

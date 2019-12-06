@@ -86,6 +86,7 @@ enum RpcFeatureType {
     subtractor = 2;
     rtmpOutput = 3;
     browser = 4;
+    proprietaryIO = 5; // Used for third-party proprietary integrations
 }
 
 
