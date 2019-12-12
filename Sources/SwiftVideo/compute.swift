@@ -25,6 +25,7 @@ enum ComputeError: Error {
     case invalidOperation
     case invalidValue
     case invalidProgram
+    case invalidContext
     case deviceNotAvailable
     case outOfMemory
     case compilerNotAvailable
@@ -32,6 +33,7 @@ enum ComputeError: Error {
     case badTarget
     case badInputData(description: String)
     case badContextState(description: String)
+    case compilerError(description: String)
     case unknownError
     case notImplemented
 }
@@ -108,7 +110,9 @@ func defaultComputeKernelFromString(_ str: String) throws -> ComputeKernel {
 }
 
 public func hasAvailableComputeDevices(forType search: ComputeDeviceType) -> Bool {
-    let devices = availableComputeDevices().filter {
+    let allDevices = availableComputeDevices()
+    dump(allDevices)
+    let devices = allDevices.filter {
         guard let type = $0.deviceType, type == search && $0.available else {
             return false
         }

@@ -16,10 +16,11 @@
 
 #pragma once
 
-#ifndef __APPLE__
+#if !defined(__APPLE__) && defined(GPGPU_OCL)
 #include <CL/cl.h>
 #endif
 
+#include <stdlib.h>
 #include <stdint.h>
 
 #ifdef __cplusplus

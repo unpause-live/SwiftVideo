@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-#if os(Linux) || (os(macOS) && GPGPU_OCL)
+#if GPGPU_OCL
 #if os(macOS)
 #warning ("macOS support is deprecated, this is only for development. Use Metal for production.")
 import OpenCL

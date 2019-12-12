@@ -16,6 +16,23 @@
 */
 
 import PackageDescription
+import Foundation
+
+#if os(Linux)
+let isLinux = true
+#else
+let isLinux = false
+#endif
+
+let cudaVer = ProcessInfo.processInfo.environment["CUDA_VER"]
+let targets: [Target] = cudaVer.map { ver in
+    [.systemLibrary(
+      name: "CCUDA",
+      path: "Sources/CCUDA",
+      pkgConfig: "cuda-\(ver)")]
+  } ?? []
+
+let dependencies: [Target.Dependency] = cudaVer.map { _ in ["CCUDA"] } ?? []
 
 let package = Package(
     name: "SwiftVideo",
@@ -38,7 +55,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.4.3"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.1.1")
     ],
-    targets: [
+    targets: targets + [
         .systemLibrary(
             name: "CFreeType",
             path: "Sources/CFreeType",
@@ -53,18 +70,20 @@ let package = Package(
                   .define("linux", .when(platforms: [.linux]))]),
         .target(
             name: "SwiftVideo",
-            dependencies: ["NIO", "CSwiftVideo", "NIOSSL", "NIOExtras", "NIOFoundationCompat",
+            dependencies: dependencies + ["NIO", "CSwiftVideo", "NIOSSL", "NIOExtras", "NIOFoundationCompat",
                            "VectorMath", "BrightFutures", "SwiftFFmpeg", "SwiftProtobuf", "NIOWebSocket",
                            "NIOHTTP1", "CFreeType", "Logging"],
             cSettings: [
                 .define("linux", .when(platforms: [.linux])),
                 .define("CL_USE_DEPRECATED_OPENCL_1_2_APIS")],
             swiftSettings: [
-                .define("GPGPU_OCL", .when(platforms: [.linux, .macOS])),
+                .define("GPGPU_CUDA", .when(platforms: [.linux])),
+                .define("GPGPU_OCL", .when(platforms: [.macOS])),
                 .define("GPGPU_METAL", .when(platforms: [.iOS, .tvOS]))
             ],
             linkerSettings: [
-                .linkedLibrary("OpenCL", .when(platforms: [.linux])),
+                //.linkedLibrary("OpenCL", .when(platforms: [.linux])),
+                .linkedLibrary("nvrtc", .when(platforms: [.linux])),
                 .linkedLibrary("bsd", .when(platforms: [.linux]))]),
         .testTarget(
             name: "swiftVideoTests",
