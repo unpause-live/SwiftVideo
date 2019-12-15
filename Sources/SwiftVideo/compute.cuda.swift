@@ -13,7 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-
+// swiftlint:disable file_length
 #if GPGPU_CUDA
 import CCUDA
 import VectorMath
@@ -32,7 +32,6 @@ struct ComputeDevice {
 private class InternalContext {
     init(ctx: CUcontext?) {
         self.ctx = ctx
-        self.library = [:]
     }
     deinit {
         if ctx != nil {
@@ -40,36 +39,42 @@ private class InternalContext {
         }
     }
     fileprivate let ctx: CUcontext?
-    fileprivate var library: [String: (CUmodule?, CUfunction?)]
 }
 
 public struct ComputeContext {
-    init(ctx: CUcontext?, logger: Logger) {
+    init(_ ctx: CUcontext?, logger: Logger) {
         self.ctx = InternalContext(ctx: ctx)
         self.logger = logger
+        self.library = [:]
+    }
+    init(_ other: ComputeContext, library: [String: (CUmodule?, CUfunction?)]? = nil) {
+        self.ctx = other.ctx
+        self.logger = other.logger
+        self.library = library ?? [:]
     }
     let logger: Logger
     fileprivate let ctx: InternalContext
+    fileprivate let library: [String: (CUmodule?, CUfunction?)]
 }
 
 public class ComputeBuffer {
-    // fileprivate let mem: cl_mem
-    // fileprivate let ctx: InternalContext
-    // fileprivate let size: Int
-    // fileprivate init(_ ctx: InternalContext, mem: cl_mem, size: Int) {
-    //     self.mem = mem
-    //     self.ctx = ctx
-    //     self.size = size
-    // }
-    init() {
-        self.mem = nil
+    fileprivate init(_ ptr: CUdeviceptr, size: Int, ctx: InternalContext) {
+        self.mem = ptr
+        self.size = size
+        self.ctx = ctx
     }
     deinit {
-
+        if mem > 0 {
+            cuCtxPushCurrent_v2(ctx.ctx)
+            cuMemFree_v2(mem)
+            cuCtxPopCurrent_v2(nil)
+        }
     }
-
-    let mem: CUdeviceptr?
+    fileprivate let size: Int
+    fileprivate let mem: CUdeviceptr
+    fileprivate let ctx: InternalContext
 }
+
 private var sInited = false
 private func initCuda() {
     if !sInited {
@@ -129,45 +134,15 @@ func availableComputeDevices() -> [ComputeDevice] {
 }
 
 func createComputeContext(sharing ctx: ComputeContext) -> ComputeContext? {
-   //ComputeContext(device: ctx.device, ctx: ctx.context.ctx, logger: ctx.logger)
-    ctx
+    ComputeContext(ctx)
 }
 
 func createComputeContext(_ device: ComputeDevice,
                           logger: Logger = Logger(label: "SwiftVideo")) throws -> ComputeContext? {
-    //ComputeContext()
     var ctx: CUcontext?
     try check(cuCtxCreate_v2(&ctx, 0, device.device))
 
-    return ComputeContext(ctx: ctx, logger: logger)
-    /*let properties: [cl_context_properties] = [Int(CL_CONTEXT_PLATFORM), Int(bitPattern: device.platformId), 0, 0]
-    let deviceIds: [cl_device_id?] = [device.deviceId]
-    var error: cl_int = 0
-    let ctx = clCreateContext(properties, cl_uint(deviceIds.count), deviceIds, nil, nil, &error)
-    logger.info("createComputeContext")
-    if error != CL_SUCCESS {
-        switch error {
-        case CL_INVALID_PLATFORM:
-            throw ComputeError.invalidPlatform
-        case CL_INVALID_DEVICE:
-            throw ComputeError.invalidDevice
-        case CL_INVALID_VALUE:
-            throw ComputeError.invalidValue
-        case CL_DEVICE_NOT_AVAILABLE:
-            throw ComputeError.deviceNotAvailable
-        case CL_OUT_OF_HOST_MEMORY:
-            throw ComputeError.outOfMemory
-        default:
-            throw ComputeError.unknownError
-        }
-    }
-
-    return try ctx.map {
-        try OpenCLKernel.allCases.reduce(ComputeContext(device: device, ctx: $0, logger: logger)) {
-            try buildComputeKernel($0,
-                                   name: String(describing: $1),
-                                   source: kOpenCLKernelMatrixFuncs + "\n" + $1.rawValue)
-        } }*/
+    return ComputeContext(ctx, logger: logger)
 }
 
 func destroyComputeContext( _ context: ComputeContext) throws {
@@ -190,7 +165,7 @@ func buildComputeKernel(_ context: ComputeContext, name: String, source: String)
     try check(nvrtcGetPTXSize(program, &ptxSize))
     context.logger.info("Built program \(name) ptx is \(ptxSize) bytes")
     var ptx = Data(count: ptxSize)
-    context.ctx.library[name] = try ptx.withUnsafeMutableBytes { buf in
+    let kernel: (CUmodule?, CUfunction?) = try ptx.withUnsafeMutableBytes { buf in
         guard let ptr = buf.baseAddress else { return (nil, nil) }
         try check(nvrtcGetPTX(program, ptr.bindMemory(to: Int8.self, capacity: ptxSize)))
         var module: CUmodule?
@@ -199,49 +174,24 @@ func buildComputeKernel(_ context: ComputeContext, name: String, source: String)
         try check(cuModuleGetFunction(&function, module, name))
         return (module, function)
     }
-    return context
-    /*let (program, errcode) = source.withCString { (cstr: UnsafePointer<Int8>?) -> (cl_program?, cl_int) in
-        var errcode: cl_int = 0
-        var mutStr: UnsafePointer<Int8>? = UnsafePointer(cstr)
-        let pid = clCreateProgramWithSource(context.clContext(), 1, &mutStr, [source.count], &errcode)
-        return (pid, errcode)
+    return ComputeContext(context, library: context.library.merging([name: kernel]) { $1 })
+}
+
+private func maybeBuildKernel( _ context: ComputeContext, _ kernel: ComputeKernel) throws -> ComputeContext {
+    let name: String = {
+        if case .custom(let name) = kernel {
+            return name
+        }
+        return String(describing: kernel)
+    }()
+    guard context.library[name] == nil else {
+        return context
     }
-
-    try checkCLError(errcode)
-
-    var deviceIds: cl_device_id? = context.device.deviceId
-    if let program = program {
-        var error = clBuildProgram(program, 1,
-                       &deviceIds,
-                       nil,
-                       nil,
-                       nil)
-        guard CL_SUCCESS == error else {
-            var val = [UInt8](repeating: 0, count: 10240)
-            var len: Int = 0
-            clGetProgramBuildInfo(program,
-                                  deviceIds,
-                                  cl_program_build_info(CL_PROGRAM_BUILD_LOG),
-                                  val.count,
-                                  &val, &len)
-            let log = String(bytes: val.prefix(through: len), encoding: .utf8)
-            if let log = log {
-                context.logger.info("Build log:\n\(log)")
-            }
-            throw ComputeError.badInputData(description: "Unable to create kernel named \(name) \(error)")
-        }
-        let kernel = clCreateKernel(program, name, &error)
-        guard let krn = kernel else {
-            throw ComputeError.badInputData(description: "Unable to create kernel named \(name) \(error)")
-        }
-        return ComputeContext(other: context, library: context.library().merging([name: (program, krn)]) {
-            clReleaseProgram($0.0)
-            clReleaseKernel($0.1)
-            return $1
-        })
-    } else {
-        throw ComputeError.unknownError
-    }*/
+    let defaultKernel = CUDAKernel.allCases.first { String(describing: $0) == name }
+    guard let source = defaultKernel?.rawValue else {
+        throw ComputeError.computeKernelNotFound(kernel)
+    }
+    return try buildComputeKernel(context, name: name, source: kCUDAKernelMatrixFuncs + "\n" + source)
 }
 
 // applyComputeImage is a convenience function used for typical image compositing operations and
@@ -258,6 +208,21 @@ func applyComputeImage(_ context: ComputeContext,
                        target: PictureSample,
                        kernel: ComputeKernel) throws -> ComputeContext {
     context
+}
+
+private func getComputeKernel( _ context: ComputeContext, _ kernel: ComputeKernel) throws -> (CUfunction?, CUmodule?) {
+    var function: (CUfunction?, CUmodule?)?
+    switch kernel {
+    case .custom(let name):
+        function = context.library[name]
+    default:
+        let name = String(describing: kernel)
+        function = context.library[name]
+    }
+    guard let kernelFunction = function else {
+        throw ComputeError.computeKernelNotFound(kernel)
+    }
+    return kernelFunction
 }
 
 // Used for multiple input images and an output target.
@@ -293,7 +258,35 @@ func runComputeKernel<T>(_ context: ComputeContext,
                          requiredMemory: Int? = nil,
                          uniforms: T? = nil,
                          blends: Bool = false) throws -> ComputeContext {
-    context
+    guard images.allSatisfy({ $0.bufferType() == .gpu }) else {
+        throw ComputeError.badInputData(description: "Input images must be uploaded to GPU")
+    }
+    guard let targetImageBuffer = target.imageBuffer() else {
+        throw ComputeError.badTarget
+    }
+    let kernelFunction = try getComputeKernel(context, kernel)
+    let context = try maybeBuildKernel(context, kernel)
+    let inputs = images.compactMap { $0.imageBuffer()?.computeTextures }.flatMap { $0 }
+    let outputs = targetImageBuffer.computeTextures
+    let uniformBuffer = try uniforms.map {
+        try withUnsafePointer(to: $0) {
+            try [uploadComputeBuffer(context, src: $0, dst: nil, size: MemoryLayout<T>.size)]
+        }
+    }
+    let blockSize: UInt32 = 16
+    let blockCountX = UInt32(target.size().x) / blockSize + 1
+    let blockCountY = UInt32(target.size().y) / blockSize + 1
+    let devPtrToRawPtr = { (val: ComputeBuffer) -> UnsafeMutableRawPointer? in
+        var ptr = val.mem
+        return UnsafeMutableRawPointer(&ptr)
+    }
+    var args: [UnsafeMutableRawPointer?] = [inputs, outputs, uniformBuffer]
+                                                .compactMap { $0 }
+                                                .flatMap { $0 }
+                                                .map(devPtrToRawPtr)
+    try check(cuLaunchKernel(kernelFunction.0,
+                    blockCountX, blockCountY, 1, blockSize, blockSize, 1, 0, nil, &args, nil))
+    return context
 }
 
 func beginComputePass(_ context: ComputeContext) -> ComputeContext {
@@ -301,7 +294,7 @@ func beginComputePass(_ context: ComputeContext) -> ComputeContext {
     return context
 }
 
-func endComputePass(_ context: ComputeContext, _ waitForCompletion: Bool) -> ComputeContext {
+func endComputePass(_ context: ComputeContext, _ waitForCompletion: Bool = false) -> ComputeContext {
     if waitForCompletion {
         cuCtxSynchronize()
     }
@@ -309,11 +302,112 @@ func endComputePass(_ context: ComputeContext, _ waitForCompletion: Bool) -> Com
     return context
 }
 
+func uploadComputeBuffer(_ ctx: ComputeContext, src: Data, dst: ComputeBuffer?) throws -> ComputeBuffer {
+    try src.withUnsafeBytes {
+        guard let ptr = $0.baseAddress else {
+            throw ComputeError.invalidValue
+        }
+        return try uploadComputeBuffer(ctx, src: ptr, dst: dst, size: src.count)
+    }
+}
+
+private func uploadComputeBuffer(_ ctx: ComputeContext,
+                                 src: UnsafeRawPointer,
+                                 dst: ComputeBuffer?,
+                                 size: Int) throws -> ComputeBuffer {
+    let buffer = try dst ?? createBuffer(ctx, size)
+    guard buffer.size >= size else {
+        throw ComputeError.badInputData(description: "Compute buffer needs to be >= to data.count")
+    }
+    _ = beginComputePass(ctx)
+    try check(cuMemcpyHtoD_v2(buffer.mem, src, size))
+    _ = endComputePass(ctx)
+    return buffer
+}
+
+func downloadComputeBuffer(_ ctx: ComputeContext, src: ComputeBuffer, dst: Data?) throws -> Data {
+    let size = src.size
+    var dst = dst ?? Data(capacity: size)
+    guard dst.count >= size else {
+        throw ComputeError.badInputData(description: "Destination data buffer must be >= buffer.size")
+    }
+    _ = beginComputePass(ctx)
+    try dst.withUnsafeMutableBytes {
+        guard let ptr = $0.baseAddress else { return }
+        try check(cuMemcpyDtoH_v2(ptr, src.mem, size))
+    }
+    _ = endComputePass(ctx)
+    return dst
+}
+
 func uploadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes: Int = 3) throws -> PictureSample {
-    throw ComputeError.notImplemented
+    guard pict.bufferType() == .cpu else {
+        return pict
+    }
+    guard let imageBuffer = pict.imageBuffer() else {
+        throw ComputeError.badInputData(description: "Missing image buffer")
+    }
+
+    let textures = try createTexture(ctx, imageBuffer, maxPlanes)
+    _  = beginComputePass(ctx)
+    try zip(textures, imageBuffer.buffers).forEach {
+        _ = try uploadComputeBuffer(ctx, src: $0.1, dst: $0.0)
+    }
+    _ = endComputePass(ctx, true)
+    let image = ImageBuffer(imageBuffer, computeTextures: textures, bufferType: .gpu)
+    return PictureSample(pict, img: image)
 }
 
 func downloadComputePicture(_ ctx: ComputeContext, pict: PictureSample) throws -> PictureSample {
+    guard pict.bufferType() == .gpu else {
+        return pict
+    }
+    guard let imageBuffer = pict.imageBuffer() else {
+        throw ComputeError.badInputData(description: "Missing image buffer")
+    }
+    _ = beginComputePass(ctx)
+    let buffers = try zip(imageBuffer.computeTextures, imageBuffer.buffers).map {
+        try downloadComputeBuffer(ctx, src: $0.0, dst: $0.1)
+    }
+    _ = endComputePass(ctx, true)
+    let image = ImageBuffer(imageBuffer, buffers: buffers, bufferType: .cpu)
+    return PictureSample(pict, img: image)
+}
+
+private func createBuffer(_ ctx: ComputeContext, _ size: Int) throws -> ComputeBuffer {
+    var buf: CUdeviceptr = 0
+    _ = beginComputePass(ctx)
+    try check(cuMemAlloc_v2(&buf, size))
+    _ = endComputePass(ctx)
+    return ComputeBuffer(buf, size: size, ctx: ctx.ctx)
+}
+
+#if os(Linux)
+private func createTexture(_ ctx: ComputeContext,
+                           _ image: ImageBuffer,
+                           _ maxPlanes: Int = 3) throws -> [ComputeBuffer] {
+    let planeCount = image.planes.count
+    guard 3 >= planeCount &&  0 < planeCount else {
+        throw ComputeError.badInputData(description: "Input image must have 1, 2, or 3 planes")
+    }
+    guard planeCount == image.buffers.count else {
+        throw ComputeError.badInputData(description: "Input image must have the same number of buffers as planes")
+    }
+    guard min(planeCount, maxPlanes) != image.computeTextures.count else {
+        return image.computeTextures
+    }
+    return try (0..<min(planeCount, maxPlanes) as CountableRange).map { idx in
+        let plane = image.planes[idx]
+        let size = Int(plane.size.y) * plane.stride
+        return try createBuffer(ctx, size)
+    }
+}
+#else
+private func createTexture(_ ctx: ComputeContext,
+                           _ image: ImageBuffer,
+                           _ maxPlanes: Int = 3) throws -> [ComputeBuffer] {
     throw ComputeError.notImplemented
 }
+#endif
+
 #endif

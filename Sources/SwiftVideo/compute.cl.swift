@@ -13,7 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-
+// swiftlint:disable file_length
 #if GPGPU_OCL
 #if os(macOS)
 #warning ("macOS support is deprecated, this is only for development. Use Metal for production.")

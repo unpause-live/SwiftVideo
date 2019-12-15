@@ -11,3 +11,4 @@ DerivedData/
 Packages/
 *.xcodeproj
 version.swift
+.fuse_*

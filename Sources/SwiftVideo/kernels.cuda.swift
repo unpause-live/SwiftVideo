@@ -41,5 +41,15 @@ inline void multmat4(float4 out[4], const float4 lhs[4], const float4 rhs[4]) {
     out[3] = dot(tmp[3], rhs[3]);
 }
 """
-
+enum CUDAKernel: String, CaseIterable {
+  case img_clear_nv12 =
+    """
+    __kernel void img_clear_nv12(__write_only image2d_t out1,
+                            __write_only image2d_t out2) {
+        int2 gid = (int2)(get_global_id(0), get_global_id(1));
+        write_imagef(out1, gid, (float4)(0.0, 0.0, 0.0, 1.0));
+        write_imagef(out2, gid/2, (float4)(0.5, 0.5, 0.5, 1.0));
+    }
+    """
+}
 #endif
