@@ -41,20 +41,22 @@ private class InternalContext {
     fileprivate let ctx: CUcontext?
 }
 
+typealias CUDAProgram = (module: CUmodule?, function: CUfunction?, ptx: Data)
+
 public struct ComputeContext {
     init(_ ctx: CUcontext?, logger: Logger) {
         self.ctx = InternalContext(ctx: ctx)
         self.logger = logger
         self.library = [:]
     }
-    init(_ other: ComputeContext, library: [String: (CUmodule?, CUfunction?)]? = nil) {
+    init(_ other: ComputeContext, library: [String: CUDAProgram]? = nil) {
         self.ctx = other.ctx
         self.logger = other.logger
         self.library = library ?? [:]
     }
     let logger: Logger
     fileprivate let ctx: InternalContext
-    fileprivate let library: [String: (CUmodule?, CUfunction?)]
+    fileprivate let library: [String: CUDAProgram]
 }
 
 public class ComputeBuffer {
@@ -71,7 +73,7 @@ public class ComputeBuffer {
         }
     }
     fileprivate let size: Int
-    fileprivate let mem: CUdeviceptr
+    fileprivate var mem: CUdeviceptr // var so we can take the address to pass to the CUDA api.
     fileprivate let ctx: InternalContext
 }
 
@@ -89,6 +91,8 @@ private func check(_ result: CUresult) throws {
     case CUDA_ERROR_INVALID_VALUE: throw ComputeError.invalidValue
     case CUDA_ERROR_OUT_OF_MEMORY: throw ComputeError.outOfMemory
     case CUDA_ERROR_INVALID_CONTEXT: throw ComputeError.invalidContext
+    case CUDA_ERROR_ILLEGAL_ADDRESS: throw ComputeError.badContextState(description: "Illegal address access")
+    case CUDA_ERROR_NOT_FOUND: throw ComputeError.badInputData(description: "Symbol not found")
     default: throw ComputeError.unknownError
     }
 }
@@ -105,6 +109,7 @@ private func check(_ result: nvrtcResult, _ prog: nvrtcProgram? = nil) throws {
             guard let ptr = buf.baseAddress else { return }
             try check(nvrtcGetProgramLog(prog, ptr.bindMemory(to: Int8.self, capacity: logSize)))
         }
+        print("compiler error \( String(decoding: log, as: UTF8.self))")
         throw ComputeError.compilerError(description: String(decoding: log, as: UTF8.self))
     default: throw ComputeError.unknownError
     }
@@ -151,29 +156,34 @@ func destroyComputeContext( _ context: ComputeContext) throws {
 
 func buildComputeKernel(_ context: ComputeContext, name: String, source: String) throws -> ComputeContext {
     context.logger.info("buildComputeKernel")
+    print("building \(name)")
     var program = try source.withCString { (cstr) -> nvrtcProgram? in
         var prog: nvrtcProgram?
         try check(nvrtcCreateProgram(&prog, cstr, name, 0, nil, nil))
         let opts: [String?] = ["--gpu-architecture=compute_50", "--fmad=false", nil]
         var cargs = opts.map { $0.flatMap { UnsafePointer<Int8>(strdup($0)) } }
         defer { cargs.forEach { ptr in free(UnsafeMutablePointer(mutating: ptr)) } }
-        try check(nvrtcCompileProgram(prog, 2, &cargs), prog)
+        try check(nvrtcCompileProgram(prog, Int32(opts.count)-1, &cargs), prog)
         return prog
     }
     defer { nvrtcDestroyProgram(&program) }
     var ptxSize: size_t =  0
     try check(nvrtcGetPTXSize(program, &ptxSize))
     context.logger.info("Built program \(name) ptx is \(ptxSize) bytes")
+    print("Built program \(name) ptx is \(ptxSize) bytes")
     var ptx = Data(count: ptxSize)
-    let kernel: (CUmodule?, CUfunction?) = try ptx.withUnsafeMutableBytes { buf in
-        guard let ptr = buf.baseAddress else { return (nil, nil) }
+    let result: (CUmodule?, CUfunction?) = try ptx.withUnsafeMutableBytes { buf in
+        guard let ptr = buf.baseAddress else { throw ComputeError.invalidValue }
         try check(nvrtcGetPTX(program, ptr.bindMemory(to: Int8.self, capacity: ptxSize)))
         var module: CUmodule?
         var function: CUfunction?
-        try check(cuModuleLoadDataEx(&module, ptr, 0, nil, nil))
+        try check(cuModuleLoadData(&module, ptr))
         try check(cuModuleGetFunction(&function, module, name))
         return (module, function)
     }
+    let kernel = CUDAProgram(module: result.0, function: result.1, ptx: ptx)
+    print("ptx=\(String(decoding: ptx, as: UTF8.self))")
+    print("done \(kernel)")
     return ComputeContext(context, library: context.library.merging([name: kernel]) { $1 })
 }
 
@@ -210,8 +220,8 @@ func applyComputeImage(_ context: ComputeContext,
     context
 }
 
-private func getComputeKernel( _ context: ComputeContext, _ kernel: ComputeKernel) throws -> (CUfunction?, CUmodule?) {
-    var function: (CUfunction?, CUmodule?)?
+private func getComputeKernel( _ context: ComputeContext, _ kernel: ComputeKernel) throws -> CUDAProgram {
+    var function: CUDAProgram?
     switch kernel {
     case .custom(let name):
         function = context.library[name]
@@ -264,8 +274,8 @@ func runComputeKernel<T>(_ context: ComputeContext,
     guard let targetImageBuffer = target.imageBuffer() else {
         throw ComputeError.badTarget
     }
-    let kernelFunction = try getComputeKernel(context, kernel)
     let context = try maybeBuildKernel(context, kernel)
+    let kernelFunction = try getComputeKernel(context, kernel)
     let inputs = images.compactMap { $0.imageBuffer()?.computeTextures }.flatMap { $0 }
     let outputs = targetImageBuffer.computeTextures
     let uniformBuffer = try uniforms.map {
@@ -273,19 +283,21 @@ func runComputeKernel<T>(_ context: ComputeContext,
             try [uploadComputeBuffer(context, src: $0, dst: nil, size: MemoryLayout<T>.size)]
         }
     }
-    let blockSize: UInt32 = 16
-    let blockCountX = UInt32(target.size().x) / blockSize + 1
-    let blockCountY = UInt32(target.size().y) / blockSize + 1
-    let devPtrToRawPtr = { (val: ComputeBuffer) -> UnsafeMutableRawPointer? in
-        var ptr = val.mem
-        return UnsafeMutableRawPointer(&ptr)
-    }
+    let blockSizeX: UInt32 = gcd(UInt32(target.size().x), 16)
+    let blockSizeY: UInt32 = gcd(UInt32(target.size().y), 16)
+    let blockCountX = UInt32(target.size().x) / blockSizeX + 1
+    let blockCountY = UInt32(target.size().y) / blockSizeY + 1
     var args: [UnsafeMutableRawPointer?] = [inputs, outputs, uniformBuffer]
                                                 .compactMap { $0 }
                                                 .flatMap { $0 }
-                                                .map(devPtrToRawPtr)
-    try check(cuLaunchKernel(kernelFunction.0,
-                    blockCountX, blockCountY, 1, blockSize, blockSize, 1, 0, nil, &args, nil))
+                                                .map { UnsafeMutableRawPointer(&$0.mem) }
+    if let function = kernelFunction.function {
+        try check(cuLaunchKernel(function,
+                    blockCountX, blockCountY, 1, // grid size (x, y, z) in blocks
+                    blockSizeX, blockSizeY, 1, // block size (x, y, z) in "pixels" (as defined here)
+                    0, // shared mem between threadgroups
+                    nil, &args, nil))
+    }
     return context
 }
 
