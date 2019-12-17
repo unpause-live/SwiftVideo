@@ -204,22 +204,6 @@ private func maybeBuildKernel( _ context: ComputeContext, _ kernel: ComputeKerne
     return try buildComputeKernel(context, name: name, source: kCUDAKernelMatrixFuncs + "\n" + source)
 }
 
-// applyComputeImage is a convenience function used for typical image compositing operations and
-// format conversion.  This has a standard set of useful uniforms for those
-// operations.  If you want to do something more custom, use runComputeKernel instead.
-// Throws ComputeError:
-//  - badContextState
-//  - computeKernelNotFound
-//  - badInputData
-//  - badTarget
-// Can throw additional errors from MTLDevice.makeComputePipelineState
-func applyComputeImage(_ context: ComputeContext,
-                       image: PictureSample,
-                       target: PictureSample,
-                       kernel: ComputeKernel) throws -> ComputeContext {
-    context
-}
-
 private func getComputeKernel( _ context: ComputeContext, _ kernel: ComputeKernel) throws -> CUDAProgram {
     var function: CUDAProgram?
     switch kernel {
@@ -308,7 +292,7 @@ func beginComputePass(_ context: ComputeContext) -> ComputeContext {
 
 func endComputePass(_ context: ComputeContext, _ waitForCompletion: Bool = false) -> ComputeContext {
     if waitForCompletion {
-        cuCtxSynchronize()
+        let result = cuCtxSynchronize()
     }
     cuCtxPopCurrent_v2(nil)
     return context
@@ -410,6 +394,7 @@ private func createTexture(_ ctx: ComputeContext,
     }
     return try (0..<min(planeCount, maxPlanes) as CountableRange).map { idx in
         let plane = image.planes[idx]
+        print("creating texture for \(plane)")
         let size = Int(plane.size.y) * plane.stride
         return try createBuffer(ctx, size)
     }
