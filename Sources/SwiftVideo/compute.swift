@@ -144,7 +144,6 @@ func applyComputeImage(_ context: ComputeContext,
                        image: PictureSample,
                        target: PictureSample,
                        kernel: ComputeKernel) throws -> ComputeContext {
-
     let inputSize = Vector2([image.size().x, image.size().y])
     let outputSize = Vector2([target.size().x, target.size().y])
     let matrix = image.matrix().inverse.transpose

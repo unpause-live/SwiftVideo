@@ -51,10 +51,10 @@ public struct Plane {
         self.bitDepth = bitDepth
         self.components = components
     }
-    let size: Vector2
-    let stride: Int
-    let bitDepth: Int
-    let components: [Component]
+    public let size: Vector2
+    public let stride: Int
+    public let bitDepth: Int
+    public let components: [Component]
 }
 
 public enum BufferType {

@@ -17,6 +17,8 @@
 #if os(Linux)
 import VectorMath
 import Foundation
+import NIO
+import struct Foundation.Data
 
 public struct ImageBuffer {
     public init(pixelFormat: PixelFormat,
@@ -58,24 +60,42 @@ public struct ImageBuffer {
         self.planes = other.planes
     }
 
-    let pixelFormat: PixelFormat
-    let bufferType: BufferType
-    let size: Vector2
+    public let pixelFormat: PixelFormat
+    public let bufferType: BufferType
+    public let size: Vector2
 
-    let computeTextures: [ComputeBuffer]
-    let buffers: [Data]
-    let planes: [Plane]
+    public let computeTextures: [ComputeBuffer]
+    public let buffers: [Data]
+    public let planes: [Plane]
 }
 
 extension ImageBuffer {
     // swiftlint:disable identifier_name
     public func withUnsafeMutableRawPointer<T>(forPlane plane: Int,
                                                fn: (UnsafeMutableRawPointer?) throws -> T) rethrows -> T {
-        var buffer = self.buffers[safe: plane]
-        let result = try buffer?.withUnsafeMutableBytes {
-            try fn($0.baseAddress)
+        if var buffer = self.buffers[safe: plane] {
+            return try buffer.withUnsafeMutableBytes {
+                try fn($0.baseAddress)
+            }
+        } else {
+            return try fn(nil)
         }
-        return try result ?? fn(nil)
+    }
+
+    private func unsafePointerForNext<T>(plane: Int,
+                                         ptrs: [UnsafeMutableRawPointer?],
+                                         fn: ([UnsafeMutableRawPointer?]) throws -> T) rethrows -> T {
+        try self.withUnsafeMutableRawPointer(forPlane: plane) {
+            if self.planes.count > plane+1 {
+                return try unsafePointerForNext(plane: plane+1, ptrs: ptrs + [$0], fn: fn)
+            } else {
+                return try fn(ptrs + [$0])
+            }
+        }
+    }
+
+    public func withUnsafeMutableRawPointerForAll<T>(fn: ([UnsafeMutableRawPointer?]) throws -> T) rethrows -> T {
+        try unsafePointerForNext(plane: 0, ptrs: [], fn: fn)
     }
     // swiftlint:enable identifier_name
 }
@@ -83,91 +103,47 @@ extension ImageBuffer {
 public final class PictureSample: PictureEvent {
     private let imgBuffer: ImageBuffer?
 
-    public func pts() -> TimePoint {
-        return self.presentationTimestamp
-    }
+    public func pts() -> TimePoint { presentationTimestamp }
 
-    public func matrix() -> Matrix4 {
-        return self.transform
-    }
+    public func matrix() -> Matrix4 { transform }
 
-    public func textureMatrix() -> Matrix4 {
-        return self.texTransform
-    }
+    public func textureMatrix() -> Matrix4 { texTransform }
 
-    public func size() -> Vector2 {
-        guard let img = imgBuffer else {
-            return Vector2.zero
-        }
-        return img.size
-    }
+    public func size() -> Vector2 { imageBuffer()?.size ?? Vector2.zero }
 
-    public func zIndex() -> Int {
-        return Int(round((Vector3(0, 0, 0) * self.transform).z))
-    }
+    public func zIndex() -> Int { Int(round((Vector3(0, 0, 0) * self.transform).z)) }
 
-    public func pixelFormat() -> PixelFormat {
-        guard let img = imageBuffer() else {
-            return .invalid
-        }
-        return img.pixelFormat
-    }
-    public func bufferType() -> BufferType {
-        guard let img = imageBuffer() else {
-            return .invalid
-        }
-        return img.bufferType
-    }
+    public func pixelFormat() -> PixelFormat { imageBuffer()?.pixelFormat ?? .invalid }
+
+    public func bufferType() -> BufferType { imageBuffer()?.bufferType ?? .invalid }
+
     public func lock() {}
 
     public func unlock() {}
 
-    public func type() -> String {
-        return "pict"
-    }
+    public func type() -> String { "pict" }
 
-    public func time() -> TimePoint {
-        return self.timePoint
-    }
+    public func time() -> TimePoint { timePoint }
 
-    public func assetId() -> String {
-        return self.idAsset
-    }
+    public func assetId() -> String { idAsset }
 
-    public func workspaceId() -> String {
-        return self.idWorkspace
-    }
+    public func workspaceId() -> String { idWorkspace }
 
-    public func workspaceToken() -> String? {
-        return self.tokenWorkspace
-    }
+    public func workspaceToken() -> String? { tokenWorkspace }
 
-    public func info() -> EventInfo? {
-        return eventInfo
-    }
+    public func info() -> EventInfo? { eventInfo }
 
-    public func imageBuffer() -> ImageBuffer? {
-        return imgBuffer
-    }
-    public func constituents() -> [MediaConstituent]? {
-        return self.mediaConstituents
-    }
+    public func imageBuffer() -> ImageBuffer? { imgBuffer }
 
-    public func revision() -> String {
-        return idRevision
-    }
+    public func constituents() -> [MediaConstituent]? { mediaConstituents }
 
-    public func borderMatrix() -> Matrix4 {
-        return borderTransform
-    }
+    public func revision() -> String { idRevision }
 
-    public func fillColor() -> Vector4 {
-        return bgColor
-    }
+    public func borderMatrix() -> Matrix4 { borderTransform }
 
-    public func opacity() -> Float {
-        return alpha
-    }
+    public func fillColor() -> Vector4 { bgColor }
+
+    public func opacity() -> Float { alpha }
 
     public init(assetId: String,
                 workspaceId: String,
@@ -281,35 +257,9 @@ func createPictureSample(_ size: Vector2,
     guard size.x > 0 && size.y > 0 else {
         throw ComputeError.invalidOperation
     }
-    let width = Int(size.x)
-    let height = Int(size.y)
-    let (buffers, planes) = try { () -> ([Data], [Plane]) in
-            switch format {
-            case .nv12:
-                return ([Data(count: width*height), Data(count: width*(height/2))],
-                        [Plane(size: size, stride: width, bitDepth: 8, components: [.y]),
-                         Plane(size: size/2, stride: width, bitDepth: 8, components: [.cb, .cr])])
-            case .BGRA, .RGBA:
-                return ([Data(count: width*4*height)], [Plane(
-                    size: size, stride: width*4, bitDepth: 8, components: [.r, .g, .b, .a])])
-            case .yuvs:
-                return([Data(count: width*2*height)], [Plane(
-                    size: size, stride: width*2, bitDepth: 8, components: [.cr, .y, .cb, .y])])
-            case .zvuy:
-                return([Data(count: width*2*height)], [Plane(
-                    size: size, stride: width*2, bitDepth: 8, components: [.y, .cb, .y, .cr])])
-            case .y420p:
-                return ([Data(count: width*height),
-                         Data(count: (width/2)*(height/2)),
-                         Data(count: (width/2)*(height/2))],
-                        [Plane(size: size, stride: width, bitDepth: 8, components: [.y]),
-                         Plane(size: size/2, stride: width/2, bitDepth: 8, components: [.cb]),
-                         Plane(size: size/2, stride: width/2, bitDepth: 8, components: [.cr])])
-            default:
-                throw ComputeError.badInputData(description: "Invalid pixel format")
-            }
-        }()
 
+    let planes = try planesForFormat(format, size: size)
+    let buffers = try buffersForPlanes(planes)
     let img = try ImageBuffer(pixelFormat: format, bufferType: .cpu, size: size, buffers: buffers, planes: planes)
 
     return PictureSample(img,
@@ -320,4 +270,42 @@ func createPictureSample(_ size: Vector2,
                          pts: TimePoint(0))
 }
 
+private func planesForFormat(_ format: PixelFormat, size: Vector2) throws -> [Plane] {
+    let width = Int(size.x)
+    let height = Int(size.y)
+    switch format {
+    case .nv12:
+        return [Plane(size: size, stride: width, bitDepth: 8, components: [.y]),
+                Plane(size: size/2, stride: width, bitDepth: 8, components: [.cb, .cr])]
+    case .BGRA, .RGBA:
+        return [Plane(size: size, stride: width*4, bitDepth: 8, components: [.r, .g, .b, .a])]
+    case .yuvs:
+        return [Plane(size: size, stride: width*2, bitDepth: 8, components: [.cr, .y, .cb, .y])]
+    case .zvuy:
+        return [Plane(size: size, stride: width*2, bitDepth: 8, components: [.y, .cb, .y, .cr])]
+    case .y420p:
+        return [Plane(size: size, stride: width, bitDepth: 8, components: [.y]),
+                Plane(size: size/2, stride: width/2, bitDepth: 8, components: [.cb]),
+                Plane(size: size/2, stride: width/2, bitDepth: 8, components: [.cr])]
+    default:
+        throw ComputeError.badInputData(description: "Invalid pixel format")
+    }
+}
+
+private func buffersForPlanes(_ planes: [Plane]) throws -> [Data] {
+    let totalSize = planes.reduce(0) { $0 + $1.stride * Int($1.size.y) }
+    let allocator = ByteBufferAllocator()
+    var backing = allocator.buffer(capacity: totalSize)
+    backing.moveWriterIndex(forwardBy: totalSize)
+    let offsets = planes.reduce([0]) {
+        $0 + [($0.last ?? 0) + ($1.stride * Int($1.size.y))]
+    }.prefix(3)
+    return try zip(planes, offsets).map { (plane, offset) in
+        guard let result = backing.getData(at: offset,
+                    length: plane.stride * Int(plane.size.y), byteTransferStrategy: .noCopy) else {
+            throw ComputeError.badInputData(description: "Invalid pixel format")
+        }
+        return result
+    }
+}
 #endif

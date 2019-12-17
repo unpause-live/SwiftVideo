@@ -41,7 +41,21 @@ private class InternalContext {
     fileprivate let ctx: CUcontext?
 }
 
-typealias CUDAProgram = (module: CUmodule?, function: CUfunction?, ptx: Data)
+private class CUDAProgram {
+    let module: CUmodule?
+    let function: CUfunction?
+    let ptx: Data
+    fileprivate init(module: CUmodule?, function: CUfunction?, ptx: Data) {
+        self.module = module
+        self.function = function
+        self.ptx = ptx
+    }
+    deinit {
+        if let module = module {
+            cuModuleUnload(module)
+        }
+    }
+}
 
 public struct ComputeContext {
     init(_ ctx: CUcontext?, logger: Logger) {
@@ -49,7 +63,7 @@ public struct ComputeContext {
         self.logger = logger
         self.library = [:]
     }
-    init(_ other: ComputeContext, library: [String: CUDAProgram]? = nil) {
+    fileprivate init(_ other: ComputeContext, library: [String: CUDAProgram]? = nil) {
         self.ctx = other.ctx
         self.logger = other.logger
         self.library = library ?? [:]
@@ -267,11 +281,18 @@ func runComputeKernel<T>(_ context: ComputeContext,
             try [uploadComputeBuffer(context, src: $0, dst: nil, size: MemoryLayout<T>.size)]
         }
     }
+    let inputStride: [Int32] = images.compactMap { $0.imageBuffer()?.planes }.flatMap { $0.map { Int32($0.stride) } }
+
+    let inputStrideBuffer = try inputStride.withUnsafeBufferPointer { buf -> [ComputeBuffer]? in
+        guard buf.count > 0 else { return nil }
+        return try [uploadComputeBuffer(context, src: buf.baseAddress!, dst: nil,
+            size: buf.count * MemoryLayout<Int32>.size)]
+    }
     let blockSizeX: UInt32 = gcd(UInt32(target.size().x), 16)
     let blockSizeY: UInt32 = gcd(UInt32(target.size().y), 16)
-    let blockCountX = UInt32(target.size().x) / blockSizeX + 1
-    let blockCountY = UInt32(target.size().y) / blockSizeY + 1
-    var args: [UnsafeMutableRawPointer?] = [inputs, outputs, uniformBuffer]
+    let blockCountX = UInt32(target.size().x) / blockSizeX
+    let blockCountY = UInt32(target.size().y) / blockSizeY
+    var args: [UnsafeMutableRawPointer?] = [outputs, inputs, uniformBuffer, inputStrideBuffer]
                                                 .compactMap { $0 }
                                                 .flatMap { $0 }
                                                 .map { UnsafeMutableRawPointer(&$0.mem) }
@@ -394,7 +415,6 @@ private func createTexture(_ ctx: ComputeContext,
     }
     return try (0..<min(planeCount, maxPlanes) as CountableRange).map { idx in
         let plane = image.planes[idx]
-        print("creating texture for \(plane)")
         let size = Int(plane.size.y) * plane.stride
         return try createBuffer(ctx, size)
     }

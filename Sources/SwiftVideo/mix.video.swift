@@ -76,17 +76,11 @@ public class VideoMixer: Source<PictureSample> {
         clock.schedule(now + frameDuration) { [weak self] in self?.mix(at: $0) }
     }
 
-    public func assetId() -> String {
-        return idAsset
-    }
+    public func assetId() -> String { idAsset }
 
-    public func workspaceId() -> String {
-        return idWorkspace
-    }
+    public func workspaceId() -> String { idWorkspace }
 
-    public func computeContext() -> ComputeContext? {
-        return self.clContext
-    }
+    public func computeContext() -> ComputeContext? { self.clContext }
 
     deinit {
         if let context = self.clContext {
@@ -96,8 +90,9 @@ public class VideoMixer: Source<PictureSample> {
             self.clContext = nil
         }
     }
+
     // swiftlint:disable:next identifier_name
-    func mix(at: ClockTickEvent) {
+    private func mix(at: ClockTickEvent) {
         let next = at.time() + frameDuration
         let pts = at.time() - epoch
         clock.schedule(next) { [weak self] in self?.mix(at: $0) }
@@ -174,6 +169,7 @@ public class VideoMixer: Source<PictureSample> {
             return image
         }
     }
+
     private let numberBackingImages = 10
     private let statsReport: StatsReport
 
