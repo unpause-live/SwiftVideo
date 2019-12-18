@@ -1,6 +1,6 @@
 FROM jrottenberg/ffmpeg:4.2-ubuntu
 
-RUN apt update && apt-get install -y build-essential wget gnupg2 git
+RUN apt update && apt-get install -y software-properties-common build-essential wget gnupg2 git
 
 RUN export SWIFT_VER=swift-5.1.1-RELEASE && \
     export SWIFT_VER_LOWER=$(echo $SWIFT_VER | tr '[:upper:]' '[:lower:]') && \
