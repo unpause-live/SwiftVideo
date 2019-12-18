@@ -147,10 +147,11 @@ enum CUDAKernel: String, CaseIterable {
                                  const unsigned char*  inPixels,
                                  const ImageUniforms* uniforms,
                                  const int* inStride) {
+        DECLARE_RGB2YUV;
         const int outStride = gridDim.x*blockDim.x;
         const int2 inSize = make_int2(uniforms->inSize.x, uniforms->inSize.y);
-        int2 gid = make_int2(get_global_id(0), get_global_id(1));
-        float2 size = make_float2(get_global_size(0), get_global_size(1));
+        int2 gid = make_int2(blockIdx.x * blockDim.x + threadIdx.x, blockIdx.y * blockDim.y + threadIdx.y);
+        float2 size = make_float2(gridDim.x*blockDim.x, gridDim.y*blockDim.y);
         const float2 out_uv = make_float2((float)gid.x / size.x, (float)gid.y / size.y);
         float4 normpos = make_float4(out_uv.x * 2.f - 1.f, out_uv.y * 2.f - 1.f, 0.f, 1.f);
         float4 tx = vecmat4(normpos, uniforms->transform);
@@ -158,35 +159,34 @@ enum CUDAKernel: String, CaseIterable {
         bool handleChroma = (gid.x % 2) == 0 && (gid.y % 2) == 0;
         if(border.x >= 0.f && border.y >= 0.f && border.x <= 1.f &&  border.y <= 1.f) {
             float4 uv = vecmat4(tx, uniforms->textureTx);
-            float4 curY = read_imagef(outLuma, gid, outStride);
-            float4 curU;
-            float4 curV;
+            float curY = read_imagef(outLuma, gid, outStride);
+            float curU;
+            float curV;
             if(handleChroma) {
                 curU = read_imagef(outChromaU, div(gid, 2), outStride/2);
                 curV = read_imagef(outChromaV, div(gid, 2), outStride/2);
             }
-            if(tx.x >= 0.0 && tx.y >= 0.0 && tx.x <= 1.0 && tx.y <= 1.0) {
-                float alpha = uniforms->opacity * uniforms->fillColor.w;
-                float4 fillColor = vecmat4(make_float4(uniforms->fillColor.x * alpha, uniforms->fillColor.y * alpha, uniforms->fillColor.z * alpha, 1.0), RGB2YUV);
-                float3 result;
-                result.x = (curY.x * (1.f - alpha) + fillColor.x * alpha);
-                result.y = clamp((curU.x * (1.f - alpha) + fillColor.y * alpha), -1.f, 1.f);
-                result.z = clamp((curV.x * (1.f - alpha) + fillColor.z * alpha), -1.f, 1.f);
-                if(uv.x >= 0.f && uv.y >= 0.f && uv.x <= 1.f && uv.y <= 1.f) {
-                    int2 pos = make_int2(uv.x * (uniforms->inSize.x-1.f), uv.y * (uniforms->inSize.y-1.f));
-                    float4 bgra = read_image4f_bilinear(inPixels, pos, inSize);
-                    float4 rgba = make_float4(bgra.z, bgra.y, bgra.x, bgra.w);
-                    float alpha = rgba.w * uniforms->opacity;
-                    float4 yuv = vecmat4(make_float4(rgba.x * alpha, rgba.y * alpha, rgba.z * alpha, 1.0), RGB2YUV);
-                    result.x = result.x * (1.f - alpha) + yuv.x * alpha;
-                    result.y = result.y * (1.f - alpha) + yuv.y * alpha;
-                    result.z = result.z * (1.f - alpha) + yuv.z * alpha;
-                }
-                write_imagef(outLuma, gid, result.x, outStride);
-                if(handleChroma) {
-                    write_imagef(outChromaU, div(gid, 2), result.y, outStride/2);
-                    write_imagef(outChromaV, div(gid, 2), result.z, outStride/2);
-                }
+            float alpha = uniforms->opacity * uniforms->fillColor.w;
+            float4 fillColor = vecmat4(make_float4(uniforms->fillColor.x * alpha, uniforms->fillColor.y * alpha, uniforms->fillColor.z * alpha, 1.0), RGB2YUV);
+            float3 result;
+            result.x = blend(curY, fillColor.x, alpha);
+            result.y = clamp(blend(curU, fillColor.y, alpha), -1.f, 1.f);
+            result.z = clamp(blend(curV, fillColor.z, alpha), -1.f, 1.f);
+            if(tx.x >= 0.0 && tx.y >= 0.0 && tx.x <= 1.0 && tx.y <= 1.0 &&
+               uv.x >= 0.f && uv.y >= 0.f && uv.x <= 1.f && uv.y <= 1.f) {
+                int2 pos = make_int2(uv.x * (uniforms->inSize.x-1.f), uv.y * (uniforms->inSize.y-1.f));
+                float4 bgra = read_image4f_bilinear(inPixels, pos, inSize, inStride[0]);
+                float4 rgba = make_float4(bgra.z, bgra.y, bgra.x, bgra.w);
+                float alpha = rgba.w * uniforms->opacity;
+                float4 yuv = vecmat4(make_float4(rgba.x * alpha, rgba.y * alpha, rgba.z * alpha, 1.0), RGB2YUV);
+                result.x = blend(result.x, yuv.x, alpha);
+                result.y = blend(result.y, yuv.y, alpha);
+                result.z = blend(result.z, yuv.z, alpha);
+            }
+            write_imagef(outLuma, gid, result.x, outStride);
+            if(handleChroma) {
+                write_imagef(outChromaU, div(gid, 2), result.y, outStride/2);
+                write_imagef(outChromaV, div(gid, 2), result.z, outStride/2);
             }
         }
     }
@@ -239,10 +239,10 @@ enum CUDAKernel: String, CaseIterable {
                     result.z = blend(result.z, cr, alpha);
                 }
             }
-            write_imagef(outLuma, gid, clamp(result.x, 0.f, 1.f), outStride);
+            write_imagef(outLuma, gid, result.x, outStride);
             if(handleChroma) {
-                write_imagef(outChromaU, div(gid, 2), clamp(result.y, -1.f, 1.f), outStride/2);
-                write_imagef(outChromaV, div(gid, 2), clamp(result.z, -1.f, 1.f), outStride/2);
+                write_imagef(outChromaU, div(gid, 2), result.y, outStride/2);
+                write_imagef(outChromaV, div(gid, 2), result.z, outStride/2);
             }
         }
     }

@@ -24,4 +24,11 @@ RUN export SWIFT_VER=swift-5.1.1-RELEASE && \
 
 RUN apt-get install -y ocl-icd-opencl-dev libfreetype6-dev libbsd-dev pkg-config
 
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-ubuntu1804.pin && \
+    mv cuda-ubuntu1804.pin /etc/apt/preferences.d/cuda-repository-pin-600 && \
+    apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub && \
+    add-apt-repository "deb http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/ /" && \
+    apt-get update && \
+    apt-get install cuda-libraries-dev-10-2
+
 RUN rm -rf /var/lib/apt/lists/*

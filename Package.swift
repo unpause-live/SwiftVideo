@@ -32,7 +32,13 @@ let targets: [Target] = cudaVer.map { ver in
       pkgConfig: "cuda-\(ver)")]
   } ?? []
 
-let dependencies: [Target.Dependency] = cudaVer.map { _ in ["CCUDA"] } ?? []
+let dependencies: [Target.Dependency] = cudaVer != nil ? ["CCUDA"] : []
+
+let swiftSettings: [SwiftSetting] = cudaVer != nil ? [.define("GPGPU_CUDA", .when(platforms: [.linux]))] :
+    [.define("GPGPU_OCL", .when(platforms: [.macOS, .linux]))]
+
+let linkerSettings: [LinkerSetting] = cudaVer == nil ? [.linkedLibrary("OpenCL", .when(platforms: [.linux]))] :
+    [.linkedLibrary("nvrtc", .when(platforms: [.linux]))]
 
 let package = Package(
     name: "SwiftVideo",
@@ -75,16 +81,12 @@ let package = Package(
                            "NIOHTTP1", "CFreeType", "Logging"],
             cSettings: [
                 .define("linux", .when(platforms: [.linux])),
-                .define("CL_USE_DEPRECATED_OPENCL_1_2_APIS")],
-            swiftSettings: [
-                .define("GPGPU_CUDA", .when(platforms: [.linux])),
-                .define("GPGPU_OCL", .when(platforms: [.macOS])),
+                .define("CL_USE_DEPRECATED_OPENCL_1_2_APIS"),
+                .define("GPGPU_OCL")],
+            swiftSettings: swiftSettings + [
                 .define("GPGPU_METAL", .when(platforms: [.iOS, .tvOS]))
             ],
-            linkerSettings: [
-                //.linkedLibrary("OpenCL", .when(platforms: [.linux])),
-                .linkedLibrary("nvrtc", .when(platforms: [.linux])),
-                .linkedLibrary("bsd", .when(platforms: [.linux]))]),
+            linkerSettings: linkerSettings + [.linkedLibrary("bsd", .when(platforms: [.linux]))]),
         .testTarget(
             name: "swiftVideoTests",
             dependencies: ["SwiftVideo", "CSwiftVideo"]),
