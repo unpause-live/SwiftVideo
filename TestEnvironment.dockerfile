@@ -285,6 +285,5 @@ COPY --from=build /opt/ffmpeg /opt/ffmpeg/
 
 ARG PKG_CONFIG_PATH
 
-ENV LD_LIBRARY_PATH=/opt/ffmpeg/lib
-ENV PATH=${PATH}:/opt/ffmpeg/bin
+ENV LD_LIBRARY_PATH=/opt/ffmpeg/lib:/usr/local/cuda-10.2/lib64/stubs
 ENV PKG_CONFIG_PATH=${PKG_CONFIG_PATH}
