@@ -276,7 +276,7 @@ RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86
     apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub && \
     add-apt-repository "deb http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/ /" && \
     apt-get update && \
-    apt-get install -y --no-install-recommends cuda-driver-dev-10-2 cuda-libraries-dev-10-2 cuda-nvrtc-dev-10-2 libcublas-dev
+    apt-get install -y --no-install-recommends cuda-driver-dev-10-1 cuda-libraries-dev-10-1 cuda-nvrtc-dev-10-1 libcublas-dev
 
 RUN rm -rf /var/lib/apt/lists/*
 
@@ -285,5 +285,5 @@ COPY --from=build /opt/ffmpeg /opt/ffmpeg/
 
 ARG PKG_CONFIG_PATH
 
-ENV LD_LIBRARY_PATH=/opt/ffmpeg/lib:/usr/local/cuda-10.2/lib64/stubs
+ENV LD_LIBRARY_PATH=/opt/ffmpeg/lib:/usr/local/cuda-10.1/lib64/stubs
 ENV PKG_CONFIG_PATH=${PKG_CONFIG_PATH}

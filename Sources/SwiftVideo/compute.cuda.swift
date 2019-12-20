@@ -107,7 +107,7 @@ private func check(_ result: CUresult) throws {
     case CUDA_ERROR_INVALID_CONTEXT: throw ComputeError.invalidContext
     case CUDA_ERROR_ILLEGAL_ADDRESS: throw ComputeError.badContextState(description: "Illegal address access")
     case CUDA_ERROR_NOT_FOUND: throw ComputeError.badInputData(description: "Symbol not found")
-    default: throw ComputeError.unknownError
+    default: print("Error \(result)"); throw ComputeError.unknownError
     }
 }
 
@@ -125,7 +125,7 @@ private func check(_ result: nvrtcResult, _ prog: nvrtcProgram? = nil) throws {
         }
         print("compiler error \( String(decoding: log, as: UTF8.self))")
         throw ComputeError.compilerError(description: String(decoding: log, as: UTF8.self))
-    default: throw ComputeError.unknownError
+    default: print("Error \(result)"); throw ComputeError.unknownError
     }
 }
 
@@ -174,7 +174,7 @@ func buildComputeKernel(_ context: ComputeContext, name: String, source: String)
     var program = try source.withCString { (cstr) -> nvrtcProgram? in
         var prog: nvrtcProgram?
         try check(nvrtcCreateProgram(&prog, cstr, name, 0, nil, nil))
-        let opts: [String?] = ["--gpu-architecture=compute_37", "--fmad=false", nil]
+        let opts: [String?] = ["--gpu-architecture=compute_30", "--fmad=false", nil]
         var cargs = opts.map { $0.flatMap { UnsafePointer<Int8>(strdup($0)) } }
         defer { cargs.forEach { ptr in free(UnsafeMutablePointer(mutating: ptr)) } }
         try check(nvrtcCompileProgram(prog, Int32(opts.count)-1, &cargs), prog)
