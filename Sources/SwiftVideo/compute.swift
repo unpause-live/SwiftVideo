@@ -131,6 +131,13 @@ public func makeComputeContext(forType search: ComputeDeviceType) throws -> Comp
     }
 }
 
+func usingContext(_ context: ComputeContext,
+                  _ fun: (ComputeContext) throws -> ComputeContext) rethrows -> ComputeContext {
+    //let (context, result) = try fun(beginComputePass(context))
+    //return (endComputePass(context), result)
+    endComputePass(try fun(beginComputePass(context)), true)
+}
+
 // applyComputeImage is a convenience function used for typical image compositing operations and
 // format conversion.  This has a standard set of useful uniforms for those
 // operations.  If you want to do something more custom, use runComputeKernel instead.

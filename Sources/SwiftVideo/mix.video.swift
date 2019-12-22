@@ -98,7 +98,7 @@ public class VideoMixer: Source<PictureSample> {
         clock.schedule(next) { [weak self] in self?.mix(at: $0) }
         queue.async { [weak self] in
             guard let strongSelf = self,
-                  var ctx = strongSelf.clContext else {
+                  let ctx = strongSelf.clContext else {
                 return
             }
             defer {
@@ -111,24 +111,18 @@ public class VideoMixer: Source<PictureSample> {
                 strongSelf.statsReport.startTimer("mix.video.delta")
                 strongSelf.statsReport.startTimer("mix.video.compose")
                 let backing = try strongSelf.getBacking()
-                ctx = beginComputePass(ctx)
-                let clearKernel = try strongSelf.findKernel(nil, backing)
-                // clear the target image
-                ctx = try runComputeKernel(ctx, images: [PictureSample](), target: backing, kernel: clearKernel)
-                // sort images by z-index so lowest is drawn first
                 let images = strongSelf.samples[0].merging(strongSelf.samples[1]) { lhs, _ in lhs }
-                                       .values.sorted { $0.zIndex() < $1.zIndex() }
-                // draw images
-                try images.forEach {
-                    ctx = try applyComputeImage(ctx,
-                                                image: $0,
-                                                target: backing,
-                                                kernel: strongSelf.findKernel($0, backing))
+                       .values.sorted { $0.zIndex() < $1.zIndex() }
+                strongSelf.clContext = try usingContext(ctx) {
+                    let clearKernel = try strongSelf.findKernel(nil, backing)
+                    let ctx = try runComputeKernel($0, images: [PictureSample](), target: backing, kernel: clearKernel)
+                    return try images.reduce(ctx) {
+                        try applyComputeImage($0,
+                                              image: $1,
+                                              target: backing,
+                                              kernel: strongSelf.findKernel($1, backing))
+                    }
                 }
-                // end compositing and wait for kernels to complete running
-                ctx = endComputePass(ctx, true)
-
-                strongSelf.clContext = ctx
                 strongSelf.statsReport.endTimer("mix.video.compose")
                 let sample = PictureSample(backing,
                                            pts: pts,

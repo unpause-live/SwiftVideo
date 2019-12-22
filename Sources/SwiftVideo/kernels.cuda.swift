@@ -64,8 +64,8 @@ __device__ float read_imagef(const unsigned char* buf, const int2 gid, const int
 }
 
 __device__ float read_imagef_bilinear(const unsigned char* buf, const int2 gid, const int2 size, const int stride) {
-    #define clamp_x(__x__) clamp((__x__), 0, size.x)
-    #define clamp_y(__y__) clamp((__y__), 0, size.y)
+    #define clamp_x(__x__) clamp((__x__), 0, size.x-1)
+    #define clamp_y(__y__) clamp((__y__), 0, size.y-1)
 
     float4 samples = make_float4(read_imagef(buf, gid, stride),
         read_imagef(buf, make_int2(clamp_x(gid.x+1), gid.y), stride),
@@ -92,8 +92,8 @@ __device__ float4 read_image4f(const unsigned char* buf, const int2 gid, const i
 }
 
 __device__ float4 read_image4f_bilinear(const unsigned char* buf, const int2 gid, const int2 size, const int stride) {
-    #define clamp_x(__x__) clamp((__x__), 0, size.x)
-    #define clamp_y(__y__) clamp((__y__), 0, size.y)
+    #define clamp_x(__x__) clamp((__x__), 0, size.x-1)
+    #define clamp_y(__y__) clamp((__y__), 0, size.y-1)
 
     float4 samples[4] = {
         read_image4f(buf, gid, stride),
@@ -174,7 +174,7 @@ enum CUDAKernel: String, CaseIterable {
             result.z = clamp(blend(curV, fillColor.z, alpha), -1.f, 1.f);
             if(tx.x >= 0.0 && tx.y >= 0.0 && tx.x <= 1.0 && tx.y <= 1.0 &&
                uv.x >= 0.f && uv.y >= 0.f && uv.x <= 1.f && uv.y <= 1.f) {
-                int2 pos = make_int2(uv.x * (uniforms->inSize.x-1.f), uv.y * (uniforms->inSize.y-1.f));
+                int2 pos = make_int2(uv.x * uniforms->inSize.x, uv.y * uniforms->inSize.y);
                 float4 bgra = read_image4f_bilinear(inPixels, pos, inSize, inStride[0]);
                 float4 rgba = make_float4(bgra.z, bgra.y, bgra.x, bgra.w);
                 float alpha = rgba.w * uniforms->opacity;
@@ -229,7 +229,7 @@ enum CUDAKernel: String, CaseIterable {
             if(tx.x >= 0.0 && tx.y >= 0.0 && tx.x <= 1.0 && tx.y <= 1.0 &&
                uv.x >= 0.f && uv.y >= 0.f && uv.x <= 1.f && uv.y <= 1.f) {
                 const int2 inSize = make_int2(uniforms->inSize.x, uniforms->inSize.y);
-                const int2 pos = make_int2(uv.x * (uniforms->inSize.x-1.f), uv.y * (uniforms->inSize.y-1.f));
+                const int2 pos = make_int2(uv.x * uniforms->inSize.x, uv.y * uniforms->inSize.y);
                 float luma = read_imagef_bilinear(inLuma, pos, inSize, inStride[0]);
                 result.x = blend(result.x, luma, alpha);
                 if(handleChroma) {
