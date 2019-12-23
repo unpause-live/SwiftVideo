@@ -110,15 +110,12 @@ func defaultComputeKernelFromString(_ str: String) throws -> ComputeKernel {
 }
 
 public func hasAvailableComputeDevices(forType search: ComputeDeviceType) -> Bool {
-    let allDevices = availableComputeDevices()
-    dump(allDevices)
-    let devices = allDevices.filter {
+    availableComputeDevices().filter {
         guard let type = $0.deviceType, type == search && $0.available else {
             return false
         }
         return true
-    }
-    return devices.count > 0
+    }.count > 0
 }
 
 public func makeComputeContext(forType search: ComputeDeviceType) throws -> ComputeContext {
@@ -133,8 +130,6 @@ public func makeComputeContext(forType search: ComputeDeviceType) throws -> Comp
 
 func usingContext(_ context: ComputeContext,
                   _ fun: (ComputeContext) throws -> ComputeContext) rethrows -> ComputeContext {
-    //let (context, result) = try fun(beginComputePass(context))
-    //return (endComputePass(context), result)
     endComputePass(try fun(beginComputePass(context)), true)
 }
 

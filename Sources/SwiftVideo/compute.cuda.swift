@@ -184,7 +184,6 @@ func buildComputeKernel(_ context: ComputeContext, name: String, source: String)
     var ptxSize: size_t =  0
     try check(nvrtcGetPTXSize(program, &ptxSize))
     context.logger.info("Built program \(name) ptx is \(ptxSize) bytes")
-    print("Built program \(name) ptx is \(ptxSize) bytes")
     var ptx = Data(count: ptxSize)
     let result: (CUmodule?, CUfunction?) = try ptx.withUnsafeMutableBytes { buf in
         guard let ptr = buf.baseAddress else { throw ComputeError.invalidValue }
@@ -196,8 +195,8 @@ func buildComputeKernel(_ context: ComputeContext, name: String, source: String)
         return (module, function)
     }
     let kernel = CUDAProgram(module: result.0, function: result.1, ptx: ptx)
-    print("ptx=\(String(decoding: ptx, as: UTF8.self))")
-    print("done \(kernel)")
+    //print("ptx=\(String(decoding: ptx, as: UTF8.self))")
+    //print("done \(kernel)")
     return ComputeContext(context, library: context.library.merging([name: kernel]) { $1 })
 }
 

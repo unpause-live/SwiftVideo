@@ -67,9 +67,9 @@ __device__ float read_imagef_bilinear(const unsigned char* buf, const int2 gid, 
     #define clamp_x(__x__) clamp((__x__), 0, size.x-1)
     #define clamp_y(__y__) clamp((__y__), 0, size.y-1)
 
-    float4 samples = make_float4(read_imagef(buf, gid, stride),
-        read_imagef(buf, make_int2(clamp_x(gid.x+1), gid.y), stride),
-        read_imagef(buf, make_int2(gid.x, clamp_y(gid.y+1)), stride),
+    float4 samples = make_float4(read_imagef(buf, make_int2(clamp_x(gid.x), clamp_y(gid.y)), stride),
+        read_imagef(buf, make_int2(clamp_x(gid.x+1), clamp_y(gid.y)), stride),
+        read_imagef(buf, make_int2(clamp_x(gid.x), clamp_y(gid.y+1)), stride),
         read_imagef(buf, make_int2(clamp_x(gid.x+1), clamp_y(gid.y+1)), stride));
 
     float2 pos = make_float2((float)gid.x/(float)size.x, (float)gid.y/(float)size.y);
@@ -96,9 +96,9 @@ __device__ float4 read_image4f_bilinear(const unsigned char* buf, const int2 gid
     #define clamp_y(__y__) clamp((__y__), 0, size.y-1)
 
     float4 samples[4] = {
-        read_image4f(buf, gid, stride),
-        read_image4f(buf, make_int2(clamp_x(gid.x+1), gid.y), stride),
-        read_image4f(buf, make_int2(gid.x, clamp_y(gid.y+1)), stride),
+        read_image4f(buf, make_int2(clamp_x(gid.x), clamp_y(gid.y)), stride),
+        read_image4f(buf, make_int2(clamp_x(gid.x+1), clamp_y(gid.y)), stride),
+        read_image4f(buf, make_int2(clamp_x(gid.x), clamp_y(gid.y+1)), stride),
         read_image4f(buf, make_int2(clamp_x(gid.x+1), clamp_y(gid.y+1)), stride)
     };
     float2 pos = make_float2((float)gid.x/(float)size.x, (float)gid.y/(float)size.y);
