@@ -1,0 +1,6 @@
+module CCUDA [system] {
+    header "shim.h"
+    link "cuda"
+    link "nvrtc"
+    export *
+}

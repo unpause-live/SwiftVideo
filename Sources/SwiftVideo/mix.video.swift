@@ -76,17 +76,11 @@ public class VideoMixer: Source<PictureSample> {
         clock.schedule(now + frameDuration) { [weak self] in self?.mix(at: $0) }
     }
 
-    public func assetId() -> String {
-        return idAsset
-    }
+    public func assetId() -> String { idAsset }
 
-    public func workspaceId() -> String {
-        return idWorkspace
-    }
+    public func workspaceId() -> String { idWorkspace }
 
-    public func computeContext() -> ComputeContext? {
-        return self.clContext
-    }
+    public func computeContext() -> ComputeContext? { self.clContext }
 
     deinit {
         if let context = self.clContext {
@@ -96,14 +90,15 @@ public class VideoMixer: Source<PictureSample> {
             self.clContext = nil
         }
     }
+
     // swiftlint:disable:next identifier_name
-    func mix(at: ClockTickEvent) {
+    private func mix(at: ClockTickEvent) {
         let next = at.time() + frameDuration
         let pts = at.time() - epoch
         clock.schedule(next) { [weak self] in self?.mix(at: $0) }
         queue.async { [weak self] in
             guard let strongSelf = self,
-                  var ctx = strongSelf.clContext else {
+                  let ctx = strongSelf.clContext else {
                 return
             }
             defer {
@@ -116,24 +111,18 @@ public class VideoMixer: Source<PictureSample> {
                 strongSelf.statsReport.startTimer("mix.video.delta")
                 strongSelf.statsReport.startTimer("mix.video.compose")
                 let backing = try strongSelf.getBacking()
-                ctx = beginComputePass(ctx)
-                let clearKernel = try strongSelf.findKernel(nil, backing)
-                // clear the target image
-                ctx = try runComputeKernel(ctx, images: [PictureSample](), target: backing, kernel: clearKernel)
-                // sort images by z-index so lowest is drawn first
                 let images = strongSelf.samples[0].merging(strongSelf.samples[1]) { lhs, _ in lhs }
-                                       .values.sorted { $0.zIndex() < $1.zIndex() }
-                // draw images
-                try images.forEach {
-                    ctx = try applyComputeImage(ctx,
-                                                image: $0,
-                                                target: backing,
-                                                kernel: strongSelf.findKernel($0, backing))
+                       .values.sorted { $0.zIndex() < $1.zIndex() }
+                strongSelf.clContext = try usingContext(ctx) {
+                    let clearKernel = try strongSelf.findKernel(nil, backing)
+                    let ctx = try runComputeKernel($0, images: [PictureSample](), target: backing, kernel: clearKernel)
+                    return try images.reduce(ctx) {
+                        try applyComputeImage($0,
+                                              image: $1,
+                                              target: backing,
+                                              kernel: strongSelf.findKernel($1, backing))
+                    }
                 }
-                // end compositing and wait for kernels to complete running
-                ctx = endComputePass(ctx, true)
-
-                strongSelf.clContext = ctx
                 strongSelf.statsReport.endTimer("mix.video.compose")
                 let sample = PictureSample(backing,
                                            pts: pts,
@@ -142,6 +131,7 @@ public class VideoMixer: Source<PictureSample> {
                 _ = strongSelf.emit(sample)
                 result = .nothing(strongSelf.statsReport)
             } catch let error {
+                print("mix caught error \(error)")
                 result = .error(EventError("mix.video", -2, "Compute error \(error)",
                                            at.time(), assetId: strongSelf.idAsset))
             }
@@ -173,6 +163,7 @@ public class VideoMixer: Source<PictureSample> {
             return image
         }
     }
+
     private let numberBackingImages = 10
     private let statsReport: StatsReport
 

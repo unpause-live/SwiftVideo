@@ -25,6 +25,7 @@ enum ComputeError: Error {
     case invalidOperation
     case invalidValue
     case invalidProgram
+    case invalidContext
     case deviceNotAvailable
     case outOfMemory
     case compilerNotAvailable
@@ -32,6 +33,7 @@ enum ComputeError: Error {
     case badTarget
     case badInputData(description: String)
     case badContextState(description: String)
+    case compilerError(description: String)
     case unknownError
     case notImplemented
 }
@@ -108,13 +110,12 @@ func defaultComputeKernelFromString(_ str: String) throws -> ComputeKernel {
 }
 
 public func hasAvailableComputeDevices(forType search: ComputeDeviceType) -> Bool {
-    let devices = availableComputeDevices().filter {
+    availableComputeDevices().filter {
         guard let type = $0.deviceType, type == search && $0.available else {
             return false
         }
         return true
-    }
-    return devices.count > 0
+    }.count > 0
 }
 
 public func makeComputeContext(forType search: ComputeDeviceType) throws -> ComputeContext {
@@ -126,6 +127,48 @@ public func makeComputeContext(forType search: ComputeDeviceType) throws -> Comp
         throw ComputeError.deviceNotAvailable
     }
 }
+
+func usingContext(_ context: ComputeContext,
+                  _ fun: (ComputeContext) throws -> ComputeContext) rethrows -> ComputeContext {
+    endComputePass(try fun(beginComputePass(context)), true)
+}
+
+// applyComputeImage is a convenience function used for typical image compositing operations and
+// format conversion.  This has a standard set of useful uniforms for those
+// operations.  If you want to do something more custom, use runComputeKernel instead.
+// Throws ComputeError:
+//  - badContextState
+//  - computeKernelNotFound
+//  - badInputData
+//  - badTarget
+// Can throw additional errors from MTLDevice.makeComputePipelineState
+func applyComputeImage(_ context: ComputeContext,
+                       image: PictureSample,
+                       target: PictureSample,
+                       kernel: ComputeKernel) throws -> ComputeContext {
+    let inputSize = Vector2([image.size().x, image.size().y])
+    let outputSize = Vector2([target.size().x, target.size().y])
+    let matrix = image.matrix().inverse.transpose
+    let textureMatrix = image.textureMatrix().inverse.transpose
+    let uniforms = ImageUniforms(transform: matrix,
+                                 textureTransform: textureMatrix,
+                                 borderMatrix: image.borderMatrix().inverse.transpose,
+                                 fillColor: image.fillColor(),
+                                 inputSize: inputSize,
+                                 outputSize: outputSize,
+                                 opacity: image.opacity(),
+                                 imageTime: seconds(image.time()),
+                                 targetTime: seconds(target.time()))
+
+    return try runComputeKernel(context,
+                                images: [image],
+                                target: target,
+                                kernel: kernel,
+                                maxPlanes: 3,
+                                uniforms: uniforms,
+                                blends: true)
+}
+
 //
 //  Place in a pipeline to upload textures to the GPU
 //
