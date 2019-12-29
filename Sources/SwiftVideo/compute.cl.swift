@@ -13,8 +13,8 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-
-#if os(Linux) || (os(macOS) && GPGPU_OCL)
+// swiftlint:disable file_length
+#if GPGPU_OCL
 #if os(macOS)
 #warning ("macOS support is deprecated, this is only for development. Use Metal for production.")
 import OpenCL
@@ -343,43 +343,6 @@ func runComputeKernel<T>(_ context: ComputeContext,
     return context
 }
 
-// applyComputeImage is a convenience function used for typical image compositing operations and
-// format conversion.  This has a standard set of useful uniforms for those
-// operations.  If you want to do something more custom, use runComputeKernel instead.
-// Throws ComputeError:
-//  - badContextState
-//  - computeKernelNotFound
-//  - badInputData
-//  - badTarget
-// Can throw additional errors from MTLDevice.makeComputePipelineState
-func applyComputeImage(_ context: ComputeContext,
-                       image: PictureSample,
-                       target: PictureSample,
-                       kernel: ComputeKernel) throws -> ComputeContext {
-
-    let inputSize = Vector2([image.size().x, image.size().y])
-    let outputSize = Vector2([target.size().x, target.size().y])
-    let matrix = image.matrix().inverse.transpose
-    let textureMatrix = image.textureMatrix().inverse.transpose
-    let uniforms = ImageUniforms(transform: matrix,
-                                 textureTransform: textureMatrix,
-                                 borderMatrix: image.borderMatrix().inverse.transpose,
-                                 fillColor: image.fillColor(),
-                                 inputSize: inputSize,
-                                 outputSize: outputSize,
-                                 opacity: image.opacity(),
-                                 imageTime: seconds(image.time()),
-                                 targetTime: seconds(target.time()))
-
-    return try runComputeKernel(context,
-                                images: [image],
-                                target: target,
-                                kernel: kernel,
-                                maxPlanes: 3,
-                                uniforms: uniforms,
-                                blends: true)
-}
-
 func endComputePass( _ context: ComputeContext, _ waitForCompletion: Bool ) -> ComputeContext {
     guard let queue = context.commandQueue else {
         return context
@@ -455,7 +418,10 @@ func downloadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlane
 
 #if os(Linux)
 // Creates a PictureSample that exists on the GPU
-func uploadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes: Int = 3) throws -> PictureSample {
+func uploadComputePicture(_ ctx: ComputeContext,
+                          pict: PictureSample,
+                          maxPlanes: Int = 3,
+                          retainCpuBuffer: Bool = true) throws -> PictureSample {
     guard pict.bufferType() == .cpu else {
         return pict
     }
@@ -485,11 +451,16 @@ func uploadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes:
         try checkCLError(result)
     }
     _ = endComputePass(ctx, true)
-    let image = ImageBuffer(imageBuffer, computeTextures: textures, bufferType: .gpu)
+        let image = ImageBuffer(imageBuffer,
+                            computeTextures: textures,
+                            buffers: !retainCpuBuffer ? [] : nil,
+                            bufferType: .gpu)
     return PictureSample(pict, img: image)
 }
 
-func downloadComputePicture(_ ctx: ComputeContext, pict: PictureSample) throws -> PictureSample {
+func downloadComputePicture(_ ctx: ComputeContext,
+                            pict: PictureSample,
+                            retainGpuBuffer: Bool = false) throws -> PictureSample {
     guard pict.bufferType() == .gpu else {
         return pict
     }
@@ -519,7 +490,10 @@ func downloadComputePicture(_ ctx: ComputeContext, pict: PictureSample) throws -
         return buffer
     }
     _ = endComputePass(ctx, true)
-    let image = ImageBuffer(imageBuffer, buffers: buffers, bufferType: .cpu)
+    let image = ImageBuffer(imageBuffer,
+                        computeTextures: !retainGpuBuffer ? [] : nil,
+                        buffers: buffers,
+                        bufferType: .cpu)
     return PictureSample(pict, img: image)
 }
 #endif

@@ -178,7 +178,7 @@ func runComputeKernel<T>(_ context: ComputeContext,
 //  - badInputData
 //  - badTarget
 // Can throw additional errors from MTLDevice.makeComputePipelineState
-func applyComputeImage(_ context: ComputeContext,
+/*func applyComputeImage(_ context: ComputeContext,
                        image: PictureSample,
                        target: PictureSample,
                        kernel: ComputeKernel) throws -> ComputeContext {
@@ -205,7 +205,7 @@ func applyComputeImage(_ context: ComputeContext,
                                 kernel: kernel,
                                 maxPlanes: 3,
                                 uniforms: uniforms)
-}
+}*/
 
 // Completes the pass and waits for synchronization.
 // Destroys the command buffer previously created.

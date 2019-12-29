@@ -25,8 +25,8 @@ public struct ImageBuffer {
                 bufferType: BufferType,
                 size: Vector2,
                 computeTextures: [ComputeBuffer] = [ComputeBuffer](),
-                buffers: [Data] = [Data](),
-                planes: [Plane] = [Plane]()) throws {
+                buffers: [Data] = [],
+                planes: [Plane] = []) throws {
         guard computeTextures.count > 0 || buffers.count > 0 else {
             throw ComputeError.badInputData(description: "Must provide either compute textures or buffers")
         }
@@ -40,23 +40,25 @@ public struct ImageBuffer {
 
     public init(_ other: ImageBuffer,
                 computeTextures: [ComputeBuffer],
+                buffers: [Data]? = nil,
                 bufferType: BufferType? = nil) {
         self.pixelFormat = other.pixelFormat
         self.bufferType = bufferType ?? other.bufferType
         self.size = other.size
-        self.buffers = other.buffers
+        self.buffers = buffers ?? other.buffers
         self.computeTextures = computeTextures
         self.planes = other.planes
     }
 
     public init(_ other: ImageBuffer,
+                computeTextures: [ComputeBuffer]? = nil,
                 buffers: [Data],
                 bufferType: BufferType? = nil) {
         self.pixelFormat = other.pixelFormat
         self.bufferType = bufferType ?? other.bufferType
         self.size = other.size
         self.buffers = buffers
-        self.computeTextures = other.computeTextures
+        self.computeTextures = computeTextures ?? other.computeTextures
         self.planes = other.planes
     }
 
@@ -109,13 +111,13 @@ public final class PictureSample: PictureEvent {
 
     public func textureMatrix() -> Matrix4 { texTransform }
 
-    public func size() -> Vector2 { imageBuffer().map { $0.size } ?? Vector2.zero }
+    public func size() -> Vector2 { imageBuffer()?.size ?? Vector2.zero }
 
     public func zIndex() -> Int { Int(round((Vector3(0, 0, 0) * self.transform).z)) }
 
-    public func pixelFormat() -> PixelFormat { imageBuffer().map { $0.pixelFormat } ?? .invalid }
+    public func pixelFormat() -> PixelFormat { imageBuffer()?.pixelFormat ?? .invalid }
 
-    public func bufferType() -> BufferType { imageBuffer().map { $0.bufferType } ?? .invalid }
+    public func bufferType() -> BufferType { imageBuffer()?.bufferType ?? .invalid }
 
     public func lock() {}
 
