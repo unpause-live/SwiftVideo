@@ -418,7 +418,10 @@ func downloadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlane
 
 #if os(Linux)
 // Creates a PictureSample that exists on the GPU
-func uploadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes: Int = 3) throws -> PictureSample {
+func uploadComputePicture(_ ctx: ComputeContext,
+                          pict: PictureSample,
+                          maxPlanes: Int = 3,
+                          retainCpuBuffer: Bool = true) throws -> PictureSample {
     guard pict.bufferType() == .cpu else {
         return pict
     }
@@ -448,11 +451,16 @@ func uploadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes:
         try checkCLError(result)
     }
     _ = endComputePass(ctx, true)
-    let image = ImageBuffer(imageBuffer, computeTextures: textures, bufferType: .gpu)
+        let image = ImageBuffer(imageBuffer,
+                            computeTextures: textures,
+                            buffers: !retainCpuBuffer ? [] : nil,
+                            bufferType: .gpu)
     return PictureSample(pict, img: image)
 }
 
-func downloadComputePicture(_ ctx: ComputeContext, pict: PictureSample) throws -> PictureSample {
+func downloadComputePicture(_ ctx: ComputeContext,
+                            pict: PictureSample,
+                            retainGpuBuffer: Bool = false) throws -> PictureSample {
     guard pict.bufferType() == .gpu else {
         return pict
     }
@@ -482,7 +490,10 @@ func downloadComputePicture(_ ctx: ComputeContext, pict: PictureSample) throws -
         return buffer
     }
     _ = endComputePass(ctx, true)
-    let image = ImageBuffer(imageBuffer, buffers: buffers, bufferType: .cpu)
+    let image = ImageBuffer(imageBuffer,
+                        computeTextures: !retainGpuBuffer ? [] : nil,
+                        buffers: buffers,
+                        bufferType: .cpu)
     return PictureSample(pict, img: image)
 }
 #endif

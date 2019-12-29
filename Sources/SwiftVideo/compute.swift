@@ -173,7 +173,7 @@ func applyComputeImage(_ context: ComputeContext,
 //  Place in a pipeline to upload textures to the GPU
 //
 public class GPUBarrierUpload: Tx<PictureSample, PictureSample> {
-    public init(_ context: ComputeContext) {
+    public init(_ context: ComputeContext, retainCpuBuffer: Bool = true) {
         self.context = createComputeContext(sharing: context)
         super.init()
         super.set { [weak self] in
@@ -183,7 +183,7 @@ public class GPUBarrierUpload: Tx<PictureSample, PictureSample> {
             if $0.bufferType() == .cpu {
                 do {
                     $0.info()?.startTimer("gpu.upload")
-                    let sample = try uploadComputePicture(context, pict: $0)
+                    let sample = try uploadComputePicture(context, pict: $0, retainCpuBuffer: retainCpuBuffer)
                     $0.info()?.endTimer("gpu.upload")
                     return .just(sample)
                 } catch let error {
@@ -230,7 +230,7 @@ public class GPUBarrierAudioUpload: Tx<AudioSample, AudioSample> {
 //  Place in a pipeline to download textures from the GPU
 //
 public class GPUBarrierDownload: Tx<PictureSample, PictureSample> {
-    public init(_ context: ComputeContext) {
+    public init(_ context: ComputeContext, retainGpuBuffer: Bool = true) {
         self.context = createComputeContext(sharing: context)
         super.init()
         super.set { [weak self] in
@@ -240,7 +240,7 @@ public class GPUBarrierDownload: Tx<PictureSample, PictureSample> {
             if $0.bufferType() == .gpu {
                 do {
                     $0.info()?.startTimer("gpu.download")
-                    let sample = try downloadComputePicture(context, pict: $0)
+                    let sample = try downloadComputePicture(context, pict: $0, retainGpuBuffer: retainGpuBuffer)
                     $0.info()?.endTimer("gpu.download")
                     return .just(sample)
                 } catch let error {

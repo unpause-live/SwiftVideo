@@ -91,14 +91,11 @@ public final class Connection: Source<NetworkEvent>, ChannelInboundHandler {
             }
         }
     }
-    deinit {
-        print("tcp client deinit")
-    }
+
     // Invoked on client connection
     public func channelRegistered(context: ChannelHandlerContext) { }
 
     public func channelActive(context: ChannelHandlerContext) {
-        print("Client connected to \(context.remoteAddress!)")
         self.ctx = context
         self.connected(self)
     }
@@ -112,7 +109,6 @@ public final class Connection: Source<NetworkEvent>, ChannelInboundHandler {
         if let ctx = self.ctx {
             ctx.pipeline.eventLoop.execute { ctx.close(promise: nil) }
         }
-        print("tcp connection closed")
     }
     // Invoked when data are received from the client
     public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
@@ -190,11 +186,7 @@ public func tcpClient(group: EventLoopGroup,
                       uuid: String? = nil,
                       connected: @escaping (_ ctx: Connection) -> Void,
                       ended: @escaping (_ ctx: Connection) -> Void) -> EventLoopFuture<Channel> {
-    print("dialing out to \(host):\(port)")
     let res = ClientBootstrap(group: group)
-        // Enable SO_REUSEADDR.
-        //.channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
-        //.channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), TCP_NODELAY), value: 1)
         .channelOption(ChannelOptions.recvAllocator, value: AdaptiveRecvByteBufferAllocator())
         .channelInitializer { channel in
             channel.pipeline.addHandler(BackPressureHandler()).flatMap { _ in
@@ -214,19 +206,11 @@ public func tlsClient(group: EventLoopGroup,
     let configuration = TLSConfiguration.forClient()
     let tlsContext = try NIOSSLContext(configuration: configuration)
     let tlsHandler = try NIOSSLClientHandler(context: tlsContext, serverHostname: host)
-    print("tls dial out to \(host):\(port)")
     let res = ClientBootstrap(group: group)
-        // Enable SO_REUSEADDR.
-        //.channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
         .channelOption(ChannelOptions.recvAllocator, value: AdaptiveRecvByteBufferAllocator())
         .channelInitializer { channel in
-            print("new channel \(channel)")
-            return channel.pipeline.addHandler(tlsHandler).flatMap { _ in
-                //channel.pipeline.addHandler(BackPressureHandler()).flatMap { _ in
-                    print("connected here, creating Connection object")
-                    return channel.pipeline.addHandler(Connection(
-                        clock, uuid: uuid, connected: connected, ended: ended))
-                //}
+            channel.pipeline.addHandler(tlsHandler).flatMap { _ in
+                channel.pipeline.addHandler(Connection(clock, uuid: uuid, connected: connected, ended: ended))
             }
         }
     return res.connect(host: host, port: port)
