@@ -395,7 +395,7 @@ func downloadComputeBuffer(_ ctx: ComputeContext, src: ComputeBuffer, dst: Data?
 }
 
 #if os(macOS)
-func uploadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes: Int = 3) throws -> PictureSample {
+func uploadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes: Int = 3, retainCpuBuffer: Bool = true) throws -> PictureSample {
     guard 3 >= maxPlanes else {
         throw ComputeError.badInputData(description: "Input images must have 3 planes or fewer")
     }
@@ -407,7 +407,7 @@ func uploadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes:
     return PictureSample(pict, img: image)
 }
 
-func downloadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes: Int = 3) throws -> PictureSample {
+func downloadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes: Int = 3, retainGpuBuffer: Bool = true) throws -> PictureSample {
     guard 3 >= maxPlanes else {
         throw ComputeError.badInputData(description: "Input images must have 3 planes or fewer")
     }
