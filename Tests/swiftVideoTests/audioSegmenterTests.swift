@@ -91,7 +91,7 @@ final class audioSegmenterTests: XCTestCase {
         var pushIdx = 0
         var isFirst = true
         let receiver = Terminal<AudioSample> { sample in
-            print("received sample")
+            //print("received sample")
             //dump(sample)
             clock.step()
             guard isFirst == false && sample.pts().value > 960 else {
@@ -102,8 +102,8 @@ final class audioSegmenterTests: XCTestCase {
             let similarity = self.diff(reference, sample.data()[0])
             guard similarity > 0.9 else { // some small differences may be present due to floating point conversion
                 print("error at timePoint \(sample.pts().toString()) \(pushIdx)")
-                try! reference.write(to: URL(string: "file:///home/james/dev/reference.pcm")!)
-                try! sample.data()[0].write(to: URL(string: "file:///home/james/dev/sample.pcm")!)
+                //try! reference.write(to: URL(string: "file:///home/james/dev/reference.pcm")!)
+                //try! sample.data()[0].write(to: URL(string: "file:///home/james/dev/sample.pcm")!)
                 fatalError("reference != sample.data() [\(similarity)]")
             }
             let targetPts = clock.current()

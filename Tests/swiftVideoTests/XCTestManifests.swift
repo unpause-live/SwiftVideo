@@ -19,7 +19,7 @@ import XCTest
 #if !os(macOS)
 public func allTests() -> [XCTestCaseEntry] {
     return [
-        testCase(audioSegmenterTests.allTests),
+        //testCase(audioSegmenterTests.allTests),
         testCase(statsTests.allTests),
         testCase(sampleRateConversionTests.allTests),
         testCase(busTests.allTests),
