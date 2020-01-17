@@ -41,6 +41,9 @@ public enum RpcFeatureType: SwiftProtobuf.Enum {
   case subtractor // = 2
   case rtmpOutput // = 3
   case browser // = 4
+
+  /// Used for third-party proprietary integrations
+  case proprietaryIo // = 5
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -54,6 +57,7 @@ public enum RpcFeatureType: SwiftProtobuf.Enum {
     case 2: self = .subtractor
     case 3: self = .rtmpOutput
     case 4: self = .browser
+    case 5: self = .proprietaryIo
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -65,6 +69,7 @@ public enum RpcFeatureType: SwiftProtobuf.Enum {
     case .subtractor: return 2
     case .rtmpOutput: return 3
     case .browser: return 4
+    case .proprietaryIo: return 5
     case .UNRECOGNIZED(let i): return i
     }
   }
@@ -81,6 +86,7 @@ extension RpcFeatureType: CaseIterable {
     .subtractor,
     .rtmpOutput,
     .browser,
+    .proprietaryIo,
   ]
 }
 
@@ -557,6 +563,7 @@ extension RpcFeatureType: SwiftProtobuf._ProtoNameProviding {
     2: .same(proto: "subtractor"),
     3: .same(proto: "rtmpOutput"),
     4: .same(proto: "browser"),
+    5: .same(proto: "proprietaryIO"),
   ]
 }
 

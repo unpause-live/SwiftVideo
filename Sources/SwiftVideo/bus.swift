@@ -260,7 +260,7 @@ open class AsyncTx <T, U> : Tx<T, U> {
 
 open class Source<U>: AsyncTx<U, U> {}
 
-public typealias Terminal<T> = Tx<T, ResultEvent> where T: Event
+public typealias Terminal<T> = Tx<T, ResultEvent>
 
 public func filter <U> () -> Tx<Event, U> where U: Event {
     return Tx {
