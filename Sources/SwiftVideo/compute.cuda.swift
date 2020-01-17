@@ -413,16 +413,16 @@ private func createBuffer(_ ctx: ComputeContext, _ size: Int) throws -> ComputeB
 private func createTexture(_ ctx: ComputeContext,
                            _ image: ImageBuffer,
                            _ maxPlanes: Int = 3) throws -> [ComputeBuffer] {
+    guard image.bufferType == .cpu else { return image.computeTextures }
     let planeCount = image.planes.count
     guard 3 >= planeCount &&  0 < planeCount else {
         throw ComputeError.badInputData(description: "Input image must have 1, 2, or 3 planes")
     }
+
     guard planeCount == image.buffers.count else {
         throw ComputeError.badInputData(description: "Input image must have the same number of buffers as planes")
     }
-    guard min(planeCount, maxPlanes) != image.computeTextures.count else {
-        return image.computeTextures
-    }
+
     return try (0..<min(planeCount, maxPlanes) as CountableRange).map { idx in
         let plane = image.planes[idx]
         let size = Int(plane.size.y) * plane.stride

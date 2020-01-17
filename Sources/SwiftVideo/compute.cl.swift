@@ -395,7 +395,7 @@ func downloadComputeBuffer(_ ctx: ComputeContext, src: ComputeBuffer, dst: Data?
 }
 
 #if os(macOS)
-func uploadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes: Int = 3) throws -> PictureSample {
+func uploadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes: Int = 3, retainCpuBuffer: Bool = true) throws -> PictureSample {
     guard 3 >= maxPlanes else {
         throw ComputeError.badInputData(description: "Input images must have 3 planes or fewer")
     }
@@ -407,7 +407,7 @@ func uploadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes:
     return PictureSample(pict, img: image)
 }
 
-func downloadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes: Int = 3) throws -> PictureSample {
+func downloadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes: Int = 3, retainGpuBuffer: Bool = true) throws -> PictureSample {
     guard 3 >= maxPlanes else {
         throw ComputeError.badInputData(description: "Input images must have 3 planes or fewer")
     }
@@ -532,16 +532,16 @@ private func createBuffer(_ ctx: ComputeContext, _ size: Int) throws -> ComputeB
 private func createTexture(_ ctx: ComputeContext,
                            _ image: ImageBuffer,
                            _ maxPlanes: Int = 3) throws -> [ComputeBuffer] {
+    guard image.bufferType == .cpu else { return image.computeTextures }
     let planeCount = image.planes.count
     guard 3 >= planeCount &&  0 < planeCount else {
         throw ComputeError.badInputData(description: "Input image must have 1, 2, or 3 planes")
     }
     guard planeCount == image.buffers.count else {
-        throw ComputeError.badInputData(description: "Input image must have the same number of buffers as planes")
+        throw ComputeError.badInputData(description: "Input image must have the same number of buffers as " +
+            "planes: \(image.buffers.count) vs. \(image.planes.count)")
     }
-    guard min(planeCount, maxPlanes) != image.computeTextures.count else {
-        return image.computeTextures
-    }
+
     return try (0..<min(planeCount, maxPlanes) as CountableRange).map { idx in
         let plane = image.planes[idx]
         let components = plane.components.count

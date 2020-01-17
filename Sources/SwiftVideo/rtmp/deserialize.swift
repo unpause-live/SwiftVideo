@@ -18,6 +18,7 @@ import NIO
 import Foundation
 
 extension rtmp {
+    //swiftlint:disable identifier_name
     // swiftlint:disable:next type_name
     enum deserialize {
         static func parseChunk(_ buf: ByteBuffer, ctx: Context) -> (ByteBuffer?, Chunk?, Context) {

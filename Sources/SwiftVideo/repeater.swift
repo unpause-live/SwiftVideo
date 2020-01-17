@@ -14,40 +14,48 @@
    limitations under the License.
 */
 
+import Dispatch
+import Foundation
+
 // Repeats a sample at a specified interval if a new one is not provided.
 public class Repeater<T>: AsyncTx<T, T> {
     public init(_ clock: Clock, interval: TimePoint) {
         self.clock = clock
         self.lastEmit = clock.current()
+        self.queue = DispatchQueue(label: "repeater.\(UUID().uuidString)")
         super.init()
         let interval = rescale(interval, clock.current().scale)
-        super.set { [weak self] in
+        super.set { [weak self] sample in
             guard let strongSelf = self else {
                 return .gone
             }
-            strongSelf.sample = $0
             let now = strongSelf.clock.current()
-            strongSelf.lastEmit = now
+            strongSelf.queue.sync {
+                strongSelf.sample = sample
+                strongSelf.lastEmit = now
+            }
             strongSelf.run(interval)
-            return .just($0)
+            return .just(sample)
         }
     }
-    deinit {
-        print("repeater deinit")
-    }
+
     private func run(_ interval: TimePoint) {
         let now = self.clock.current()
         self.clock.schedule(now + interval) { [weak self] evt in
-            guard let strongSelf = self, let sample = strongSelf.sample else {
-                return
-            }
-            if (strongSelf.lastEmit + interval) <= evt.timePoint {
-                _ = strongSelf.emit(sample)
-                strongSelf.lastEmit = evt.timePoint
-                strongSelf.run(interval)
+            self?.queue.async {
+                guard let strongSelf = self, let sample = strongSelf.sample else {
+                    return
+                }
+                if (strongSelf.lastEmit + interval) <= evt.timePoint {
+                    _ = strongSelf.emit(sample)
+                    strongSelf.lastEmit = evt.timePoint
+                    strongSelf.run(interval)
+                }
             }
         }
     }
+
+    private let queue: DispatchQueue
     private let clock: Clock
     private var sample: T?
     private var lastEmit: TimePoint
