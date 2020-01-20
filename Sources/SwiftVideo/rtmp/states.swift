@@ -31,6 +31,7 @@ func generateRandomBytes(_ base: UnsafeMutableRawPointer?, _ count: Int) {
 
 #endif
 extension rtmp {
+    typealias HandshakeResult = (EventBox<Event>, ByteBuffer?, Context, Bool)
     enum states {
         static func onStatus(_ level: String,
                              code: String,
@@ -56,7 +57,7 @@ extension rtmp {
             }
         }
 
-        static func establish(_ buf: ByteBuffer, ctx: Context) -> (EventBox<Event>, ByteBuffer?, Context, Bool) {
+        static func establish(_ buf: ByteBuffer, ctx: Context) -> HandshakeResult {
             let (buf, chk, ctx) = deserialize.parseChunk(buf, ctx: ctx)
             if let chunk = chk {
                 let (result, ctx) = handleChunk(chunk, ctx: ctx)
@@ -66,7 +67,7 @@ extension rtmp {
         }
 
         // MARK: - Handshake Functions
-        static func c0c1(_ buf: ByteBuffer, ctx: Context) -> (EventBox<Event>, ByteBuffer?, Context, Bool) {
+        static func c0c1(_ buf: ByteBuffer, ctx: Context) -> HandshakeResult {
             if let c1 = buffer.getSlice(buf, 1, 1536),
                 let res = [buffer.getSlice(buf, 0, 1537), c1].reduce(nil, buffer.concat) {
                 // Send S0S1S2
@@ -79,8 +80,8 @@ extension rtmp {
             }
             return (.nothing(nil), buf, ctx, false)
         }
-        static func writeC0c1( _ ctx: Context ) -> (EventBox<Event>, ByteBuffer?, Context, Bool) {
 
+        static func writeC0c1( _ ctx: Context ) -> HandshakeResult {
             let bytes: [UInt8] = [0x3, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0]
             var randomBytes = Data(count: 1528)
             _ = randomBytes.withUnsafeMutableBytes { (ptr: UnsafeMutableRawBufferPointer) -> Void in
@@ -97,7 +98,8 @@ extension rtmp {
                                    bytes: outBytes)
             return (.just(evt), buffer.advancingReader(evt.data(), by: 1), ctx, true)
         }
-        static func s0s1(_ buf: ByteBuffer, ctx: Context) -> (EventBox<Event>, ByteBuffer?, Context, Bool) {
+
+        static func s0s1(_ buf: ByteBuffer, ctx: Context) -> HandshakeResult {
             if let s1 = buffer.getSlice(buf, 1, 1536) {
                 // Send C2
                 let evt = NetworkEvent(time: nil,
@@ -108,8 +110,8 @@ extension rtmp {
             }
             return (.nothing(nil), buf, ctx, false)
         }
-        static func s2( _ buf: ByteBuffer, ctx: Context) -> (EventBox<Event>, ByteBuffer?, Context, Bool) {
-            if let _ = buffer.getSlice(buf, 0, 1536) {
+        static func s2( _ buf: ByteBuffer, ctx: Context) -> HandshakeResult {
+            if buffer.getSlice(buf, 0, 1536) != nil {
                 let buf = buffer.advancingReader(buf, by: 1536)
                 let (result, ctx) = createConnect(ctx)
                 return (result, buf, ctx, true)
@@ -117,7 +119,7 @@ extension rtmp {
             return (.nothing(nil), buf, ctx, false)
         }
 
-        static func c2(_ buf: ByteBuffer, ctx: Context) -> (EventBox<Event>, ByteBuffer?, Context, Bool) {
+        static func c2(_ buf: ByteBuffer, ctx: Context) -> HandshakeResult {
             if buf.readableBytes >= 1536 {
                 return (.nothing(nil), buffer.advancingReader(buf, by: 1536), ctx, true)
             }

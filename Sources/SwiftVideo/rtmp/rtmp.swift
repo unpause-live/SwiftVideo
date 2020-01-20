@@ -184,7 +184,7 @@ public class Rtmp {
                 }
                 return strongSelf.handleCompletion($0, conn: conn)
             }
-            strongSelf.queue.async {
+            strongSelf.queue.sync {
                 strongSelf.handshaking[conn.ident] = conn >>> mix() >>> handshake >>> filter() >>> conn
             }
         }
