@@ -144,8 +144,9 @@ public class Composer {
           case .elementState(let state):
               return setState(state.elementID, state.stateID, state.duration)
           case .bind(let req):
-              bind(req.assetID, elementId: req.elementID)
-              return action(oneof)
+              return action(oneof)?.andThen { [weak self] _ in
+                self?.bind(req.assetID, elementId: req.elementID)
+              }
           case .loadFile, .playFile, .stopFile:
               return action(oneof)
           case .setText:
