@@ -80,56 +80,58 @@ public class Composer {
           { $0.union($1.value.elements.keys) }.map { ($0,
                 ElementAnimator(PictureAnimator(clock, canvasSize: canvasSize),
                 SoundAnimator(clock), [:])) })
+        self.queue = DispatchQueue(label: "swiftvideo.composer.\(assetId)")
         // setup complete, set default scene
         self.setScene(composition.composition.initialScene)
     }
 
     public func bind(_ assetId: String, elementId: String) {
-        if let element = elements[elementId] {
+        if let element = queue.sync(execute: { elements[elementId] }) {
             logger.info("found element \(elementId), connecting")
-            self.elements[elementId] = ElementAnimator(element.picAnimator,
-                element.sounAnimator, element.states, assetId: assetId)
+            print("found element \(elementId), connecting")
+            queue.sync { self.elements[elementId] = ElementAnimator(element.picAnimator,
+                element.sounAnimator, element.states, assetId: assetId) }
         }
         connectElement(elementId, setInitialState: true)
     }
 
     public func unbind(_ elementId: String) {
       if let element = elements[elementId] {
-          self.elements[elementId] = ElementAnimator(element.picAnimator, element.sounAnimator, element.states)
+          queue.sync { self.elements[elementId] =
+                                ElementAnimator(element.picAnimator, element.sounAnimator, element.states) }
        }
        disconnectElement(elementId)
     }
 
     public func setScene(_ sceneId: String) {
       if let scene = self.scenes[sceneId] {
-          self.curScene = sceneId
-          // setup animations
-          // 1. disconnect current elements
-          self.elements = Dictionary(uniqueKeysWithValues: self.elements.map { element in
-            let states = self.scenes[sceneId]?.elements[element.0]?.states
-            element.1.picAnimator.setParent(nil)
-            element.1.sounAnimator.setParent(nil)
-            return (element.0, ElementAnimator(element.1.picAnimator,
-                element.1.sounAnimator,
-                states ?? [:],
-                assetId: element.1.assetId))
-          })
-          // 2. connect elements used in the scene
+            self.curScene = sceneId
+            // setup animations
+            // 1. disconnect current elements
+            queue.sync {
+                self.elements = Dictionary(uniqueKeysWithValues: self.elements.map { element in
+                    let states = self.scenes[sceneId]?.elements[element.0]?.states
+                    element.1.picAnimator.setParent(nil)
+                    element.1.sounAnimator.setParent(nil)
+                    return (element.0, ElementAnimator(element.1.picAnimator,
+                        element.1.sounAnimator,
+                        states ?? [:],
+                        assetId: element.1.assetId))
+                })
+            }
+            // 2. connect elements used in the scene
             scene.elements.forEach { element in
-              self.connectElement(element.0, setInitialState: true)
-              if let slot = self.elements[element.0] {
-                  slot.setParent(self.elements[element.1.parent])
-              }
+                self.connectElement(element.0, setInitialState: true)
+                if let slot = self.elements[element.0] {
+                    slot.setParent(self.elements[element.1.parent])
+                }
             }
         }
     }
 
-    public func currentScene() -> String {
-        return curScene
-    }
-    public func currentState(for elementId: String) -> String? {
-        return elements[elementId]?.currentState
-    }
+    public func currentScene() -> String { curScene }
+
+    public func currentState(for elementId: String) -> String? { queue.sync { elements[elementId]?.currentState } }
 
     private func runCommand(_ command: RpcComposerCommand.Command,
                             action: @escaping (RpcComposerCommand.Command.OneOf_Command) -> Future<[Bool], Never>?) {
@@ -137,23 +139,23 @@ public class Composer {
           return
         }
         let future: Future<[Bool], Never>? = {
-          switch oneof {
-          case .scene(let sceneId):
-              setScene(sceneId)
-              return action(oneof)
-          case .elementState(let state):
-              return setState(state.elementID, state.stateID, state.duration)
-          case .bind(let req):
-              let assetId = req.assetID
-              let elementId = req.elementID
-              return action(oneof)?.andThen { [weak self] _ in
-                self?.bind(assetId, elementId: elementId)
-              }
-          case .loadFile, .playFile, .stopFile:
-              return action(oneof)
-          case .setText:
-              return action(oneof)
-          }
+            switch oneof {
+            case .scene(let sceneId):
+                setScene(sceneId)
+                return action(oneof)
+            case .elementState(let state):
+                return setState(state.elementID, state.stateID, state.duration)
+            case .bind(let req):
+                let assetId = req.assetID
+                let elementId = req.elementID
+                return action(oneof)?.andThen { [weak self] _ in
+                    self?.bind(assetId, elementId: elementId)
+                }
+            case .loadFile, .playFile, .stopFile:
+                return action(oneof)
+            case .setText:
+                return action(oneof)
+            }
         }()
 
         if let future = future {
@@ -178,7 +180,7 @@ public class Composer {
     public func setState(_ elementId: String,
                          _ stateId: String,
                          _ duration: TimePoint = TimePoint(0, 1000)) -> Future<[Bool], Never>? {
-        if let element = elements[elementId],
+        if let element =  self.queue.sync(execute: { self.elements[elementId] }),
            let state = element.states[stateId] {
             element.currentState = stateId
             let futs = [element.picAnimator.setState(state, duration), element.sounAnimator.setState(state, duration)]
@@ -194,24 +196,26 @@ public class Composer {
     public func clockEpoch() -> Int64 { return epoch }
 
     private func connectElement(_ elementId: String, setInitialState: Bool = false) {
-      if let element = self.elements[elementId],
-          let assetId = element.assetId,
-          let states = self.scenes[self.currentScene()]?.elements[elementId]?.states {
-          // We have an asset bound to the element, so create two transforms: audio and video
-          let pictureAnim = element.picAnimator
-          let audioAnim = element.sounAnimator
-          let pic = self.pictureBus <<| (assetFilter(assetId) >>> GPUBarrierUpload(computeContext)
-                >>> Repeater(self.clock, interval: videoMixer.frameDuration) >>> pictureAnim >>> self.videoMixer)
-          let soun = self.audioBus <<| (assetFilter(assetId) >>> AudioSampleRateConversion(
-            audioMixer.getSampleRate(), audioMixer.getChannels(), audioMixer.getAudioFormat()) >>>
-                audioAnim  >>> self.audioMixer)
-          self.elements[elementId] = ElementAnimator(pictureAnim,
-                                            audioAnim, states, picTx: pic, audioTx: soun, assetId: assetId)
-          if let initialState = self.scenes[self.currentScene()]?.elements[elementId]?.initialState,
-            setInitialState == true {
-              _ = setState(elementId, initialState)
-          }
-      }
+        if let element = self.queue.sync(execute: { self.elements[elementId] }),
+            let assetId = element.assetId,
+            let states = self.scenes[self.currentScene()]?.elements[elementId]?.states {
+            // We have an asset bound to the element, so create two transforms: audio and video
+            let pictureAnim = element.picAnimator
+            let audioAnim = element.sounAnimator
+            let pic = self.pictureBus <<| (assetFilter(assetId) >>> GPUBarrierUpload(computeContext)
+                  >>> Repeater(self.clock, interval: videoMixer.frameDuration) >>> pictureAnim >>> self.videoMixer)
+            let soun = self.audioBus <<| (assetFilter(assetId) >>> AudioSampleRateConversion(
+              audioMixer.getSampleRate(), audioMixer.getChannels(), audioMixer.getAudioFormat()) >>>
+                  audioAnim  >>> self.audioMixer)
+            self.queue.sync {
+                self.elements[elementId] = ElementAnimator(pictureAnim,
+                                              audioAnim, states, picTx: pic, audioTx: soun, assetId: assetId)
+            }
+            if let initialState = self.scenes[self.currentScene()]?.elements[elementId]?.initialState,
+              setInitialState == true {
+                _ = setState(elementId, initialState)
+            }
+        }
     }
 
     private func disconnectElement(_ elementId: String) {
@@ -234,6 +238,7 @@ public class Composer {
     let computeContext: ComputeContext
     let epoch: Int64
     let logger: Logging.Logger
+    let queue: DispatchQueue
 
     private var curScene: String
     private var scenes: [String: Scene]

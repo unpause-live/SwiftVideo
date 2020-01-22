@@ -30,6 +30,7 @@ public class FFmpegVideoDecoder: Tx<CodedMediaSample, PictureSample> {
             guard let strongSelf = self else {
                 return .gone
             }
+            print("new sample \($0.assetId())")
             return strongSelf.handle($0)
         }
     }

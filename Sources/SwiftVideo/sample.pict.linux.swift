@@ -274,7 +274,6 @@ func createPictureSample(_ size: Vector2,
 
 private func planesForFormat(_ format: PixelFormat, size: Vector2) throws -> [Plane] {
     let width = Int(size.x)
-    let height = Int(size.y)
     switch format {
     case .nv12:
         return [Plane(size: size, stride: width, bitDepth: 8, components: [.y]),
