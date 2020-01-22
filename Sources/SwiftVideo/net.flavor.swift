@@ -51,7 +51,10 @@ public class Flavor {
             guard let strongSelf = self else {
                 return
             }
-            strongSelf.sessions.removeValue(forKey: conn.ident)
+            let ident = conn.ident
+            DispatchQueue.global().async { [weak self] in
+                self?.sessions.removeValue(forKey: ident)
+            }
         }
         let group = group ?? MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         self.server = tcpServe(group: group,
@@ -98,13 +101,16 @@ public class Flavor {
                 guard let strongSelf = self else {
                     return
                 }
-                strongSelf.sessions.removeValue(forKey: sessionId)
+                DispatchQueue.global().async { [weak self] in
+                    self?.sessions.removeValue(forKey: sessionId)
+                }
             }
             let urlString = url.absoluteString
             let existing = strongSelf.sessions.filter { $0.1.url.map { $0 == urlString } ?? false }
             if let candidate = existing.randomElement(),
                 !forceNew {
-                complete(.success(candidate.1.sessionId))
+                complete(.success(candidate.0))
+                return
             }
             do {
                 _ = try tcpClient(group: group,
@@ -147,6 +153,7 @@ public class Flavor {
 
     public func makePull(_ sessionId: String, token: String) -> Future<Bool, RpcError> {
         Future { complete in
+            print("making pull with token \(token) on \(sessionId)")
             guard let session = sessions[sessionId] else {
                 complete(.failure(.invalidConfiguration))
                 return
@@ -421,6 +428,7 @@ private class FlavorSession {
             let trackId = trackId ?? strongSelf.trackId
             strongSelf.trackId = strongSelf.trackId &+ 1
             do {
+                print("Writing trak atom for streamId \(streamId) and trackId \(trackId)")
                 return try strongSelf.writeTrakAtom(type, streamId, trackId, scale, usesDts, extradata: data)
             } catch {
                 return -1
@@ -546,7 +554,7 @@ private class FlavorSession {
                 if atom.callId == 0 && self.dialedOut {
                     self.fnConnected(true)
                 }
-            } catch (let error) {
+            } catch let error {
                 print("Caught error \(error)")
             }
             case .mdia: ()
