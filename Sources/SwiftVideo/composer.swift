@@ -180,7 +180,7 @@ public class Composer {
                          _ duration: TimePoint = TimePoint(0, 1000)) -> Future<[Bool], Never>? {
         if let element = elements[elementId],
            let state = element.states[stateId] {
-            elements[elementId]?.currentState = stateId
+            element.currentState = stateId
             let futs = [element.picAnimator.setState(state, duration), element.sounAnimator.setState(state, duration)]
             return futs.sequence()
         }
@@ -239,7 +239,7 @@ public class Composer {
     private var scenes: [String: Scene]
     private var elements: [String: ElementAnimator]
 
-    private struct ElementAnimator {
+    private class ElementAnimator {
         init(_ picAnimator: PictureAnimator,
              _ sounAnimator: SoundAnimator,
              _ states: [String: ElementState],
