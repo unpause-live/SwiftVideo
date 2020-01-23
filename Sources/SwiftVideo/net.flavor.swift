@@ -48,9 +48,6 @@ public class Flavor {
         }
 
         let fnEnded = { [weak self] (conn: Connection) -> Void in
-            guard let strongSelf = self else {
-                return
-            }
             let ident = conn.ident
             DispatchQueue.global().async { [weak self] in
                 self?.sessions.removeValue(forKey: ident)
@@ -98,9 +95,6 @@ public class Flavor {
                 }
             }
             let fnEnded = { [weak self] (conn: Connection) -> Void in
-                guard let strongSelf = self else {
-                    return
-                }
                 DispatchQueue.global().async { [weak self] in
                     self?.sessions.removeValue(forKey: sessionId)
                 }
@@ -153,7 +147,6 @@ public class Flavor {
 
     public func makePull(_ sessionId: String, token: String) -> Future<Bool, RpcError> {
         Future { complete in
-            print("making pull with token \(token) on \(sessionId)")
             guard let session = sessions[sessionId] else {
                 complete(.failure(.invalidConfiguration))
                 return
@@ -278,7 +271,6 @@ private class FlavorSession {
     }
 
     func disconnect() {
-        print("publish deinit")
         publishSessions.forEach {
             $0.value.value?.close()
         }
@@ -286,6 +278,20 @@ private class FlavorSession {
             $0.value.value?.close()
         }
         self.conn.close()
+    }
+
+    func cleanupPublisher(_ publisher: Int32) {
+        self.publishSessions.removeValue(forKey: publisher)
+        if self.publishSessions.count == 0 && self.subscribeSessions.count == 0 {
+            disconnect()
+        }
+    }
+
+    func cleanupSubscriber(_ subscriber: Int32) {
+        self.subscribeSessions.removeValue(forKey: subscriber)
+        if self.publishSessions.count == 0 && self.subscribeSessions.count == 0 {
+            disconnect()
+        }
     }
 
     func sendPing(handler: RpcHandler? = nil) {
@@ -420,7 +426,7 @@ private class FlavorSession {
                                 do {
                                     try strongSelf.sendRmTrak(tracks)
                                 } catch {}
-                                strongSelf.publishSessions.removeValue(forKey: streamId)
+                                strongSelf.cleanupPublisher(streamId)
                             }) { [weak self] (type, streamId, trackId, scale, usesDts, data) in
             guard let strongSelf = self else {
                 return -1
@@ -428,7 +434,6 @@ private class FlavorSession {
             let trackId = trackId ?? strongSelf.trackId
             strongSelf.trackId = strongSelf.trackId &+ 1
             do {
-                print("Writing trak atom for streamId \(streamId) and trackId \(trackId)")
                 return try strongSelf.writeTrakAtom(type, streamId, trackId, scale, usesDts, extradata: data)
             } catch {
                 return -1
@@ -437,7 +442,6 @@ private class FlavorSession {
         self.publishSessions[streamId] = Weak(value: pub)
         _ = self.fnStreamEstablished(pub, nil).andThen { [weak self] in
             do {
-                print("fnStreamEstablished \($0)")
                 guard case .success(let result) = $0, result == true else {
                     if let callId = callId {
                         try self?.sendReply(callId, -2, payload: try flavor.BasicAtom(.dict(["reason":
@@ -480,7 +484,7 @@ private class FlavorSession {
                             } catch {
                                 print("Exception while sending rmtrak \(error)")
                             }
-                            strongSelf.subscribeSessions.removeValue(forKey: streamId)
+                            strongSelf.cleanupSubscriber(streamId)
                         }
         self.subscribeSessions[streamId] = Weak(value: sub)
         _ = self.fnStreamEstablished(nil, sub).andThen { [weak self] in
@@ -785,7 +789,6 @@ private class FlavorPublisher: Terminal<CodedMediaSample>, FlavorMediaSession, L
                                                 true,
                                                 sample.sideData()["config"])
 
-                    print("writing track atom, id=\(trackId) scale=\(sample.pts().scale)")
                     strongSelf.tracks[sample.mediaFormat()] = (trackId, sample.sideData()["config"])
                 }
                 guard let trackId = strongSelf.tracks[sample.mediaFormat()]?.0 else {
