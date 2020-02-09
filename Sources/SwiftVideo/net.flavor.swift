@@ -22,12 +22,10 @@ import BrightFutures
 
 public class Flavor {
     public init(_ clock: Clock, onEnded: @escaping LiveOnEnded,
-                onConnection: @escaping (String) -> Void,
                 formatQuery: @escaping (String, String?) -> [MediaFormat]?,
                 onStreamEstablished: @escaping LiveOnConnection) {
         self.clock = clock
         self.sessions = [String: FlavorSession]()
-        self.fnConnection = onConnection
         self.fnStreamEstablished = onStreamEstablished
         self.fnEnded = onEnded
         self.fnFormatQuery = formatQuery
@@ -46,19 +44,14 @@ public class Flavor {
                 dialedOut: false,
                 formatQuery: strongSelf.fnFormatQuery,
                 onEnded: strongSelf.fnEnded,
-                onStreamEstablished: strongSelf.fnStreamEstablished) { [weak self] in
-                    if $0 {
-                        self?.fnConnection(conn.ident)
-                    }
-            }
-
+                onStreamEstablished: strongSelf.fnStreamEstablished) { _ in }
         }
 
         let fnEnded = { [weak self] (conn: Connection) -> Void in
-            guard let strongSelf = self else {
-                return
+            let ident = conn.ident
+            DispatchQueue.global().async { [weak self] in
+                self?.sessions.removeValue(forKey: ident)
             }
-            strongSelf.sessions.removeValue(forKey: conn.ident)
         }
         let group = group ?? MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         self.server = tcpServe(group: group,
@@ -72,97 +65,110 @@ public class Flavor {
     }
     public func connect(url: URL,
                         group: EventLoopGroup,
-                        workspaceId: String) -> String {
-        guard let host = url.host else {
-            return ""
-        }
-        let port = url.port ?? 3751
-        let sessionId = UUID().uuidString
-
-        let fnConnected = { [weak self] (conn: Connection) -> Void in
-            guard let strongSelf = self else {
+                        forceNew: Bool = false) -> Future<String, RpcError> {
+        Future { [weak self] complete in
+            guard let strongSelf = self, let host = url.host else {
+                complete(.failure(.gone))
                 return
             }
+            let port = url.port ?? 3751
+            let sessionId = UUID().uuidString
 
-            strongSelf.sessions[sessionId] = FlavorSession(strongSelf.clock,
-                conn: conn,
-                dialedOut: true,
-                sessionId: sessionId,
-                formatQuery: strongSelf.fnFormatQuery,
-                onEnded: strongSelf.fnEnded,
-                onStreamEstablished: strongSelf.fnStreamEstablished) { [weak self] in
-                    if $0 {
-                        self?.fnConnection(sessionId)
+            let fnConnected = { [weak self] (conn: Connection) -> Void in
+                guard let strongSelf = self else {
+                    return
+                }
+
+                strongSelf.sessions[sessionId] = FlavorSession(strongSelf.clock,
+                    conn: conn,
+                    dialedOut: true,
+                    url: url.absoluteString,
+                    sessionId: sessionId,
+                    formatQuery: strongSelf.fnFormatQuery,
+                    onEnded: strongSelf.fnEnded,
+                    onStreamEstablished: strongSelf.fnStreamEstablished) {
+                        if $0 {
+                            complete(.success(sessionId))
+                        } else {
+                            complete(.failure(.remote("Did not establish session")))
+                        }
+                }
+            }
+            let fnEnded = { [weak self] (conn: Connection) -> Void in
+                DispatchQueue.global().async { [weak self] in
+                    self?.sessions.removeValue(forKey: sessionId)
+                }
+            }
+            let urlString = url.absoluteString
+            let existing = strongSelf.sessions.filter { $0.1.url.map { $0 == urlString } ?? false }
+            if let candidate = existing.randomElement(),
+                !forceNew {
+                complete(.success(candidate.0))
+                return
+            }
+            do {
+                _ = try tcpClient(group: group,
+                          host: host,
+                          port: port,
+                          clock: clock,
+                          connected: fnConnected,
+                          ended: fnEnded).wait()
+            } catch {
+                complete(.failure(.caught(error)))
+            }
+        }
+    }
+
+    public func makePush(_ sessionId: String, token: String) -> Future<Bool, RpcError> {
+        Future { complete in
+            guard let session = sessions[sessionId] else {
+                complete(.failure(.invalidConfiguration))
+                return
+            }
+            do {
+                try session.sendPush(token) { [weak self] _, response, reason, _ in
+                    if response == 0 {
+                        // make a publisher
+                        if let session = self?.sessions[sessionId] {
+                            // We know this has 2 parts because it will have been verified by sendPush
+                            let parts = token.split(separator: "/")
+                            session.makePublisher(UUID().uuidString, String(parts[0]), workspaceToken: String(parts[1]))
+                        }
+                        complete(.success(true))
                     } else {
-
+                        complete(.failure(reason.map { .remote($0) } ?? .unknown))
                     }
+                }
+            } catch {
+                complete(.failure(.caught(error)))
             }
-
         }
-        let fnEnded = { [weak self] (conn: Connection) -> Void in
-            guard let strongSelf = self else {
+    }
+
+    public func makePull(_ sessionId: String, token: String) -> Future<Bool, RpcError> {
+        Future { complete in
+            guard let session = sessions[sessionId] else {
+                complete(.failure(.invalidConfiguration))
                 return
             }
-            strongSelf.sessions.removeValue(forKey: sessionId)
-        }
-        do {
-            _ = try tcpClient(group: group,
-                      host: host,
-                      port: port,
-                      clock: clock,
-                      connected: fnConnected,
-                      ended: fnEnded).wait()
-        } catch {
-            return ""
-        }
-
-        return sessionId
-    }
-
-    public func makePush(_ sessionId: String, token: String, onError: @escaping (String?) -> Void) -> Bool {
-        guard let session = sessions[sessionId] else {
-            return false
-        }
-        do {
-            try session.sendPush(token) { [weak self] _, response, reason, _ in
-                if response == 0 {
-                    // make a publisher
-                    if let session = self?.sessions[sessionId] {
-                        // We know this has 2 parts because it will have been verified by sendPush
-                        let parts = token.split(separator: "/")
-                        session.makePublisher(UUID().uuidString, String(parts[0]), workspaceToken: String(parts[1]))
+            do {
+                try session.sendPull(token) { [weak self] _, response, reason, _ in
+                    if response == 0 {
+                        // make a subscriber
+                        if let session = self?.sessions[sessionId] {
+                            // We know this has 3 parts because it will have been verified by sendPull
+                            let parts = token.split(separator: "/")
+                            session.makeSubscriber(String(parts[2]), String(parts[0]), workspaceToken: String(parts[1]))
+                        }
+                        complete(.success(true))
+                    } else {
+                        complete(.failure(reason.map { .remote($0) } ?? .unknown))
                     }
-                } else {
-                    onError(reason)
                 }
+            } catch {
+                complete(.failure(.caught(error)))
             }
-        } catch {
-            return false
         }
-        return true
-    }
-
-    public func makePull(_ sessionId: String, token: String, onError: @escaping (String?) -> Void) -> Bool {
-        guard let session = sessions[sessionId] else {
-            return false
-        }
-        do {
-            try session.sendPull(token) { [weak self] _, response, reason, _ in
-                if response == 0 {
-                    // make a subscriber
-                    if let session = self?.sessions[sessionId] {
-                        // We know this has 3 parts because it will have been verified by sendPull
-                        let parts = token.split(separator: "/")
-                        session.makeSubscriber(String(parts[2]), String(parts[0]), workspaceToken: String(parts[1]))
-                    }
-                } else {
-                    onError(reason)
-                }
-            }
-        } catch {
-            return false
-        }
-        return true
     }
 
     public func close(_ sessionId: String, publisher: String) {
@@ -194,7 +200,6 @@ public class Flavor {
     }
     private var channel: Channel?
     private let fnStreamEstablished: LiveOnConnection
-    private let fnConnection: (String) -> Void
     private let fnEnded: LiveOnEnded
     private let fnFormatQuery: (String, String?) -> [MediaFormat]?
     private let clock: Clock
@@ -216,6 +221,7 @@ private class FlavorSession {
     fileprivate init(_ clock: Clock,
                      conn: Connection,
                      dialedOut: Bool,
+                     url: String? = nil,
                      sessionId: String? = nil,
                      formatQuery: @escaping (String, String?) -> [MediaFormat]?,
                      onEnded: @escaping LiveOnEnded,
@@ -235,6 +241,7 @@ private class FlavorSession {
         self.rpcCallId = 0
         self.trackId = 0
         self.dialedOut = dialedOut
+        self.url = url
         self.queue = DispatchQueue(label: sessionId)
         let bus = HeterogeneousBus()
         self.bus = bus
@@ -264,7 +271,6 @@ private class FlavorSession {
     }
 
     func disconnect() {
-        print("publish deinit")
         publishSessions.forEach {
             $0.value.value?.close()
         }
@@ -272,6 +278,20 @@ private class FlavorSession {
             $0.value.value?.close()
         }
         self.conn.close()
+    }
+
+    func cleanupPublisher(_ publisher: Int32) {
+        self.publishSessions.removeValue(forKey: publisher)
+        if self.publishSessions.count == 0 && self.subscribeSessions.count == 0 {
+            disconnect()
+        }
+    }
+
+    func cleanupSubscriber(_ subscriber: Int32) {
+        self.subscribeSessions.removeValue(forKey: subscriber)
+        if self.publishSessions.count == 0 && self.subscribeSessions.count == 0 {
+            disconnect()
+        }
     }
 
     func sendPing(handler: RpcHandler? = nil) {
@@ -406,7 +426,7 @@ private class FlavorSession {
                                 do {
                                     try strongSelf.sendRmTrak(tracks)
                                 } catch {}
-                                strongSelf.publishSessions.removeValue(forKey: streamId)
+                                strongSelf.cleanupPublisher(streamId)
                             }) { [weak self] (type, streamId, trackId, scale, usesDts, data) in
             guard let strongSelf = self else {
                 return -1
@@ -422,7 +442,6 @@ private class FlavorSession {
         self.publishSessions[streamId] = Weak(value: pub)
         _ = self.fnStreamEstablished(pub, nil).andThen { [weak self] in
             do {
-                print("fnStreamEstablished \($0)")
                 guard case .success(let result) = $0, result == true else {
                     if let callId = callId {
                         try self?.sendReply(callId, -2, payload: try flavor.BasicAtom(.dict(["reason":
@@ -465,7 +484,7 @@ private class FlavorSession {
                             } catch {
                                 print("Exception while sending rmtrak \(error)")
                             }
-                            strongSelf.subscribeSessions.removeValue(forKey: streamId)
+                            strongSelf.cleanupSubscriber(streamId)
                         }
         self.subscribeSessions[streamId] = Weak(value: sub)
         _ = self.fnStreamEstablished(nil, sub).andThen { [weak self] in
@@ -539,7 +558,7 @@ private class FlavorSession {
                 if atom.callId == 0 && self.dialedOut {
                     self.fnConnected(true)
                 }
-            } catch (let error) {
+            } catch let error {
                 print("Caught error \(error)")
             }
             case .mdia: ()
@@ -700,6 +719,7 @@ private class FlavorSession {
 
         return .nothing(event.info())
     }
+    let url: String?
     let queue: DispatchQueue
     let fnFormatQuery: (String, String?) -> [MediaFormat]?
     let dialedOut: Bool
@@ -769,7 +789,6 @@ private class FlavorPublisher: Terminal<CodedMediaSample>, FlavorMediaSession, L
                                                 true,
                                                 sample.sideData()["config"])
 
-                    print("writing track atom, id=\(trackId) scale=\(sample.pts().scale)")
                     strongSelf.tracks[sample.mediaFormat()] = (trackId, sample.sideData()["config"])
                 }
                 guard let trackId = strongSelf.tracks[sample.mediaFormat()]?.0 else {

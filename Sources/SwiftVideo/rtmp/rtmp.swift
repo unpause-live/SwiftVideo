@@ -22,6 +22,21 @@ import BrightFutures
 
 public enum NoError: Error {}
 
+private func getApp(_ components: [String]) -> String? {
+    guard components.count > 0 else { return nil }
+    let start = components.index(0, offsetBy: 1)
+    let end = components.index(1, offsetBy: max(components.count - 2, 0))
+    let appComponents = components[start..<end]
+    return appComponents.joined(separator: "/")
+}
+
+private func getPlayPath(_ components: [String], _ query: [String]?) -> String? {
+    guard components.count > 0 else { return nil }
+    let base = components[components.count - 1] ?? (query?[safe: 1].map { String($0) } ?? "")
+    let queryString = query?[safe:0].map { "?" + $0 } ?? ""
+    return base + queryString
+}
+
 public class Rtmp {
     public init(_ clock: Clock,
                 bufferSize: TimePoint = TimePoint(500, 1000),
@@ -51,14 +66,9 @@ public class Rtmp {
             return false
         }
         let components = url.pathComponents
-        let app = components[safe: 1] ?? ""
+        let app = getApp(components) ?? ""
         let query = url.query?.split(separator: "/")
-        let playPath = { () -> String in
-            let base = components[safe: 2] ?? (query?[safe: 1].map { String($0) } ?? "")
-            let queryString = query <??> { if $0.count > 0 { return "?" + $0[0] } else { return "" } } <|> ""
-            return base + queryString
-        }()
-
+        let playPath = getPlayPath(components, query?.map { String($0) }) ?? ""
         let port = url.port ?? 1935
 
         let fnConnected = { [weak self] (conn: Connection) -> Void in
@@ -184,7 +194,7 @@ public class Rtmp {
                 }
                 return strongSelf.handleCompletion($0, conn: conn)
             }
-            strongSelf.queue.async {
+            strongSelf.queue.sync {
                 strongSelf.handshaking[conn.ident] = conn >>> mix() >>> handshake >>> filter() >>> conn
             }
         }

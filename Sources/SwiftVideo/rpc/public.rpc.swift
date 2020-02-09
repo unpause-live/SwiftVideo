@@ -18,6 +18,8 @@ public enum RpcError: Error {
     case timedOut
     case gone
     case invalidConfiguration
+    case caught(Error)
+    case remote(String)
     case unknown
 }
 

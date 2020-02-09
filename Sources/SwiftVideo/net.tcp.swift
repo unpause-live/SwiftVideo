@@ -107,8 +107,11 @@ public final class Connection: Source<NetworkEvent>, ChannelInboundHandler {
 
     public func close() {
         if let ctx = self.ctx {
-            ctx.pipeline.eventLoop.execute { ctx.close(promise: nil) }
-        }
+            ctx.pipeline.eventLoop.execute {
+                ctx.close(promise: nil)
+            }
+            self.ended(self)
+        } else { print("ctx is gone") }
     }
     // Invoked when data are received from the client
     public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
