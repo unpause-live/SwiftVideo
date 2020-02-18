@@ -1,6 +1,8 @@
 ## SwiftVideo
 
 [![GitHub Actions](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%2Funpause-live%2FSwiftVideo%2Fbadge&label=build&logo=none)](https://actions-badge.atrox.dev/unpause-live/SwiftVideo/goto)
+![Swift version](https://img.shields.io/badge/swift-5-orange.svg)
+
 
 Video streaming and processing framework for Linux, macOS, and iOS/iPadOS (maybe even tvOS).  Swift 5.1+ because I'm just opening this up and I really don't feel like dealing with older versions of Swift.
 
