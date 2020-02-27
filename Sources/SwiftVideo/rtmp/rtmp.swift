@@ -32,7 +32,7 @@ private func getApp(_ components: [String]) -> String? {
 
 private func getPlayPath(_ components: [String], _ query: [String]?) -> String? {
     guard components.count > 0 else { return nil }
-    let base = components[components.count - 1] ?? (query?[safe: 1].map { String($0) } ?? "")
+    let base = components[safe: components.count - 1] ?? (query?[safe: 1].map { String($0) } ?? "")
     let queryString = query?[safe:0].map { "?" + $0 } ?? ""
     return base + queryString
 }
