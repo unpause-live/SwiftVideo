@@ -106,7 +106,8 @@ private func ioProc(inRefCon: UnsafeMutableRawPointer,
     guard let ptsOffset = this.ptsOffset else {
         return -1
     }
-    let windowStart = this.pts - ptsOffset
+    //print("this.pts=\(this.pts.toString()) offset=\(ptsOffset.toString())")
+    let windowStart = this.pts //- ptsOffset
     let windowEnd = windowStart + TimePoint(Int64(inNumberFrames), windowStart.scale)
     buffers.forEach {
         guard let ptr = $0.mData else {
@@ -115,6 +116,7 @@ private func ioProc(inRefCon: UnsafeMutableRawPointer,
         memset(ptr, 0, Int($0.mDataByteSize))
     }
     let samples = Array(this.samples)
+    //print("Sample count=\(samples.count) window=\(windowStart.toString())->\(windowEnd.toString())")
     samples.forEach { sample in
         let sampleStart = rescale(sample.pts(), this.pts.scale)
         let sampleEnd = sampleStart + TimePoint(Int64(sample.numberSamples()), this.pts.scale)

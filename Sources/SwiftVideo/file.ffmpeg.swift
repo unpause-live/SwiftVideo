@@ -74,7 +74,6 @@ public class FileSource: Source<CodedMediaSample> {
         }
         self.ctx = fmtCtx
         self.clock = clock
-        self.epoch = clock.current()
         self.assetId = assetId
         self.fnEnded = onEnd
         self.workspaceId = workspaceId
@@ -82,6 +81,7 @@ public class FileSource: Source<CodedMediaSample> {
         self.streams = streams
         self.repeats = repeats
         self.queue = DispatchQueue(label: "file.\(assetId)")
+        epoch = clock.current()
         super.init()
     }
 
@@ -93,7 +93,7 @@ public class FileSource: Source<CodedMediaSample> {
 
     public func play() {
         running = true
-        epoch = clock.current() - tsBase
+        epoch = clock.current()
         self.refill()
     }
 
@@ -124,7 +124,7 @@ public class FileSource: Source<CodedMediaSample> {
                     ((pkt.dts != AVTimestamp.noPTS) ?
                         TimePoint(Int64(pkt.dts), stream.timebase.scale) :
                         pts)
-                let delta = dts - stream.startTime
+                let delta = dts - stream.startTime + TimePoint(250, 1000)
                 guard let data = pkt.data else {
                     throw AVError.tryAgain
                 }
