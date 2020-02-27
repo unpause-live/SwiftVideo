@@ -50,6 +50,18 @@ public struct ImageBuffer {
         self.planes = other.planes
     }
 
+    public init(_ other: ImageBuffer,
+                computeTextures: [ComputeBuffer]? = nil,
+                buffers: [Data],
+                bufferType: BufferType? = nil) {
+        self.pixelFormat = other.pixelFormat
+        self.bufferType = bufferType ?? other.bufferType
+        self.size = other.size
+        self.buffers = buffers
+        self.computeTextures = computeTextures ?? other.computeTextures
+        self.planes = other.planes
+    }
+
     public let pixelFormat: PixelFormat
     public let bufferType: BufferType
     public let size: Vector2
