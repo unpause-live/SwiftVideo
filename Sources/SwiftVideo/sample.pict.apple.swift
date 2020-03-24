@@ -120,7 +120,8 @@ public struct ImageBuffer {
         self.init(pixelBuffer, computeTextures: computeTextures)
     }
 
-    public init(_ other: ImageBuffer, computeTextures: [ComputeBuffer]? = nil) {
+    public init(_ other: ImageBuffer,
+                computeTextures: [ComputeBuffer]? = nil) {
         self.pixelBuffer = other.pixelBuffer
         self.computeTextures = computeTextures ?? other.computeTextures
         self.planes = other.planes

@@ -31,7 +31,10 @@ public final class WallClock: Clock {
     private let epoch: Date
     private let assetId: String
     private let workspaceId: String
-
+    private let scheduleQueue: DispatchQueue
+    private let scheduleQoS: DispatchQoS
+    private var timers: [TimePoint: DispatchSourceTimer] = [:]
+    
     public func step() -> TimePoint {
         return current()
     }
@@ -57,6 +60,9 @@ public final class WallClock: Clock {
         self.epoch = Date()
         self.assetId = assetId
         self.workspaceId = workspaceId
+        let qos = DispatchQoS(qosClass: .userInteractive, relativePriority: 0)
+        self.scheduleQueue = DispatchQueue(label: "clock.schedule.\(workspaceId)/\(assetId)", qos: qos)
+        self.scheduleQoS = qos
     }
 
     public init(_ epoch: Date,
@@ -65,17 +71,31 @@ public final class WallClock: Clock {
         self.epoch = epoch
         self.assetId = assetId
         self.workspaceId = workspaceId
+        let qos = DispatchQoS(qosClass: .userInteractive, relativePriority: 0)
+        self.scheduleQueue = DispatchQueue(label: "clock.schedule.\(workspaceId)/\(assetId)", qos: qos)
+        self.scheduleQoS = qos
     }
 
     public func schedule(_ at: TimePoint, f: @escaping (ClockTickEvent) -> Void) {
         let cur = current()
         if at <= cur {
-            f(ClockTickEvent(at, self.assetId, self.workspaceId))
-        } else {
-            let t = at - cur
-            DispatchQueue.global().asyncAfter(deadline: .now() + Double(seconds(t))) {
+            scheduleQueue.async(qos: scheduleQoS) {
                 f(ClockTickEvent(at, self.assetId, self.workspaceId))
             }
+        } else {
+            let t = at - cur
+            let timer = DispatchSource.makeTimerSource(queue: scheduleQueue)
+            timer.schedule(deadline: .now() + Double(seconds(t)), leeway: .milliseconds(33))
+            timer.setEventHandler {
+                f(ClockTickEvent(at, self.assetId, self.workspaceId))
+                self.scheduleQueue.async {
+                    self.timers.removeValue(forKey: at)
+                }
+            }
+            scheduleQueue.async {
+                self.timers[at] = timer
+            }
+            timer.resume()
         }
     }
 }

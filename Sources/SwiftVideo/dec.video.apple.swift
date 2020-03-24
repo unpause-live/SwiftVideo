@@ -30,6 +30,9 @@ public class AppleVideoDecoder: Tx<CodedMediaSample, PictureSample> {
         self.session = nil
         self.output =  [PictureSample]()
         self.clock = clock
+        let uuid = UUID().uuidString
+        self.sampleQueue = DispatchQueue(label: "apple.decode.samples.\(uuid)")
+        self.decodeQueue = DispatchQueue(label: "apple.decode.\(uuid)")
         super.init()
         super.set { [weak self] sample in
             guard let strongSelf = self else {
@@ -49,7 +52,7 @@ public class AppleVideoDecoder: Tx<CodedMediaSample, PictureSample> {
                 }
             }
 
-            return strongSelf.handle(sample)
+            return strongSelf.decodeQueue.sync { strongSelf.handle(sample) }
         }
     }
     deinit {
@@ -77,6 +80,7 @@ public class AppleVideoDecoder: Tx<CodedMediaSample, PictureSample> {
             return buffer
         }
         guard let dataBuffer = dataBufferWk, let dcr = sample.sideData()["config"] else {
+            print("Failed to create buffer")
             return .error(EventError("dec.video.apple", -2, "Failed to create buffer"))
         }
 
@@ -121,11 +125,14 @@ public class AppleVideoDecoder: Tx<CodedMediaSample, PictureSample> {
                                                                             workspaceId: sample.workspaceId(),
                                                                             time: strongSelf.clock.current(),
                                                                             pts: ptsTime)
-                                                    var output = strongSelf.output[0..<strongSelf.output.count]
-                                                    output.append(pic)
-                                                    strongSelf.output = output.sorted { $0.pts() < $1.pts() }
+                                                    strongSelf.sampleQueue.sync {
+                                                        strongSelf.output.append(pic)
+                                                        strongSelf.output = strongSelf
+                                                            .output.sorted { $0.pts() < $1.pts() }
+                                                    }
                     }
                 if result != 0 {
+                    print("result=\(result)")
                     return .error(EventError("dec.video.apple", Int(result), "OSStatus, decode failed"))
                 }
             }
@@ -133,11 +140,14 @@ public class AppleVideoDecoder: Tx<CodedMediaSample, PictureSample> {
             // error
             return .error(EventError("dec.video.apple", -4, "Caught decode error \(error)"))
         }
-        if let outSample = output[safe:0], output.count >= 5 {
-            output.removeFirst()
-            return .just(outSample)
-        } else {
-            return .nothing(sample.info())
+        
+        return self.sampleQueue.sync {
+            if let outSample = self.output[safe:0], self.output.count >= 5 {
+                self.output.removeFirst()
+                return .just(outSample)
+            } else {
+                return .nothing(sample.info())
+            }
         }
     }
     private func setupSession(_ sample: CodedMediaSample) throws {
@@ -171,6 +181,8 @@ public class AppleVideoDecoder: Tx<CodedMediaSample, PictureSample> {
     private var output: [PictureSample]
     private var session: VTDecompressionSession?
     private let clock: Clock
+    private let sampleQueue: DispatchQueue
+    private let decodeQueue: DispatchQueue
 }
 
 private func videoFormatFromAVCParameterSets( _ paramSets: [[UInt8]]) throws -> CMVideoFormatDescription? {

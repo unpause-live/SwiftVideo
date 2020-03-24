@@ -136,7 +136,8 @@ func runComputeKernel<T>(_ context: ComputeContext,
                          kernel: ComputeKernel,
                          maxPlanes: Int = 3,
                          requiredMemory: Int? = nil,
-                         uniforms: T? = nil) throws -> ComputeContext {
+                         uniforms: T? = nil,
+                         blends: Bool = false) throws -> ComputeContext {
     let kernelFunction = try getComputeKernel(context, kernel)
     let inputs = try images.reduce([MTLTexture?]()) {
         guard let image = $1.imageBuffer() else {
@@ -260,7 +261,10 @@ func downloadComputeBuffer(_ ctx: ComputeContext, src: ComputeBuffer, dst: Data?
     throw ComputeError.notImplemented
 }
 
-func uploadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes: Int = 3) throws -> PictureSample {
+func uploadComputePicture(_ ctx: ComputeContext,
+                          pict: PictureSample,
+                          maxPlanes: Int = 3,
+                          retainCpuBuffer: Bool = true) throws -> PictureSample {
     guard 3 >= maxPlanes else {
         throw ComputeError.badInputData(description: "Input images must have 3 planes or fewer")
     }
@@ -268,11 +272,15 @@ func uploadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes:
         throw ComputeError.badInputData(description: "Missing image buffer")
     }
     let textures = try createTexture(ctx, imageBuffer, maxPlanes).compactMap { $0 }
-    let image = ImageBuffer(imageBuffer, computeTextures: textures)
+    let image = ImageBuffer(imageBuffer,
+                            computeTextures: textures)
     return PictureSample(pict, img: image)
 }
 
-func downloadComputePicture(_ ctx: ComputeContext, pict: PictureSample, maxPlanes: Int = 3) throws -> PictureSample {
+func downloadComputePicture(_ ctx: ComputeContext,
+                            pict: PictureSample,
+                            maxPlanes: Int = 3,
+                            retainGpuBuffer: Bool = true) throws -> PictureSample {
     guard 3 >= maxPlanes else {
         throw ComputeError.badInputData(description: "Input images must have 3 planes or fewer")
     }
