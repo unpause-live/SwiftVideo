@@ -17,54 +17,11 @@ public class AppleAudioPlayback: Terminal<AudioSample> {
                 return .error(EventError("playback.audio.apple", -1, "Currently only .f32p is supported"))
             }
             if strongSelf.unit == nil {
-                var asbd = AudioStreamBasicDescription(mSampleRate: Float64(sample.sampleRate()),
-                                                       mFormatID: kAudioFormatLinearPCM,
-                                                       mFormatFlags: kAudioFormatFlagIsPacked |
-                                                            kAudioFormatFlagIsFloat |
-                                                            kAudioFormatFlagIsNonInterleaved,
-                                                       mBytesPerPacket: 4,
-                                                       mFramesPerPacket: 1,
-                                                       mBytesPerFrame: 4,
-                                                       mChannelsPerFrame: UInt32(sample.numberChannels()),
-                                                       mBitsPerChannel: 32,
-                                                       mReserved: 0)
-                #if os(macOS)
-                let subtype = kAudioUnitSubType_HALOutput
-                #else
-                let subtype = kAudioUnitSubType_RemoteIO
-                #endif
-                var desc = AudioComponentDescription(componentType: kAudioUnitType_Output,
-                                                     componentSubType: subtype,
-                                                     componentManufacturer: kAudioUnitManufacturer_Apple,
-                                                     componentFlags: 0,
-                                                     componentFlagsMask: 0)
-                var unit: AudioUnit?
-
-                if let component = AudioComponentFindNext(nil, &desc),
-                     AudioComponentInstanceNew(component, &unit) == noErr {
-                    if let unit = unit {
-
-                        strongSelf.pts = rescale(sample.pts(), Int64(sample.sampleRate()))
-                        print("setting pts=\(sample.pts().toString()) new=\(strongSelf.pts.toString())")
-                        strongSelf.unit = unit
-                        var callback = AURenderCallbackStruct(inputProc: ioProc, inputProcRefCon: bridge(strongSelf))
-                        var flag: UInt32 = 1
-                        AudioUnitSetProperty(unit, kAudioUnitProperty_SetRenderCallback,
-                            kAudioUnitScope_Global, 0, &callback, UInt32(MemoryLayout<AURenderCallbackStruct>.size))
-                        AudioUnitSetProperty(unit, kAudioOutputUnitProperty_EnableIO,
-                            kAudioUnitScope_Output, 0, &flag, 4)
-                        AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat,
-                            kAudioUnitScope_Input, 0, &asbd, UInt32(MemoryLayout<AudioStreamBasicDescription>.size))
-                        AudioUnitInitialize(unit)
-                        AudioOutputUnitStart(unit)
-                        AudioUnitSetParameter(unit, kHALOutputParam_Volume, kAudioUnitScope_Global, 0, gain, 0)
-                    }
-                }
+                strongSelf.setupAudioUnit(sample, gain: gain)
             }
-            if sample.pts() < strongSelf.pts {
-                print("sample.pts=\(sample.pts().toString()) pts=\(strongSelf.pts.toString())")
+            if (sample.pts()) < (strongSelf.pts-TimePoint(2.0)) {
                 strongSelf.pts = rescale(sample.pts(), Int64(sample.sampleRate()))
-                strongSelf.samples.removeAll(keepingCapacity: true)
+                //strongSelf.samples.removeAll(keepingCapacity: true)
                 strongSelf.ptsOffset = nil
             }
             strongSelf.samples.append(sample)
@@ -84,12 +41,58 @@ public class AppleAudioPlayback: Terminal<AudioSample> {
         }
     }
 
+    private func setupAudioUnit(_ sample: AudioSample, gain: Float) {
+        var asbd = AudioStreamBasicDescription(mSampleRate: Float64(sample.sampleRate()),
+                                               mFormatID: kAudioFormatLinearPCM,
+                                               mFormatFlags: kAudioFormatFlagIsPacked |
+                                                    kAudioFormatFlagIsFloat |
+                                                    kAudioFormatFlagIsNonInterleaved,
+                                               mBytesPerPacket: 4,
+                                               mFramesPerPacket: 1,
+                                               mBytesPerFrame: 4,
+                                               mChannelsPerFrame: UInt32(sample.numberChannels()),
+                                               mBitsPerChannel: 32,
+                                               mReserved: 0)
+        #if os(macOS)
+        let subtype = kAudioUnitSubType_HALOutput
+        #else
+        let subtype = kAudioUnitSubType_RemoteIO
+        #endif
+        var desc = AudioComponentDescription(componentType: kAudioUnitType_Output,
+                                             componentSubType: subtype,
+                                             componentManufacturer: kAudioUnitManufacturer_Apple,
+                                             componentFlags: 0,
+                                             componentFlagsMask: 0)
+        var unit: AudioUnit?
+
+        if let component = AudioComponentFindNext(nil, &desc),
+             AudioComponentInstanceNew(component, &unit) == noErr {
+            if let unit = unit {
+
+                self.pts = rescale(sample.pts(), Int64(sample.sampleRate()))
+                self.unit = unit
+                var callback = AURenderCallbackStruct(inputProc: ioProc, inputProcRefCon: bridge(self))
+                var flag: UInt32 = 1
+                AudioUnitSetProperty(unit, kAudioUnitProperty_SetRenderCallback,
+                    kAudioUnitScope_Global, 0, &callback, UInt32(MemoryLayout<AURenderCallbackStruct>.size))
+                AudioUnitSetProperty(unit, kAudioOutputUnitProperty_EnableIO,
+                    kAudioUnitScope_Output, 0, &flag, 4)
+                AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat,
+                    kAudioUnitScope_Input, 0, &asbd, UInt32(MemoryLayout<AudioStreamBasicDescription>.size))
+                AudioUnitInitialize(unit)
+                AudioOutputUnitStart(unit)
+                AudioUnitSetParameter(unit, kHALOutputParam_Volume, kAudioUnitScope_Global, 0, gain, 0)
+            }
+        }
+    }
+
     private var unit: AudioUnit?
     fileprivate var samples: [AudioSample]
     fileprivate var pts: TimePoint
     fileprivate var ptsOffset: TimePoint?
 }
 
+//swiftlint:disable:next function_parameter_count
 private func ioProc(inRefCon: UnsafeMutableRawPointer,
                     ioActionFlags: UnsafeMutablePointer<AudioUnitRenderActionFlags>,
                     audioTimestamp: UnsafePointer<AudioTimeStamp>,
@@ -106,7 +109,6 @@ private func ioProc(inRefCon: UnsafeMutableRawPointer,
     guard let ptsOffset = this.ptsOffset else {
         return -1
     }
-    //print("this.pts=\(this.pts.toString()) offset=\(ptsOffset.toString())")
     let windowStart = this.pts //- ptsOffset
     let windowEnd = windowStart + TimePoint(Int64(inNumberFrames), windowStart.scale)
     buffers.forEach {
@@ -116,11 +118,10 @@ private func ioProc(inRefCon: UnsafeMutableRawPointer,
         memset(ptr, 0, Int($0.mDataByteSize))
     }
     let samples = Array(this.samples)
-    //print("Sample count=\(samples.count) window=\(windowStart.toString())->\(windowEnd.toString())")
     samples.forEach { sample in
         let sampleStart = rescale(sample.pts(), this.pts.scale)
         let sampleEnd = sampleStart + TimePoint(Int64(sample.numberSamples()), this.pts.scale)
-        if windowEnd > sampleStart && windowStart < sampleEnd {
+        if windowEnd >= sampleStart && windowStart < sampleEnd {
             let readOffset = min(Int(max(windowStart.value - sampleStart.value, 0)), sample.sampleCount) * 4
             let writeOffset = min(Int(max(sampleStart.value - windowStart.value, 0)), Int(inNumberFrames)) * 4
             let writeCount = min(sample.sampleCount * 4 - readOffset, Int(inNumberFrames) * 4 - writeOffset)

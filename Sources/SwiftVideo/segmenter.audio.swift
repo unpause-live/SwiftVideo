@@ -16,7 +16,7 @@ public class AudioPacketSegmenter: Tx<AudioSample, [AudioSample]> {
             let result = audioSampleSplit(strongSelf.duration, pts: pts, inSamples: strongSelf.incoming)
             strongSelf.pts = result.0
             strongSelf.incoming = result.1
-            print("result=\(result.2)")
+            //print("result=\(result.2)")
             return .just(result.2)
         }
     }
@@ -36,7 +36,7 @@ private func audioSampleSplit(_ duration: TimePoint,
 
         // we are going to try to extract a single segment from the buffer we have built up.
         let totalDuration = inSamples.reduce(TimePoint(0)) { $0 + $1.duration() } - (pts - inSamples[0].pts())
-        print("inSamples=\(inSamples) totalDuration=\(totalDuration.toString()) duration=\(duration.toString())")
+        //print("inSamples=\(inSamples) totalDuration=\(totalDuration.toString()) duration=\(duration.toString())")
         guard totalDuration >= duration else {
             return (pts, inSamples, outSamples)
         }
@@ -61,8 +61,8 @@ private func audioSampleSplit(_ duration: TimePoint,
             let outOffset = $0.pts() - sample.pts()
             let outStartBytes = max(Int(rescale(outOffset, Int64($0.sampleRate())).value) * sampleBytes, 0)
             let bytesToCopy = min(bufferLength - outStartBytes, $0.data()[0].count - inStartBytes)
-            //let outEndBytes = outStartBytes + bytesToCopy
-            //let inEndBytes = inStartBytes + bytesToCopy
+            let outEndBytes = outStartBytes + bytesToCopy
+            let inEndBytes = inStartBytes + bytesToCopy
             print("bufferLength = \(bufferLength) data.count = \($0.data()[0].count)")
             print("bytesToCopy = \(bytesToCopy)")
             print("inOffset=\(inOffset.toString()) outOffset=\(outOffset.toString())")
