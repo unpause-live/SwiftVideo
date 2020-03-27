@@ -33,8 +33,8 @@ public final class WallClock: Clock {
     private let workspaceId: String
     private let scheduleQueue: DispatchQueue
     private let scheduleQoS: DispatchQoS
-    private var timers: [TimePoint: DispatchSourceTimer] = [:]
-    
+    private var timers: [Int64: DispatchSourceTimer] = [:]
+
     public func step() -> TimePoint {
         return current()
     }
@@ -79,21 +79,27 @@ public final class WallClock: Clock {
     public func schedule(_ at: TimePoint, f: @escaping (ClockTickEvent) -> Void) {
         let cur = current()
         if at <= cur {
-            scheduleQueue.async(qos: scheduleQoS) {
-                f(ClockTickEvent(at, self.assetId, self.workspaceId))
+            DispatchQueue.global().async { [weak self] in
+                guard let strongSelf = self else { return }
+                f(ClockTickEvent(at, strongSelf.assetId, strongSelf.workspaceId))
             }
         } else {
             let t = at - cur
-            let timer = DispatchSource.makeTimerSource(queue: scheduleQueue)
-            timer.schedule(deadline: .now() + Double(seconds(t)), leeway: .milliseconds(33))
-            timer.setEventHandler {
-                f(ClockTickEvent(at, self.assetId, self.workspaceId))
-                self.scheduleQueue.async {
-                    self.timers.removeValue(forKey: at)
+            let timer = DispatchSource.makeTimerSource(flags: [.strict], queue: scheduleQueue)
+            let key = Int64.random(in: Int64.min...Int64.max)
+            timer.schedule(deadline: .now() + Double(seconds(t)))
+            timer.setEventHandler { [weak self] in
+                guard let strongSelf = self else { return }
+                DispatchQueue.global().async {
+                    guard let strongSelf = self else { return }
+                    f(ClockTickEvent(at, strongSelf.assetId, strongSelf.workspaceId))
+                }
+                self?.scheduleQueue.async {
+                    strongSelf.timers.removeValue(forKey: key)
                 }
             }
             scheduleQueue.async {
-                self.timers[at] = timer
+                self.timers[key] = timer
             }
             timer.resume()
         }
