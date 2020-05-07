@@ -167,10 +167,11 @@ private func ioProc(_ converter: AudioConverterRef,
     packet.pointee.packetDesc.withUnsafeMutableBytes {
         ioPacketDesc?.pointee = $0.baseAddress?.bindMemory(to: AudioStreamPacketDescription.self, capacity: $0.count)
     }
-    let buffers = UnsafeMutableBufferPointer<AudioBuffer>(start: &ioData.pointee.mBuffers, count: 1)
-    buffers[0] = AudioBuffer(mNumberChannels: channelCount,
+    withUnsafeMutablePointer(to: &ioData.pointee.mBuffers) { buffers in
+        buffers[0] = AudioBuffer(mNumberChannels: channelCount,
                      mDataByteSize: UInt32(dataSize),
                      mData: buf.baseAddress)
+    }
     packet.pointee.buffer = nil
     return noErr
 }

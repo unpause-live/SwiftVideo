@@ -270,7 +270,7 @@ public enum amf {
             guard let bytes = data?.1 else {
                 return (data?.0, nil)
             }
-            let u64 = UnsafeRawPointer(bytes).load(as: UInt64.self).byteSwapped
+            let u64 = bytes.withUnsafeBytes { $0.load(as: UInt64.self).byteSwapped }
             let f64 = Float64(bitPattern: u64)
             return (data?.0, Atom(f64))
         }
@@ -300,7 +300,7 @@ public enum amf {
             guard let bytes = data?.1 else {
                 return (data?.0, nil)
             }
-            return (data?.0, UnsafeRawPointer(bytes).load(as: T.self).byteSwapped)
+            return (data?.0, bytes.withUnsafeBytes { $0.load(as: T.self).byteSwapped })
         }
         // swiftlint:enable identifier_name
 
