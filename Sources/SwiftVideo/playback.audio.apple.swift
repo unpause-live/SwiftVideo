@@ -106,9 +106,9 @@ private func ioProc(inRefCon: UnsafeMutableRawPointer,
     if this.ptsOffset == nil {
         this.ptsOffset = TimePoint(Int64(audioTimestamp.pointee.mSampleTime), this.pts.scale)
     }
-    guard let ptsOffset = this.ptsOffset else {
-        return -1
-    }
+    //guard let ptsOffset = this.ptsOffset else {
+    //    return -1
+    //}
     let windowStart = this.pts //- ptsOffset
     let windowEnd = windowStart + TimePoint(Int64(inNumberFrames), windowStart.scale)
     buffers.forEach {

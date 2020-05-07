@@ -61,13 +61,13 @@ private func audioSampleSplit(_ duration: TimePoint,
             let outOffset = $0.pts() - sample.pts()
             let outStartBytes = max(Int(rescale(outOffset, Int64($0.sampleRate())).value) * sampleBytes, 0)
             let bytesToCopy = min(bufferLength - outStartBytes, $0.data()[0].count - inStartBytes)
-            let outEndBytes = outStartBytes + bytesToCopy
-            let inEndBytes = inStartBytes + bytesToCopy
-            print("bufferLength = \(bufferLength) data.count = \($0.data()[0].count)")
-            print("bytesToCopy = \(bytesToCopy)")
-            print("inOffset=\(inOffset.toString()) outOffset=\(outOffset.toString())")
-            print("outStartBytes=\(outStartBytes) inStartBytes=\(inStartBytes)")
-            print("inPts=\($0.pts().toString())")
+            //let outEndBytes = outStartBytes + bytesToCopy
+            //let inEndBytes = inStartBytes + bytesToCopy
+            // print("bufferLength = \(bufferLength) data.count = \($0.data()[0].count)")
+            // print("bytesToCopy = \(bytesToCopy)")
+            // print("inOffset=\(inOffset.toString()) outOffset=\(outOffset.toString())")
+            // print("outStartBytes=\(outStartBytes) inStartBytes=\(inStartBytes)")
+            // print("inPts=\($0.pts().toString())")
             if bytesToCopy > 0 {
                 $0.data().enumerated().forEach {
                     let idx = $0.offset

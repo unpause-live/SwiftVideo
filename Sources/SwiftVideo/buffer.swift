@@ -106,6 +106,13 @@ public enum buffer {
         return buf
     }
 
+    public static func fromBytes(_ bytes: [UInt8]) -> ByteBuffer {
+        let allocator = ByteBufferAllocator()
+        var buf = allocator.buffer(capacity: bytes.count)
+        buf.writeBytes(bytes)
+        return buf
+    }
+
     public static func fromData(_ data: Data) -> ByteBuffer {
         return data.withUnsafeBytes {
             buffer.fromUnsafeBytes(

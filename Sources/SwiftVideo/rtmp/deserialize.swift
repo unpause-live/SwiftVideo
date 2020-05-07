@@ -60,7 +60,7 @@ extension rtmp {
                     return buf.1 <??> { (buf.0, formatId, Int($0[0]) + 64) } <|> nil
                 } else if streamId == 1 {
                     let buf = buffer.readBytes(buf, length: 2)
-                    return buf.1 <??> { (buf.0, formatId, Int(UnsafeRawPointer($0).load(as: UInt16.self))) } <|> nil
+                    return buf.1.map { (buf.0, formatId, Int($0.withUnsafeBytes { $0.load(as: UInt16.self) })) }
                 } else {
                     return (buf, formatId, streamId)
                 }

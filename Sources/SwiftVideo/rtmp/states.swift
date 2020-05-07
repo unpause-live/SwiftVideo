@@ -68,8 +68,12 @@ extension rtmp {
 
         // MARK: - Handshake Functions
         static func c0c1(_ buf: ByteBuffer, ctx: Context) -> HandshakeResult {
-            if let c1 = buffer.getSlice(buf, 1, 1536),
-                let res = [buffer.getSlice(buf, 0, 1537), c1].reduce(nil, buffer.concat) {
+            if let  client1 = buffer.getSlice(buf, 1, 1536),
+                let res = [buffer.getSlice(buf, 0, 5),
+                           buffer.fromBytes([0, 0]), // set these bytes to 0 so we dont trigger the more complex
+                                                     // handshake
+                           buffer.getSlice(buf, 7, 1530),
+                           client1].reduce(nil, buffer.concat) {
                 // Send S0S1S2
                 let evt = NetworkEvent(time: nil,
                                        assetId: ctx.assetId,
@@ -100,12 +104,12 @@ extension rtmp {
         }
 
         static func s0s1(_ buf: ByteBuffer, ctx: Context) -> HandshakeResult {
-            if let s1 = buffer.getSlice(buf, 1, 1536) {
+            if let server1 = buffer.getSlice(buf, 1, 1536) {
                 // Send C2
                 let evt = NetworkEvent(time: nil,
                                        assetId: ctx.assetId,
                                        workspaceId: ctx.app ?? "",
-                                       workspaceToken: ctx.playPath, bytes: s1)
+                                       workspaceToken: ctx.playPath, bytes: server1)
                 return (.just(evt), buffer.advancingReader(buf, by: 1537), ctx, true)
             }
             return (.nothing(nil), buf, ctx, false)
@@ -148,11 +152,11 @@ extension rtmp {
             }
             do {
                 let commands = [fcUnpublish, deleteStream]
-                let res: (ByteBuffer?, Context) = try commands.reduce((nil, ctx)) {
-                    (accum: (ByteBuffer?, Context), val: [amf.Atom]) in
-                    let res = try makeBuffer(val, accum.1)
-                    return (buffer.concat(accum.0, res.0), res.1)
-                }
+                let res: (ByteBuffer?, Context) =
+                    try commands.reduce((nil, ctx)) { (accum: (ByteBuffer?, Context), val: [amf.Atom]) in
+                        let res = try makeBuffer(val, accum.1)
+                        return (buffer.concat(accum.0, res.0), res.1)
+                    }
                 let responders = ctx.commandResponder?.merging(
                     [ctx.commandNumber &+ 2: handleCreateStreamResult]) { $1 }
                 return (res.0 <??> {.just(NetworkEvent(time: nil,
@@ -181,8 +185,10 @@ extension rtmp {
                   let bytes = buffer.readBytes(data, length: 4).1 else {
                 return (.nothing(nil), ctx)
             }
-            let inChunkSize = Int(UnsafeRawPointer(bytes).load(as: Int32.self).byteSwapped)
-            return (.nothing(nil), ctx.changing(inChunkSize: inChunkSize))
+            let inChunkSize = bytes.withUnsafeBytes {
+              $0.load(as: Int32.self).byteSwapped
+            }
+            return (.nothing(nil), ctx.changing(inChunkSize: Int(inChunkSize)))
         }
         private static func handleUserControl(_ chunk: Chunk,
                                               ctx: Context,
@@ -257,6 +263,7 @@ extension rtmp {
                                    "FCPublish": genericResult,
                                    "createStream": handleCreateStream,
                                    "publish": handlePublish,
+                                   "play": handlePlay,
                                    "_result": handleResult,
                                    "onStatus": handleOnStatus]
             return commandHandlers[command] <??> { $0(data, chunk, ctx) } <|> (.nothing(nil), ctx)
@@ -340,6 +347,15 @@ extension rtmp {
                 return (.error(EventError("NetStream.Publish.Fail", 1, "No access")), ctx)
             }
             return (.nothing(nil), ctx.changing(playPath: playPath, started: true, publishToPeer: false))
+        }
+
+        private static func handlePlay(_ data: [amf.Atom],
+                                       chunk: Chunk,
+                                       ctx: Context) -> (EventBox<Event>, Context) {
+            guard let playPath = data[safe: 3]?.string else {
+                return (.error(EventError("NetStream.Play.Fail", 1, "No access")), ctx)
+            }
+            return (.nothing(nil), ctx.changing(playPath: playPath, started: true, publishToPeer: true))
         }
 
         private static func handleOnStatus(_ data: [amf.Atom],
