@@ -14,6 +14,8 @@
    limitations under the License.
 */
 
+#if !EXCLUDE_FFMPEG // Requires ffmpeg for now
+
 // swiftlint:disable force_cast
 
 public protocol Renameable: Event {
@@ -154,3 +156,5 @@ public class TranscodeContainer: AsyncTx<CodedMediaSample, CodedMediaSample> {
     var videoTranscoders: [Tx<CodedMediaSample, CodedMediaSample>]
     var audioTranscoders: [Tx<CodedMediaSample, [CodedMediaSample]>]
 }
+
+#endif // !EXCLUDE_FFMPEG

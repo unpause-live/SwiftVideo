@@ -14,21 +14,14 @@
    limitations under the License.
 */
 
-#if !EXCLUDE_FFMPEG
+#if EXCLUDE_FFMPEG
 
-import CFFmpeg
-import SwiftFFmpeg
-
-// swiftlint:disable identifier_name
-extension AVCodecID {
-    public static let OPUS = AV_CODEC_ID_OPUS
-    public static let SMPTE_KLV = AV_CODEC_ID_SMPTE_KLV
+public class AudioSampleRateConversion: Tx<AudioSample, AudioSample> {
+    public init(_ outFrequency: Int, _ outChannelCount: Int, _ outAudioFormat: AudioFormat) {
+        super.init {
+            .just($0)
+        }
+    }
 }
-
-extension AVMediaType: Hashable {}
-
-extension AVCodecID: Hashable {}
-
-extension AVPixelFormat: Hashable {}
 
 #endif // !EXCLUDE_FFMPEG

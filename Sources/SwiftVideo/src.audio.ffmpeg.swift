@@ -14,6 +14,8 @@
    limitations under the License.
 */
 
+#if !EXCLUDE_FFMPEG
+
 import SwiftFFmpeg
 import Foundation
 
@@ -170,3 +172,5 @@ private func avSampleFormat(_ fmt: AudioFormat) -> AVSampleFormat {
         return .s16
     }
 }
+
+#endif // !EXCLUDE_FFMPEG

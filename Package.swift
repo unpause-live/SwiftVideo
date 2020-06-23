@@ -32,7 +32,14 @@ let targets: [Target] = cudaVer.map { ver in
       pkgConfig: "cuda-\(ver)")]
   } ?? []
 
-let dependencies: [Target.Dependency] = cudaVer != nil ? ["CCUDA"] : []
+var dependencies: [Target.Dependency] = cudaVer != nil ? ["CCUDA"] : []
+var dependencyPackages: [Package.Dependency] = []
+#if !EXCLUDE_FFMPEG
+  dependencies += ["SwiftFFmpeg"]
+  dependencyPackages += [.package(url: "https://github.com/sunlubo/SwiftFFmpeg",
+                            .revision("2ca7f8a423207bf8a20139b04f0750e3cfe85c9a")
+                          )]
+#endif
 
 let swiftSettings: [SwiftSetting] = cudaVer != nil ? [.define("GPGPU_CUDA", .when(platforms: [.linux]))] :
     [.define("GPGPU_OCL", .when(platforms: [.macOS, .linux]))]
@@ -56,11 +63,10 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.3.1"),
         .package(url: "https://github.com/nicklockwood/VectorMath.git", from: "0.4.0"),
         .package(url: "https://github.com/Thomvis/BrightFutures.git", from: "8.0.1"),
-        .package(url: "https://github.com/sunlubo/SwiftFFmpeg", .revision("2ca7f8a423207bf8a20139b04f0750e3cfe85c9a")),
         .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.7.0"),
         .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.4.3"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.1.1")
-    ],
+    ] + dependencyPackages,
     targets: targets + [
         .systemLibrary(
             name: "CFreeType",
@@ -77,7 +83,7 @@ let package = Package(
         .target(
             name: "SwiftVideo",
             dependencies: dependencies + ["NIO", "CSwiftVideo", "NIOSSL", "NIOExtras", "NIOFoundationCompat",
-                           "VectorMath", "BrightFutures", "SwiftFFmpeg", "SwiftProtobuf", "NIOWebSocket",
+                           "VectorMath", "BrightFutures", "SwiftProtobuf", "NIOWebSocket",
                            "NIOHTTP1", "CFreeType", "Logging"],
             cSettings: [
                 .define("linux", .when(platforms: [.linux])),

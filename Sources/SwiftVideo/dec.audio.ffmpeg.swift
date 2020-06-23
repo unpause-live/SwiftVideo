@@ -14,6 +14,8 @@
    limitations under the License.
 */
 
+#if !EXCLUDE_FFMPEG
+
 import SwiftFFmpeg
 import Foundation
 import VectorMath
@@ -208,3 +210,5 @@ private func sendPacket(_ sample: CodedMediaSample, ctx: AVCodecContext) throws 
     }
     return packet.size
 }
+
+#endif // !EXCLUDE_FFMPEG
