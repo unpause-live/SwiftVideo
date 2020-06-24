@@ -18,7 +18,7 @@ import SwiftVideo
 import SwiftFFmpeg
 import Foundation
 
-public class AudioSampleRateConversion: Tx<AudioSample, AudioSample> {
+public class FFmpegAudioSRC: Tx<AudioSample, AudioSample> {
     public init(_ outFrequency: Int, _ outChannelCount: Int, _ outAudioFormat: AudioFormat) {
         self.swrCtx = nil
         super.init()
