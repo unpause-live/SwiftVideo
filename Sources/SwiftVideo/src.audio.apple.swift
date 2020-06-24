@@ -14,8 +14,6 @@
    limitations under the License.
 */
 
-#if !USE_FFMPEG
-
 public class AudioSampleRateConversion: Tx<AudioSample, AudioSample> {
     public init(_ outFrequency: Int, _ outChannelCount: Int, _ outAudioFormat: AudioFormat) {
         super.init {
@@ -24,4 +22,3 @@ public class AudioSampleRateConversion: Tx<AudioSample, AudioSample> {
     }
 }
 
-#endif // USE_FFMPEG
