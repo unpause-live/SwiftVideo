@@ -11,6 +11,6 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Run public tests
-      run: swift test -c release --filter swiftVideoTests
+      run: swift test -Xswift -DUSE_FFMPEG -Xswift -DUSE_FREETYPE -c release --filter swiftVideoTests
     - name: Run internal tests
-      run: swift test --filter swiftVideoInternalTests
+      run: swift test -Xswift -DUSE_FFMPEG -Xswift -DUSE_FREETYPE --filter swiftVideoInternalTests
