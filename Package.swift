@@ -42,6 +42,10 @@ var dependencyPackages: [Package.Dependency] = []
                           )]
 #endif
 
+#if USE_FREETYPE
+  dependencies += ["CFreeType"]
+#endif
+
 let swiftSettings: [SwiftSetting] = cudaVer != nil ? [.define("GPGPU_CUDA", .when(platforms: [.linux]))] :
     [.define("GPGPU_OCL", .when(platforms: [.macOS, .linux]))]
 
@@ -85,7 +89,7 @@ let package = Package(
             name: "SwiftVideo",
             dependencies: dependencies + ["NIO", "CSwiftVideo", "NIOSSL", "NIOExtras", "NIOFoundationCompat",
                            "VectorMath", "BrightFutures", "SwiftProtobuf", "NIOWebSocket",
-                           "NIOHTTP1", "CFreeType", "Logging"],
+                           "NIOHTTP1", "Logging"],
             cSettings: [
                 .define("linux", .when(platforms: [.linux])),
                 .define("CL_USE_DEPRECATED_OPENCL_1_2_APIS"),
