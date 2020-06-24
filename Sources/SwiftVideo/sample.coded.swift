@@ -20,7 +20,7 @@ import Foundation
 import VectorMath
 import CSwiftVideo
 
-enum EncodeError: Error {
+public enum EncodeError: Error {
     case invalidMediaFormat
     case invalidPixelFormat
     case invalidImageBuffer
@@ -29,10 +29,10 @@ enum EncodeError: Error {
 }
 
 public struct AVCSettings {
-    let useBFrames: Bool
-    let useHWAccel: Bool
-    let profile: String
-    let preset: String
+    public let useBFrames: Bool
+    public let useHWAccel: Bool
+    public let profile: String
+    public let preset: String
     public init(useBFrames: Bool? = nil,
                 useHWAccel: Bool? = nil,
                 profile: String? = nil,
@@ -50,13 +50,13 @@ public enum EncoderSpecificSettings {
 }
 
 public struct BasicVideoDescription {
-    let size: Vector2
+    public let size: Vector2
 }
 
 public struct BasicAudioDescription {
-    let sampleRate: Float
-    let channelCount: Int
-    let samplesPerPacket: Int
+    public let sampleRate: Float
+    public let channelCount: Int
+    public let samplesPerPacket: Int
 }
 
 public enum BasicMediaDescription {

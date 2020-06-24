@@ -14,8 +14,7 @@
    limitations under the License.
 */
 
-#if USE_FFMPEG
-
+import SwiftVideo
 import SwiftFFmpeg
 import Foundation
 
@@ -205,5 +204,3 @@ public class FileSource: Source<CodedMediaSample> {
     let workspaceToken: String?
     let repeats: Bool
 }
-
-#endif // USE_FFMPEG

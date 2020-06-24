@@ -17,6 +17,7 @@
 import XCTest
 import Foundation
 import SwiftVideo
+import SwiftVideo_FFmpeg
 
 // swiftlint:disable shorthand_operator
 // swiftlint:disable:next type_name

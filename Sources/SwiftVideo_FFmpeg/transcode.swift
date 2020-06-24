@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-#if USE_FFMPEG // Requires ffmpeg for now
+import SwiftVideo
 
 // swiftlint:disable force_cast
 
@@ -37,8 +37,8 @@ private class AssetRenamer<T>: Tx<T, T> where T: Renameable {
                 return .gone
             }
             if strongSelf.statsReport == nil {
-                strongSelf.statsReport = (sample.info() <??> {
-                    StatsReport(assetId: assetId, other: $0) } <|> StatsReport(assetId: assetId))
+                strongSelf.statsReport = (sample.info().map {
+                    StatsReport(assetId: assetId, other: $0) } ?? StatsReport(assetId: assetId))
             }
             return .just(T.make(sample,
                                 assetId: assetId,
@@ -138,7 +138,7 @@ public class TranscodeContainer: AsyncTx<CodedMediaSample, CodedMediaSample> {
                 guard let strongSelf = self else {
                     return .gone
                 }
-                return (strongSelf.emit($0).value() as? CodedMediaSample) <??> { .just($0) } <|> .nothing($0.info())
+                return (strongSelf.emit($0).value() as? CodedMediaSample).map { .just($0) } ?? .nothing($0.info())
             })
         }
         self.audioTranscoders = audioTranscodes.map {
@@ -156,5 +156,3 @@ public class TranscodeContainer: AsyncTx<CodedMediaSample, CodedMediaSample> {
     var videoTranscoders: [Tx<CodedMediaSample, CodedMediaSample>]
     var audioTranscoders: [Tx<CodedMediaSample, [CodedMediaSample]>]
 }
-
-#endif // USE_FFMPEG

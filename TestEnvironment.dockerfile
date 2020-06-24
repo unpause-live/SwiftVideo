@@ -256,7 +256,7 @@ FROM base
 
 RUN apt update && apt-get install -y software-properties-common build-essential wget gnupg2 git
 
-ARG SWIFT_VER=swift-5.1.1-RELEASE
+ARG SWIFT_VER=swift-5.2.4-RELEASE
 
 RUN export SWIFT_VER_LOWER=$(echo ${SWIFT_VER} | tr '[:upper:]' '[:lower:]') && \
     mkdir -p /tmp/swift && \

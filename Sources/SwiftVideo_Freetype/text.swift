@@ -14,8 +14,7 @@
    limitations under the License.
 */
 
-#if USE_FREETYPE
-
+import SwiftVideo
 import CFreeType
 import Foundation
 import VectorMath
@@ -261,5 +260,3 @@ private func textWidth(_ text: String, _ fontFace: FT_Face) -> Int {
         return width
     }
 }
-
-#endif // USE_FREETYPE
