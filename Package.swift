@@ -34,7 +34,8 @@ let targets: [Target] = cudaVer.map { ver in
 
 var dependencies: [Target.Dependency] = cudaVer != nil ? ["CCUDA"] : []
 var dependencyPackages: [Package.Dependency] = []
-#if !EXCLUDE_FFMPEG
+
+#if USE_FFMPEG
   dependencies += ["SwiftFFmpeg"]
   dependencyPackages += [.package(url: "https://github.com/sunlubo/SwiftFFmpeg",
                             .revision("2ca7f8a423207bf8a20139b04f0750e3cfe85c9a")

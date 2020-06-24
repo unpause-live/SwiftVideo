@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-#if !EXCLUDE_FFMPEG // Requires ffmpeg for now
+#if USE_FFMPEG // Requires ffmpeg for now
 
 // swiftlint:disable force_cast
 
@@ -157,4 +157,4 @@ public class TranscodeContainer: AsyncTx<CodedMediaSample, CodedMediaSample> {
     var audioTranscoders: [Tx<CodedMediaSample, [CodedMediaSample]>]
 }
 
-#endif // !EXCLUDE_FFMPEG
+#endif // USE_FFMPEG

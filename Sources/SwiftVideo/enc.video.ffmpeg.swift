@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-#if !EXCLUDE_FFMPEG
+#if USE_FFMPEG
 
 import SwiftFFmpeg
 import Foundation
@@ -297,4 +297,4 @@ private func avcDecoderConfigurationRecord(_ config: Data) -> Data? {
     return Data(bytes)
 }
 
-#endif // !EXCLUDE_FFMPEG
+#endif // USE_FFMPEG

@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-#if !EXCLUDE_FFMPEG
+#if USE_FFMPEG
 
 import SwiftFFmpeg
 import Foundation
@@ -202,4 +202,4 @@ public class FFmpegAudioEncoder: Tx<AudioSample, [CodedMediaSample]> {
 
 }
 
-#endif // !EXCLUDE_FFMPEG
+#endif // USE_FFMPEG
