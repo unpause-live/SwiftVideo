@@ -14,8 +14,7 @@
    limitations under the License.
 */
 
-#if !EXCLUDE_FFMPEG
-
+import SwiftVideo
 import CFFmpeg
 import SwiftFFmpeg
 
@@ -31,4 +30,3 @@ extension AVCodecID: Hashable {}
 
 extension AVPixelFormat: Hashable {}
 
-#endif // !EXCLUDE_FFMPEG

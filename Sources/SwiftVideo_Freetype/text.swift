@@ -14,6 +14,7 @@
    limitations under the License.
 */
 
+import SwiftVideo
 import CFreeType
 import Foundation
 import VectorMath

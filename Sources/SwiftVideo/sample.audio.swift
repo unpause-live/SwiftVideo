@@ -180,11 +180,11 @@ func numberOfChannels(_ channelLayout: AudioChannelLayout) -> Int {
     }
 }
 
-func numberOfBuffers(_ format: AudioFormat, _ channelCount: Int) -> Int {
+public func numberOfBuffers(_ format: AudioFormat, _ channelCount: Int) -> Int {
     return isPlanar(format) ? channelCount : 1
 }
 
-func numberOfBuffers(_ format: AudioFormat, _ channelLayout: AudioChannelLayout) -> Int {
+public func numberOfBuffers(_ format: AudioFormat, _ channelLayout: AudioChannelLayout) -> Int {
     return numberOfBuffers(format, numberOfChannels(channelLayout))
 }
 

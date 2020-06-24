@@ -20,6 +20,9 @@ import BrightFutures
 import Logging
 
 public class Composer {
+
+    public typealias FnSampleRateConverter = (Int, Int, AudioFormat) -> Tx<AudioSample, AudioSample>
+
     // swiftlint:disable:next function_body_length
     public init(_ clock: Clock,
                 assetId: String,
@@ -30,7 +33,8 @@ public class Composer {
                 audioBus: Bus<AudioSample>,
                 pictureBus: Bus<PictureSample>,
                 epoch: Int64? = nil,
-                logger: Logging.Logger = Logger(label: "SwiftVideo")) {
+                logger: Logging.Logger = Logger(label: "SwiftVideo"),
+                sampleRateConverter: @escaping FnSampleRateConverter = { AudioSampleRateConversion($0, $1, $2) }) {
 
         self.idAsset = assetId
         self.idWorkspace = workspaceId
@@ -38,6 +42,7 @@ public class Composer {
         self.clock = clock
         self.computeContext = compute
         self.logger = logger
+        self.fnSampleRateConverter = sampleRateConverter
         let frameDuration = composition.video.hasFrameDuration ?
             composition.video.frameDuration : TimePoint(1000, 30000)
         let statsReport = StatsReport(assetId: assetId, clock: clock)
@@ -204,7 +209,7 @@ public class Composer {
             let audioAnim = element.sounAnimator
             let pic = self.pictureBus <<| (assetFilter(assetId) >>> GPUBarrierUpload(computeContext)
                   >>> Repeater(self.clock, interval: videoMixer.frameDuration) >>> pictureAnim >>> self.videoMixer)
-            let soun = self.audioBus <<| (assetFilter(assetId) >>> AudioSampleRateConversion(
+            let soun = self.audioBus <<| (assetFilter(assetId) >>> self.fnSampleRateConverter(
               audioMixer.getSampleRate(), audioMixer.getChannels(), audioMixer.getAudioFormat()) >>>
                   audioAnim  >>> self.audioMixer)
             self.queue.sync {
@@ -239,6 +244,7 @@ public class Composer {
     let epoch: Int64
     let logger: Logging.Logger
     let queue: DispatchQueue
+    let fnSampleRateConverter: FnSampleRateConverter
 
     private var curScene: String
     private var scenes: [String: Scene]

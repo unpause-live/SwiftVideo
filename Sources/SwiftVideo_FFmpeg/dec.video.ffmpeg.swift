@@ -14,8 +14,7 @@
    limitations under the License.
 */
 
-#if !EXCLUDE_FFMPEG
-
+import SwiftVideo
 import SwiftFFmpeg
 import Foundation
 import VectorMath
@@ -220,5 +219,3 @@ private func fromFfPixelFormat(_ frame: AVFrame) -> PixelFormat {
      .BGRA: .BGRA,
      .RGBA: .RGBA][frame.pixelFormat] ?? .invalid
 }
-
-#endif // !EXCLUDE_FFMPEG

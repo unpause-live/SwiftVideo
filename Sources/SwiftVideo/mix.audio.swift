@@ -308,11 +308,11 @@ public class AudioMixer: Source<AudioSample> {
     private let idWorkspace: String
 }
 
-func smoothstep<T: BinaryFloatingPoint>(_ edge0: T, _ edge1: T, _ val: T) -> T {
+public func smoothstep<T: BinaryFloatingPoint>(_ edge0: T, _ edge1: T, _ val: T) -> T {
     let val = clamp(0.0, 1.0, (val - edge0) / (edge1 - edge0))
     return val * val * (3 - 2 * val)
 }
 
-func clamp<T: BinaryFloatingPoint>(_ lower: T, _ upper: T, _ val: T) -> T {
+public func clamp<T: BinaryFloatingPoint>(_ lower: T, _ upper: T, _ val: T) -> T {
     return max(min(upper, val), lower)
 }

@@ -17,6 +17,7 @@
 import XCTest
 import Foundation
 import SwiftVideo
+import SwiftVideo_FFmpeg
 
 // swiftlint:disable shorthand_operator
 // swiftlint:disable:next type_name
@@ -24,7 +25,7 @@ final class sampleRateConversionTests: XCTestCase {
 
     func sampleCountTest() {
         let audioPacketDuration = TimePoint(1024, 44100)
-        let src = AudioSampleRateConversion(48000, 2, .s16i)
+        let src = FFmpegAudioSRC(48000, 2, .s16i)
         let blank = Data(count: Int(audioPacketDuration.value) * 4) // 1-ch, 32-bit float
         let buffers = [blank]
 

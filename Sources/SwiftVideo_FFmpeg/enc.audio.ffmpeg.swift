@@ -14,8 +14,7 @@
    limitations under the License.
 */
 
-#if !EXCLUDE_FFMPEG
-
+import SwiftVideo
 import SwiftFFmpeg
 import Foundation
 
@@ -201,5 +200,3 @@ public class FFmpegAudioEncoder: Tx<AudioSample, [CodedMediaSample]> {
     var codecContext: AVCodecContext?
 
 }
-
-#endif // !EXCLUDE_FFMPEG

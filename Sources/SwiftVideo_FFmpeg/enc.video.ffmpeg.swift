@@ -14,8 +14,7 @@
    limitations under the License.
 */
 
-#if !EXCLUDE_FFMPEG
-
+import SwiftVideo
 import SwiftFFmpeg
 import Foundation
 
@@ -86,13 +85,13 @@ public class FFmpegVideoEncoder: Tx<PictureSample, CodedMediaSample> {
                 return .nothing(sample.info())
             }
             let buffer = Data(bytes: data, count: packet.size)
-            let extradata = codecContext.extradata <??> { bytes -> Data? in
+            let extradata = codecContext.extradata.map { bytes -> Data? in
                     let data = Data(bytes: bytes, count: codecContext.extradataSize)
                     return self.format == .avc ? avcDecoderConfigurationRecord(data) : data
-            } <|> nil
+            }
             let dts = self.timestamps[Int(packet.dts) % self.timestamps.count]
             let pts = self.timestamps[Int(packet.pts) % self.timestamps.count]
-            let sidedata: [String: Data]? = extradata <??> { ["config": $0] } <|> nil
+            let sidedata: [String: Data]? = extradata.map { $0.map { ["config": $0] } ?? [:] }
             let outsample = CodedMediaSample(sample.assetId(),
                                           sample.workspaceId(),
                                           sample.time(),        // incorrect, needs to be matched with packet
@@ -241,9 +240,9 @@ private func codecOptions(_ context: AVCodecContext,
 private func x264opts(_ context: AVCodecContext,
                       settings: EncoderSpecificSettings?,
                       _ bitrate: Int?, _ crf: Int?) -> [String: String] {
-    let avcSettings = settings <??> {
+    let avcSettings = settings.map {
         if case .avc(let settings) = $0 { return settings }
-        return AVCSettings() } <|> AVCSettings()
+        return AVCSettings() } ?? AVCSettings()
     if avcSettings.useHWAccel {
         return [:]
     }
@@ -296,5 +295,3 @@ private func avcDecoderConfigurationRecord(_ config: Data) -> Data? {
 
     return Data(bytes)
 }
-
-#endif // !EXCLUDE_FFMPEG

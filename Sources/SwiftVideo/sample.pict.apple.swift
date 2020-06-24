@@ -129,7 +129,7 @@ public struct ImageBuffer {
 
     let computeTextures: [ComputeBuffer]
     public let pixelBuffer: CVPixelBuffer
-    let planes: [Plane]
+    public let planes: [Plane]
 }
 
 extension ImageBuffer {
@@ -348,11 +348,11 @@ public final class PictureSample: PictureEvent {
 // Throws ComputeError:
 //   - badInputData if it's unable to create the CVPixelBuffer
 //
-func createPictureSample(_ size: Vector2,
-                         _ format: PixelFormat,
-                         assetId: String,
-                         workspaceId: String,
-                         workspaceToken: String? = nil) throws -> PictureSample {
+public func createPictureSample(_ size: Vector2,
+                                _ format: PixelFormat,
+                                assetId: String,
+                                workspaceId: String,
+                                workspaceToken: String? = nil) throws -> PictureSample {
     guard size.x > 0 && size.y > 0 else {
         throw ComputeError.invalidOperation
     }
