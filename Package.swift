@@ -88,7 +88,7 @@ let package = Package(
                 .product(name: "NIOFoundationCompat", package: "swift-nio-extras"),
                 "VectorMath",
                 "BrightFutures",
-                .package(name: "SwiftProtobuf", url: "https://github.com/apple/swift-protobuf.git", from: "1.7.0"),
+                .product(name: "SwiftProtobuf", package: "swift-protobuf"),
                 .product(name: "NIOWebSocket", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
                 .product(name: "Logging", package: "swift-log")] + dependencies,
