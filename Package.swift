@@ -1,4 +1,4 @@
-// swift-tools-version:5.1
+// swift-tools-version:5.2
 /*
    SwiftVideo, Copyright 2019 Unpause SAS
 
