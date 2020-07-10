@@ -147,17 +147,17 @@ public class FFmpegAudioDecoder: Tx<CodedMediaSample, AudioSample> {
 
 private func sampleFormatFromFrame(_ frame: AVFrame, _ bytesPerSample: Int, _ channels: Int) -> (AudioFormat, Int) {
     switch frame.sampleFormat {
-    case .s16:
+    case .int16:
         return (.s16i, bytesPerSample * channels)
-    case .s16p:
+    case .int16Planar:
         return (.s16p, bytesPerSample)
-    case .flt:
+    case .float:
         return (.f32i, bytesPerSample * channels)
-    case .fltp:
+    case .floatPlanar:
         return (.f32p, bytesPerSample)
-    case .dbl:
+    case .double:
         return (.f64i, bytesPerSample * channels)
-    case .dblp:
+    case .doublePlanar:
         return (.f64p, bytesPerSample)
     default:
         return (.invalid, 0)
