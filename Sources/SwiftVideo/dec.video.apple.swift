@@ -193,8 +193,8 @@ private func videoFormatFromVP9Header(_ sample: CodedMediaSample) throws -> CMVi
     var formatDesc: CMVideoFormatDescription?
     _ = CMVideoFormatDescriptionCreate(kCFAllocatorDefault,
       kCMVideoCodecType_VP9,
-      videoDesc.width,
-      videoDesc.height,
+      Int32(videoDesc.size.x),
+      Int32(videoDesc.size.y),
       nil,
       &formatDesc)
     return formatDesc

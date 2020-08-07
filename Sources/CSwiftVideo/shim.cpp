@@ -368,6 +368,3 @@ extern "C" {
         return val;
     }
 }
-
-
-
