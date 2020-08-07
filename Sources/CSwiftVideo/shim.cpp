@@ -270,6 +270,91 @@ extern "C" {
         return 1;
     }
 
+    /* colorspace
+    Unknown = 0
+    BT.601 = 1
+    BT.709 = 2
+    SMPTE-170 = 3
+    SMPTE-240 = 4
+    BT.2020 = 5
+    Reserved = 6
+    sRGB = 7
+    */
+    static int vp9_bitdepth_colorspace_sampling(ExpGolomb& decoder, int64_t profile, int* bit_depth,
+            int* colorspace, int* yuv_range, int* subsampling_x, int* subsampling_y) {
+        *bit_depth = 8;
+        if(profile >= 2) {
+            *bit_depth = *decoder.get_bits(1) ? 12 : 10;
+        }
+        *colorspace = *decoder.get_bits(3);
+        if(*colorspace != 7) { // sRGB
+            *yuv_range = *decoder.get_bits(1); // movie = 0, full = 1
+            if(profile == 1 || profile == 3) {
+                *subsampling_x = *decoder.get_bits(1);
+                *subsampling_y = *decoder.get_bits(1);
+                decoder.get_bits(1); // reserved 0
+            } else {
+                *subsampling_x = *subsampling_y = 1;
+            }
+        } else {
+            *subsampling_x = *subsampling_y = 0;
+            return 0;
+        }
+        return 1;
+    }
+    static int vp9_frame_size(ExpGolomb& decoder, int* width, int* height) {
+        *width = *decoder.get_bits(16) + 1;
+        *height = *decoder.get_bits(16) + 1;
+        return 1;
+    }
+    int vp9_is_keyframe(const void* data, int64_t size, int* is_keyframe) {
+        auto decoder = ExpGolomb((uint8_t*)data, size);
+        if(*decoder.get_bits(2) != 0b10) {
+            return 0;
+        }
+        auto version = *decoder.get_bits(1);
+        auto high = *decoder.get_bits(1);
+        auto profile = (high << 1) + version;
+        if(profile == 3) {
+            decoder.get_bits(1); // reserved
+        }
+        if(*decoder.get_bits(1)) { // show_existing_frame - not a new frame
+            return 0;
+        }
+        *is_keyframe = !decoder.get_bits(1);
+        return 1;
+    }
+
+    int vp9_frame_size(const void* data, int64_t size, int* width, int* height) {
+        auto decoder = ExpGolomb((uint8_t*)data, size);
+        if(*decoder.get_bits(2) != 0b10) {
+            return 0;
+        }
+        auto version = *decoder.get_bits(1);
+        auto high = *decoder.get_bits(1);
+        auto profile = (high << 1) + version;
+        if(profile == 3) {
+            decoder.get_bits(1); // reserved
+        }
+        if(*decoder.get_bits(1)) { // show_existing_frame - not a new frame
+            return 0;
+        }
+        auto frame_type = !*decoder.get_bits(1);
+        if(frame_type != 0) {
+            return 0;
+        }
+        int bit_depth = 8;
+        int colorspace = 0;
+        int yuv_range = 0;
+        int subsampling_x = 1;
+        int subsampling_y = 1;
+        if(vp9_bitdepth_colorspace_sampling(decoder, profile, &bit_depth, &colorspace, &yuv_range, &subsampling_x, &subsampling_y)) {
+            vp9_frame_size(decoder, width, height);
+            return 1;
+        }
+        return 0;
+    }
+
     uint64_t test_golomb_dec() {
         uint8_t bytes[4] = {0};
         bytes[0] = 0x1;
@@ -281,3 +366,6 @@ extern "C" {
         return val;
     }
 }
+
+
+

@@ -197,6 +197,7 @@ extension CodedMediaSample: Event {
 enum MediaDescriptionError: Error {
     case unsupported
     case invalidMetadata
+    case needsKeyframe
 }
 
 func basicMediaDescription(_ sample: CodedMediaSample) throws -> BasicMediaDescription {
@@ -224,6 +225,17 @@ func basicMediaDescription(_ sample: CodedMediaSample) throws -> BasicMediaDescr
         return .audio(BasicAudioDescription(sampleRate: Float(sampleRate),
                                             channelCount: Int(channels),
                                             samplesPerPacket: Int(samplesPerPacket)))
+    case .vp9:
+        guard isKeyframe(sample) else {
+            throw MediaDescriptionError.needsKeyframe
+        }
+        let (width, height): (Int32, Int32) = sample.data().withUnsafeBytes {
+            var width: Int32 = 0
+            var height: Int32 = 0
+            vp9_frame_size($0.baseAddress, Int64($0.count), &width, &height)
+            return (width, height)
+        }
+        return .video(BasicVideoDescription(size: Vector2(Float(width), Float(height))))
     default:
         throw MediaDescriptionError.unsupported
     }
@@ -238,6 +250,8 @@ public func isKeyframe(_ sample: CodedMediaSample) -> Bool {
         return isKeyframeAVC(sample)
     case .hevc:
         return false
+    case .vp9:
+        return isKeyframeVP9(sample)
     default:
         return false
     }
@@ -249,6 +263,17 @@ private func isKeyframeAVC(_ sample: CodedMediaSample) -> Bool {
         return false
     }
     return sample.data()[4] & 0x1f == 5
+}
+
+private func isKeyframeVP9(_ sample: CodedMediaSample) -> Bool {
+    guard sample.data().count >= 1 else {
+        return false
+    }
+    return sample.data().withUnsafeBytes {
+        var isKeyframe: Int32 = 0
+        vp9_is_keyframe($0.baseAddress, Int64($0.count), &isKeyframe)
+        return isKeyframe == 1
+    }
 }
 
 private func spsFromAVCDCR(_ sample: CodedMediaSample) throws -> Data {

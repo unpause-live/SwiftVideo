@@ -38,7 +38,7 @@ public class AppleVideoDecoder: Tx<CodedMediaSample, PictureSample> {
             guard let strongSelf = self else {
                 return .gone
             }
-            guard [.avc, .hevc].contains(sample.mediaFormat()) else {
+            guard [.avc, .hevc, .vp9].contains(sample.mediaFormat()) else {
                 return .error(EventError("dec.video.apple",
                    -1,
                    "\(sample.mediaFormat()) not supported. AppleVideoDecoder only supports AVC and HEVC"))
@@ -185,6 +185,10 @@ public class AppleVideoDecoder: Tx<CodedMediaSample, PictureSample> {
     private let decodeQueue: DispatchQueue
 }
 
+private func videoFormatFromVP9Header(_ data: Data) -> CMVideoFormatDescription? {
+    
+    return nil
+}
 private func videoFormatFromAVCParameterSets( _ paramSets: [[UInt8]]) throws -> CMVideoFormatDescription? {
     let pmSetPtrs: [UnsafePointer<UInt8>] = try paramSets.map {
         try $0.withUnsafeBufferPointer {

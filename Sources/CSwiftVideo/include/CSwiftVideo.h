@@ -29,6 +29,8 @@ extern "C" {
 
 int aac_parse_asc(const void* data, int64_t size, int* channels, int* sample_rate, int* samples_per_frame);
 int h264_sps_frame_size(const void* data, int64_t size, int* width, int* height);
+int vp9_is_keyframe(const void* data, int64_t size, int* is_keyframe);
+int vp9_frame_size(const void* data, int64_t size, int* width, int* height);
 
 #if defined(linux)
 void generateRandomBytes(void* buf, size_t size);
