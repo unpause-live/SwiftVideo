@@ -280,31 +280,38 @@ extern "C" {
     Reserved = 6
     sRGB = 7
     */
-    static int vp9_bitdepth_colorspace_sampling(ExpGolomb& decoder, int64_t profile, int* bit_depth,
-            int* colorspace, int* yuv_range, int* subsampling_x, int* subsampling_y) {
-        *bit_depth = 8;
-        if(profile >= 2) {
-            *bit_depth = *decoder.get_bits(1) ? 12 : 10;
+    static int vp9_bitdepth_colorspace_sampling(ExpGolomb& decoder, VP9FrameProperties* props) {
+        props->bitDepth = 8;
+        if(props->profile >= 2) {
+            props->bitDepth = *decoder.get_bits(1) ? 12 : 10;
         }
-        *colorspace = *decoder.get_bits(3);
-        if(*colorspace != 7) { // sRGB
-            *yuv_range = *decoder.get_bits(1); // movie = 0, full = 1
-            if(profile == 1 || profile == 3) {
-                *subsampling_x = *decoder.get_bits(1);
-                *subsampling_y = *decoder.get_bits(1);
+        props->colorSpace = static_cast<VP9ColorSpace>(*decoder.get_bits(3));
+        if(props->colorSpace != VP9ColorSpace_SRGB) {
+            props->fullSwingColor = *decoder.get_bits(1); // movie = 0, full = 1
+            if(props->profile == 1 || props->profile == 3) {
+                props->subSamplingX = *decoder.get_bits(1);
+                props->subSamplingY = *decoder.get_bits(1);
                 decoder.get_bits(1); // reserved 0
             } else {
-                *subsampling_x = *subsampling_y = 1;
+                props->subSamplingX = props->subSamplingY = 1;
             }
         } else {
-            *subsampling_x = *subsampling_y = 0;
+            props->subSamplingX = props->subSamplingY = 0;
             return 0;
         }
         return 1;
     }
-    static int vp9_frame_size(ExpGolomb& decoder, int* width, int* height) {
-        *width = *decoder.get_bits(16) + 1;
-        *height = *decoder.get_bits(16) + 1;
+    static int vp9_frame_size(ExpGolomb& decoder, VP9FrameProperties* props) {
+        props->width = *decoder.get_bits(16) + 1;
+        props->height = *decoder.get_bits(16) + 1;
+        auto has_scaling = decoder.get_bits(1);
+        if(has_scaling && *has_scaling) {
+            props->displayWidth = *decoder.get_bits(16) + 1;
+            props->displayHeight = *decoder.get_bits(16) + 1;
+        } else {
+            props->displayWidth = props->width;
+            props->displayHeight = props->height;
+        }
         return 1;
     }
     int vp9_is_keyframe(const void* data, int64_t size, int* is_keyframe) {
@@ -325,15 +332,15 @@ extern "C" {
         return 1;
     }
 
-    int vp9_frame_size(const void* data, int64_t size, int* width, int* height) {
+    int vp9_frame_properties(const void* data, int64_t size, VP9FrameProperties* props) {
         auto decoder = ExpGolomb((uint8_t*)data, size);
         if(*decoder.get_bits(2) != 0b10) {
             return 0;
         }
         auto version = *decoder.get_bits(1);
         auto high = *decoder.get_bits(1);
-        auto profile = (high << 1) + version;
-        if(profile == 3) {
+        props->profile = (high << 1) + version;
+        if(props->profile == 3) {
             decoder.get_bits(1); // reserved
         }
         if(*decoder.get_bits(1)) { // show_existing_frame - not a new frame
@@ -343,13 +350,8 @@ extern "C" {
         if(frame_type != 0) {
             return 0;
         }
-        int bit_depth = 8;
-        int colorspace = 0;
-        int yuv_range = 0;
-        int subsampling_x = 1;
-        int subsampling_y = 1;
-        if(vp9_bitdepth_colorspace_sampling(decoder, profile, &bit_depth, &colorspace, &yuv_range, &subsampling_x, &subsampling_y)) {
-            vp9_frame_size(decoder, width, height);
+        if(vp9_bitdepth_colorspace_sampling(decoder, props)) {
+            vp9_frame_size(decoder, props);
             return 1;
         }
         return 0;

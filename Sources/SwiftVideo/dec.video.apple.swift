@@ -185,9 +185,19 @@ public class AppleVideoDecoder: Tx<CodedMediaSample, PictureSample> {
     private let decodeQueue: DispatchQueue
 }
 
-private func videoFormatFromVP9Header(_ data: Data) -> CMVideoFormatDescription? {
-    
-    return nil
+private func videoFormatFromVP9Header(_ sample: CodedMediaSample) throws -> CMVideoFormatDescription? {
+    let desc = try basicMediaDescription(sample)
+    guard case .video(let videoDesc) = desc else {
+        return nil
+    }
+    var formatDesc: CMVideoFormatDescription?
+    _ = CMVideoFormatDescriptionCreate(kCFAllocatorDefault,
+      kCMVideoCodecType_VP9,
+      videoDesc.width,
+      videoDesc.height,
+      nil,
+      &formatDesc)
+    return formatDesc
 }
 private func videoFormatFromAVCParameterSets( _ paramSets: [[UInt8]]) throws -> CMVideoFormatDescription? {
     let pmSetPtrs: [UnsafePointer<UInt8>] = try paramSets.map {

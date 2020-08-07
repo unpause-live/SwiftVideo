@@ -51,6 +51,10 @@ public enum EncoderSpecificSettings {
 
 public struct BasicVideoDescription {
     public let size: Vector2
+    public let colorSpace: ColorSpace = .bt601
+    public let subSampling: PixelFormat = .y420p // valid values: y420p, y422p, y444p, RGBA
+    public let bitDepth: Int = 8
+    public let fullRangeColor: Bool = false
 }
 
 public struct BasicAudioDescription {
@@ -226,16 +230,7 @@ func basicMediaDescription(_ sample: CodedMediaSample) throws -> BasicMediaDescr
                                             channelCount: Int(channels),
                                             samplesPerPacket: Int(samplesPerPacket)))
     case .vp9:
-        guard isKeyframe(sample) else {
-            throw MediaDescriptionError.needsKeyframe
-        }
-        let (width, height): (Int32, Int32) = sample.data().withUnsafeBytes {
-            var width: Int32 = 0
-            var height: Int32 = 0
-            vp9_frame_size($0.baseAddress, Int64($0.count), &width, &height)
-            return (width, height)
-        }
-        return .video(BasicVideoDescription(size: Vector2(Float(width), Float(height))))
+        return try mediaDescriptionVP9(sample)
     default:
         throw MediaDescriptionError.unsupported
     }
@@ -274,6 +269,19 @@ private func isKeyframeVP9(_ sample: CodedMediaSample) -> Bool {
         vp9_is_keyframe($0.baseAddress, Int64($0.count), &isKeyframe)
         return isKeyframe == 1
     }
+}
+
+private func mediaDescriptionVP9(_ sample: CodedMediaSample) throws -> BasicMediaDescription {
+    guard isKeyframe(sample) else {
+        throw MediaDescriptionError.needsKeyframe
+    }
+    let props: VP9FrameProperties = sample.data().withUnsafeBytes {
+        var props = VP9FrameProperties()
+        vp9_frame_properties($0.baseAddress, Int64($0.count), &props)
+        return props
+    }
+    // TODO: Fill out rest of video description
+    return .video(BasicVideoDescription(size: Vector2(Float(props.width), Float(props.height))))
 }
 
 private func spsFromAVCDCR(_ sample: CodedMediaSample) throws -> Data {
