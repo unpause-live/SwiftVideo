@@ -270,16 +270,6 @@ extern "C" {
         return 1;
     }
 
-    /* colorspace
-    Unknown = 0
-    BT.601 = 1
-    BT.709 = 2
-    SMPTE-170 = 3
-    SMPTE-240 = 4
-    BT.2020 = 5
-    Reserved = 6
-    sRGB = 7
-    */
     static int vp9_bitdepth_colorspace_sampling(ExpGolomb& decoder, VP9FrameProperties* props) {
         props->bitDepth = 8;
         if(props->profile >= 2) {
@@ -297,6 +287,7 @@ extern "C" {
             }
         } else {
             props->subSamplingX = props->subSamplingY = 0;
+            decoder.get_bits(1); // reserved 0
             return 0;
         }
         return 1;
@@ -328,7 +319,7 @@ extern "C" {
         if(*decoder.get_bits(1)) { // show_existing_frame - not a new frame
             return 0;
         }
-        *is_keyframe = !decoder.get_bits(1);
+        *is_keyframe = !(*decoder.get_bits(1));
         return 1;
     }
 
@@ -346,11 +337,15 @@ extern "C" {
         if(*decoder.get_bits(1)) { // show_existing_frame - not a new frame
             return 0;
         }
-        auto frame_type = !*decoder.get_bits(1);
+        auto frame_type = *decoder.get_bits(1);
         if(frame_type != 0) {
             return 0;
         }
-        if(vp9_bitdepth_colorspace_sampling(decoder, props)) {
+        decoder.get_bits(1); // show_frame
+        decoder.get_bits(1); // error_resilient_mode
+        auto sync_code = *decoder.get_bits(24);
+        if(sync_code = 0x498342 && vp9_bitdepth_colorspace_sampling(decoder, props)) {
+            auto refresh_frames_flag = *decoder.get_bits(8);
             vp9_frame_size(decoder, props);
             return 1;
         }
