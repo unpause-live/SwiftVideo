@@ -191,12 +191,12 @@ private func videoFormatFromVP9Header(_ sample: CodedMediaSample) throws -> CMVi
         return nil
     }
     var formatDesc: CMVideoFormatDescription?
-    _ = CMVideoFormatDescriptionCreate(kCFAllocatorDefault,
-      kCMVideoCodecType_VP9,
-      Int32(videoDesc.size.x),
-      Int32(videoDesc.size.y),
-      nil,
-      &formatDesc)
+    _ = CMVideoFormatDescriptionCreate(allocator: kCFAllocatorDefault,
+      codecType: kCMVideoCodecType_VP9,
+      width: Int32(videoDesc.size.x),
+      height: Int32(videoDesc.size.y),
+      extensions: nil,
+      formatDescription: &formatDesc)
     return formatDesc
 }
 private func videoFormatFromAVCParameterSets( _ paramSets: [[UInt8]]) throws -> CMVideoFormatDescription? {
