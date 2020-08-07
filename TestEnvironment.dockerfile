@@ -8,7 +8,7 @@
 ARG        PKG_CONFIG_PATH=/opt/ffmpeg/lib/pkgconfig
 
 
-FROM        ubuntu:18.04 AS base
+FROM        swift:5.2.4-bionic AS base
 
 WORKDIR     /tmp/workdir
 
@@ -255,19 +255,6 @@ ENV PKG_CONFIG_PATH=${PKG_CONFIG_PATH}
 FROM base
 
 RUN apt update && apt-get install -y software-properties-common build-essential wget gnupg2 git
-
-ARG SWIFT_VER=swift-5.2.4-RELEASE
-
-RUN export SWIFT_VER_LOWER=$(echo ${SWIFT_VER} | tr '[:upper:]' '[:lower:]') && \
-    mkdir -p /tmp/swift && \
-    cd /tmp/swift && \
-        wget --quiet https://swift.org/builds/$SWIFT_VER_LOWER/ubuntu1804/$SWIFT_VER/$SWIFT_VER-ubuntu18.04.tar.gz && \
-        tar xzf $SWIFT_VER-ubuntu18.04.tar.gz && \
-        cd $SWIFT_VER-ubuntu18.04 && \
-            cp -R usr/* /usr/ && \
-        cd .. &&  \
-    cd / && \
-    rm -rf /tmp/swift
 
 RUN apt-get install -y ocl-icd-opencl-dev libfreetype6-dev libbsd-dev pkg-config
 

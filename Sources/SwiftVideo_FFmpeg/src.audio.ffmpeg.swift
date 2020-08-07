@@ -156,18 +156,18 @@ public class FFmpegAudioSRC: Tx<AudioSample, AudioSample> {
 private func avSampleFormat(_ fmt: AudioFormat) -> AVSampleFormat {
     switch fmt {
     case .s16i:
-        return .s16
+        return .int16
     case .s16p:
-        return .s16p
+        return .int16Planar
     case .f32p:
-        return .fltp
+        return .floatPlanar
     case .f32i:
-        return .flt
+        return .float
     case .f64p:
-        return .dblp
+        return .doublePlanar
     case .f64i:
-        return .dbl
+        return .double
     default:
-        return .s16
+        return .int16
     }
 }

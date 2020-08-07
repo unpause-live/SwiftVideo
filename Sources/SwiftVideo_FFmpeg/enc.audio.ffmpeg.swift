@@ -176,13 +176,13 @@ public class FFmpegAudioEncoder: Tx<AudioSample, [CodedMediaSample]> {
         codecContext.sampleFormat = {
                 switch sample.format() {
                 case .s16i:
-                    return .s16
+                    return .int16
                 case .s16p:
-                    return .s16p
+                    return .int16Planar
                 case .f32p:
-                    return .fltp
+                    return .floatPlanar
                 default:
-                    return .s16
+                    return .int16
                 }
             }()
         codecContext.channelLayout = .CHL_STEREO

@@ -27,9 +27,9 @@ You can use this project in Xcode for iOS as a Swift Package as of 0.2.0.
 2. Set the package repository URL to https://github.com/unpause-live/SwiftVideo 
 3. Select the branch or version you want to reference. Only 0.2.0 and above will be usable on iOS unless you also compile
 FFmpeg and Freetype for it.
-4. Choose the "SwiftVideo_Bare" product when prompted. This will build SwiftVideo without FFmpeg and Freetype. If you have built
-those libraries for iOS and wish to use them with SwiftVideo, choose the "SwiftVideo" product instead.
-
+4. Choose the `SwiftVideo_Bare` product when prompted. This will build SwiftVideo without FFmpeg and Freetype. If you have built
+those libraries for iOS and wish to use them with SwiftVideo, choose the `SwiftVideo` product instead.
+5. If you are using the VideoMixer you will need to include `Sources/SwiftVideo/kernels.metal` in your project directly so that they are included. This will be changed [when Swift 5.3 is released](https://github.com/apple/swift-evolution/blob/master/proposals/0278-package-manager-localized-resources.md).
 
 ### Current Features
 
