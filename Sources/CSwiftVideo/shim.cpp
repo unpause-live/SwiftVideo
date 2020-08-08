@@ -293,7 +293,7 @@ extern "C" {
         } else {
             props->subSamplingX = props->subSamplingY = 0;
             decoder.get_bits(1); // reserved 0
-            if(profile != 1 && profile != 3) {
+            if(props->profile != 1 && props->profile != 3) {
                 return 0;
             }
         }
@@ -351,7 +351,7 @@ extern "C" {
         decoder.get_bits(1); // show_frame
         decoder.get_bits(1); // error_resilient_mode
         auto sync_code = *decoder.get_bits(24);
-        if(sync_code = 0x498342 && vp9_bitdepth_colorspace_sampling(decoder, props)) {
+        if(sync_code == 0x498342 && vp9_bitdepth_colorspace_sampling(decoder, props)) {
             if(decoder.alignment() > 0) {
                 decoder.get_bits(8 - decoder.alignment());
             }
