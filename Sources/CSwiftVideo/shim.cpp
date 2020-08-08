@@ -113,6 +113,11 @@ public:
         ptr = (uint8_t*)(base + (pos / 8));
         return accumulator;
     }
+
+    int64_t alignment() const {
+        return pos % 8;
+    }
+
 private:
     int64_t zeroes() {
         uint8_t* p = ptr;
@@ -288,7 +293,9 @@ extern "C" {
         } else {
             props->subSamplingX = props->subSamplingY = 0;
             decoder.get_bits(1); // reserved 0
-            return 0;
+            if(profile != 1 && profile != 3) {
+                return 0;
+            }
         }
         return 1;
     }
@@ -345,7 +352,9 @@ extern "C" {
         decoder.get_bits(1); // error_resilient_mode
         auto sync_code = *decoder.get_bits(24);
         if(sync_code = 0x498342 && vp9_bitdepth_colorspace_sampling(decoder, props)) {
-            auto refresh_frames_flag = *decoder.get_bits(8);
+            if(decoder.alignment() > 0) {
+                decoder.get_bits(8 - decoder.alignment());
+            }
             vp9_frame_size(decoder, props);
             return 1;
         }
