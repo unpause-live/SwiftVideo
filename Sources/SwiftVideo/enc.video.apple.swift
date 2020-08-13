@@ -30,16 +30,19 @@ public class AppleVideoEncoder: Tx<PictureSample, [CodedMediaSample]> {
         self.queue = DispatchQueue.init(label: "cezium.encode.video")
         let codecType = { () -> CMVideoCodecType in
             switch format {
-                case .avc:
-                    return kCMVideoCodecType_H264
-                case .hevc:
-                    return kCMVideoCodecType_HEVC
-                case .vp9:
-                    return kCMVideoCodecType_VP9
-                default:
-                    return kCMVideoCodecType_H264
+            case .avc:
+                return kCMVideoCodecType_H264
+            case .hevc:
+                return kCMVideoCodecType_HEVC
+            case .vp9:
+                return kCMVideoCodecType_VP9
+            default:
+                return kCMVideoCodecType_H264
             }
         }()
+        #if os(macOS)
+        VTRegisterSupplementalVideoDecoderIfAvailable(kCMVideoCodecType_VP9)
+        #endif
         let result = VTCompressionSessionCreate(allocator: kCFAllocatorDefault,
            width: Int32(frame.width),
            height: Int32(frame.height),
