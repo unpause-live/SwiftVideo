@@ -155,7 +155,7 @@ public class AppleVideoDecoder: Tx<CodedMediaSample, PictureSample> {
         if let format = formatDesc {
             var session: VTDecompressionSession?
             let decoderSpecification = [:] as CFDictionary
-            if #available(macOS 10.11, *) {
+            if #available(macOS 11.0, *) {
                 VTRegisterSupplementalVideoDecoderIfAvailable(kCMVideoCodecType_VP9)
             }
             let result = VTDecompressionSessionCreate(allocator: kCFAllocatorDefault,
