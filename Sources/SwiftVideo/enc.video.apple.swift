@@ -40,9 +40,6 @@ public class AppleVideoEncoder: Tx<PictureSample, [CodedMediaSample]> {
                 return kCMVideoCodecType_H264
             }
         }()
-        if #available(macOS 11.0, *) {
-            VTRegisterSupplementalVideoEncoderIfAvailable(kCMVideoCodecType_VP9)
-        }
         let result = VTCompressionSessionCreate(allocator: kCFAllocatorDefault,
            width: Int32(frame.width),
            height: Int32(frame.height),
