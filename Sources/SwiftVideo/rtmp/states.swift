@@ -344,7 +344,7 @@ extension rtmp {
                                           chunk: Chunk,
                                           ctx: Context) -> (EventBox<Event>, Context) {
             guard let playPath = data[safe: 3]?.string else {
-                return (.error(EventError("NetStream.Publish.Fail", 1, "No access")), ctx)
+                return (.error(EventError("NetStream.Publish.BadName", 1, "No access")), ctx)
             }
             return (.nothing(nil), ctx.changing(playPath: playPath, started: true, publishToPeer: false))
         }
@@ -353,7 +353,7 @@ extension rtmp {
                                        chunk: Chunk,
                                        ctx: Context) -> (EventBox<Event>, Context) {
             guard let playPath = data[safe: 3]?.string else {
-                return (.error(EventError("NetStream.Play.Fail", 1, "No access")), ctx)
+                return (.error(EventError("NetStream.Play.Failed", 1, "No access")), ctx)
             }
             return (.nothing(nil), ctx.changing(playPath: playPath, started: true, publishToPeer: true))
         }
