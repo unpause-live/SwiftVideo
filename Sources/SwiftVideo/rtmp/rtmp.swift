@@ -244,7 +244,7 @@ public class Rtmp {
                                               "Begin",
                                               ctx)
             let (fail, _) = rtmp.buildStatus("error",
-                                             ctx.publishToPeer ? "NetStream.Play.Fail" : "NetStream.Publish.Fail",
+                                             ctx.publishToPeer ? "NetStream.Play.Failed" : "NetStream.Publish.BadName",
                                              "No access",
                                              ctx)
             let publisher = ctx.publishToPeer ? RtmpPublisher(clock,
