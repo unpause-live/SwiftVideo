@@ -404,23 +404,11 @@ public class RtmpPublisher: Terminal<CodedMediaSample>, LivePublisher {
     }
 
     private func handle(_ sample: CodedMediaSample) -> EventBox<ResultEvent> {
-        // guard let epoch = self.epoch else {
-        //     return .gone
-        // }
         if self.sentProps {
-            //let scheduleTime = epoch + bufferSize + sample.dts()
-            //clock.schedule(scheduleTime) { [weak self] _ in
-                self.queue.async { [weak self] in
-                    guard let strongSelf = self,
-                          let txn = strongSelf.serialize else {
-                        return
-                    }
-                    strongSelf.result = .just(sample) >>- (txn >>> Tx { .nothing($0.info()) })
-                }
-            //}
-            let result = self.result
-            self.result = nil
-            return result ?? .nothing(nil)
+            guard let txn = self.serialize else {
+                return .nothing(sample.info())
+            }
+            return .just(sample) >>- (txn >>> Tx { .nothing($0.info()) })
         } else {
             let has = self.props.contains {
                 switch $0 {

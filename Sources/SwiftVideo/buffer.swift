@@ -62,7 +62,7 @@ public enum buffer {
         if let buf = buf {
             let total = max(at - buf.readerIndex, 0) &+ length
             if total > 0 && total <= buf.readableBytes && length > 0 {
-                return buf.getSlice(at: at, length: length)
+                return buf.getSlice(at: at + buf.readerIndex, length: length)
             }
         }
         return nil
