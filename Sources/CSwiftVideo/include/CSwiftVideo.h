@@ -27,8 +27,34 @@
 extern "C" {
 #endif
 
+typedef enum {
+   VP9ColorSpace_Unknown = 0,
+   VP9ColorSpace_BT_601 = 1,
+   VP9ColorSpace_BT_709 = 2,
+   VP9ColorSpace_SMPTE_170 = 3,
+   VP9ColorSpace_SMPTE_240 = 4,
+   VP9ColorSpace_BT_2020 = 5,
+   VP9ColorSpace_Reserved = 6,
+   VP9ColorSpace_SRGB = 7
+} VP9ColorSpace;
+
+typedef struct {
+   int width;
+   int height;
+   int displayWidth;
+   int displayHeight;
+   int bitDepth;
+   VP9ColorSpace colorSpace;
+   int subSamplingX;
+   int subSamplingY;
+   int fullSwingColor;
+   int profile;
+} VP9FrameProperties;
+
 int aac_parse_asc(const void* data, int64_t size, int* channels, int* sample_rate, int* samples_per_frame);
 int h264_sps_frame_size(const void* data, int64_t size, int* width, int* height);
+int vp9_is_keyframe(const void* data, int64_t size, int* is_keyframe);
+int vp9_frame_properties(const void* data, int64_t size, VP9FrameProperties* props);
 
 #if defined(linux)
 void generateRandomBytes(void* buf, size_t size);

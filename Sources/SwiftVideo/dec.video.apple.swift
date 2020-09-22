@@ -22,6 +22,7 @@ import Dispatch
 enum DecodeError: Error {
     case invalidBase
     case osstatus(Int32)
+    case unsupportedCodec
 }
 
 public class AppleVideoDecoder: Tx<CodedMediaSample, PictureSample> {
@@ -38,7 +39,7 @@ public class AppleVideoDecoder: Tx<CodedMediaSample, PictureSample> {
             guard let strongSelf = self else {
                 return .gone
             }
-            guard [.avc, .hevc].contains(sample.mediaFormat()) else {
+            guard [.avc, .hevc, .vp9].contains(sample.mediaFormat()) else {
                 return .error(EventError("dec.video.apple",
                    -1,
                    "\(sample.mediaFormat()) not supported. AppleVideoDecoder only supports AVC and HEVC"))
@@ -79,68 +80,58 @@ public class AppleVideoDecoder: Tx<CodedMediaSample, PictureSample> {
                                                blockBufferOut: &buffer)
             return buffer
         }
-        guard let dataBuffer = dataBufferWk, let dcr = sample.sideData()["config"] else {
+        guard let dataBuffer = dataBufferWk else {
             print("Failed to create buffer")
             return .error(EventError("dec.video.apple", -2, "Failed to create buffer"))
         }
-
-        do {
-            // TODO: HEVC Support
-            let paramSets = parameterSetsFromAVCC(dcr)
-            let formatDesc = try videoFormatFromAVCParameterSets(paramSets)
-            let pts = rescale(sample.pts(), 90000).value
-            let dts = rescale(sample.dts(), 90000).value
-            var videoSampleTimingInfo = CMSampleTimingInfo(duration: CMTimeMake(value: 1, timescale: 1),
-                                           presentationTimeStamp: CMTimeMake(value: pts, timescale: 90000),
-                                           decodeTimeStamp: CMTimeMake(value: dts, timescale: 90000))
-            var sampleBuffer: CMSampleBuffer?
-            var sampleSize = [sample.data().count]
-            CMSampleBufferCreate(allocator: kCFAllocatorDefault,
-                                 dataBuffer: dataBuffer,
-                                 dataReady: true,
-                                 makeDataReadyCallback: nil,
-                                 refcon: nil,
-                                 formatDescription: formatDesc,
-                                 sampleCount: 1,
-                                 sampleTimingEntryCount: 1,
-                                 sampleTimingArray: &videoSampleTimingInfo,
-                                 sampleSizeEntryCount: 1,
-                                 sampleSizeArray: &sampleSize,
-                                 sampleBufferOut: &sampleBuffer)
-            if let sampleBuffer = sampleBuffer {
-                let flags: VTDecodeFrameFlags = [._1xRealTimePlayback,
-                                                 ._EnableTemporalProcessing,
-                                                 ._EnableAsynchronousDecompression]
-                let result = VTDecompressionSessionDecodeFrame(session,
-                                                  sampleBuffer: sampleBuffer,
-                                                  flags: flags,
-                                                  infoFlagsOut: nil) { [weak self] (_, _, imgBuffer, pts, _) in
-                                                    guard let strongSelf = self, let imgBuffer = imgBuffer else {
-                                                        return
-                                                    }
-                                                    let ptsTime = TimePoint(pts.value, Int64(pts.timescale))
-                                                    let img = ImageBuffer(imgBuffer)
-                                                    let pic = PictureSample(img,
-                                                                            assetId: sample.assetId(),
-                                                                            workspaceId: sample.workspaceId(),
-                                                                            time: strongSelf.clock.current(),
-                                                                            pts: ptsTime)
-                                                    strongSelf.sampleQueue.sync {
-                                                        strongSelf.output.append(pic)
-                                                        strongSelf.output = strongSelf
-                                                            .output.sorted { $0.pts() < $1.pts() }
-                                                    }
-                    }
-                if result != 0 {
-                    print("result=\(result)")
-                    return .error(EventError("dec.video.apple", Int(result), "OSStatus, decode failed"))
+        let pts = rescale(sample.pts(), 90000).value
+        let dts = rescale(sample.dts(), 90000).value
+        var videoSampleTimingInfo = CMSampleTimingInfo(duration: CMTimeMake(value: 1, timescale: 1),
+                                       presentationTimeStamp: CMTimeMake(value: pts, timescale: 90000),
+                                       decodeTimeStamp: CMTimeMake(value: dts, timescale: 90000))
+        var sampleBuffer: CMSampleBuffer?
+        var sampleSize = [sample.data().count]
+        CMSampleBufferCreate(allocator: kCFAllocatorDefault,
+                             dataBuffer: dataBuffer,
+                             dataReady: true,
+                             makeDataReadyCallback: nil,
+                             refcon: nil,
+                             formatDescription: formatDesc,
+                             sampleCount: 1,
+                             sampleTimingEntryCount: 1,
+                             sampleTimingArray: &videoSampleTimingInfo,
+                             sampleSizeEntryCount: 1,
+                             sampleSizeArray: &sampleSize,
+                             sampleBufferOut: &sampleBuffer)
+        if let sampleBuffer = sampleBuffer {
+            let flags: VTDecodeFrameFlags = [._1xRealTimePlayback,
+                                             ._EnableTemporalProcessing,
+                                             ._EnableAsynchronousDecompression]
+            let result = VTDecompressionSessionDecodeFrame(session,
+                                              sampleBuffer: sampleBuffer,
+                                              flags: flags,
+                                              infoFlagsOut: nil) { [weak self] (_, _, imgBuffer, pts, _) in
+                                                guard let strongSelf = self, let imgBuffer = imgBuffer else {
+                                                    return
+                                                }
+                                                let ptsTime = TimePoint(pts.value, Int64(pts.timescale))
+                                                let img = ImageBuffer(imgBuffer)
+                                                let pic = PictureSample(img,
+                                                                        assetId: sample.assetId(),
+                                                                        workspaceId: sample.workspaceId(),
+                                                                        time: strongSelf.clock.current(),
+                                                                        pts: ptsTime)
+                                                strongSelf.sampleQueue.sync {
+                                                    strongSelf.output.append(pic)
+                                                    strongSelf.output = strongSelf
+                                                        .output.sorted { $0.pts() < $1.pts() }
+                                                }
                 }
+            if result != 0 {
+                print("result=\(result)")
+                return .error(EventError("dec.video.apple", Int(result), "OSStatus, decode failed"))
             }
-        } catch {
-            // error
-            return .error(EventError("dec.video.apple", -4, "Caught decode error \(error)"))
         }
-        
         return self.sampleQueue.sync {
             if let outSample = self.output[safe:0], self.output.count >= 5 {
                 self.output.removeFirst()
@@ -152,19 +143,23 @@ public class AppleVideoDecoder: Tx<CodedMediaSample, PictureSample> {
     }
     private func setupSession(_ sample: CodedMediaSample) throws {
         let desc = try basicMediaDescription(sample)
-        guard case .video(let videoDesc) = desc, let dcr = sample.sideData()["config"] else {
+        guard case .video(let videoDesc) = desc else {
             return
         }
         let pixelBufferOptions =
             [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
              kCVPixelBufferWidthKey as String: Int(videoDesc.size.x),
              kCVPixelBufferHeightKey as String: Int(videoDesc.size.y)] as CFDictionary
-        let paramSets = parameterSetsFromAVCC(dcr)
-        let formatDesc = try videoFormatFromAVCParameterSets(paramSets)
+        formatDesc = try videoFormatDescription(sample)
 
         if let format = formatDesc {
             var session: VTDecompressionSession?
             let decoderSpecification = [:] as CFDictionary
+            #if os(macOS)
+            if #available(macOS 11.0, *) {
+                VTRegisterSupplementalVideoDecoderIfAvailable(kCMVideoCodecType_VP9)
+            }
+            #endif
             let result = VTDecompressionSessionCreate(allocator: kCFAllocatorDefault,
                                           formatDescription: format,
                                           decoderSpecification: decoderSpecification,
@@ -180,9 +175,43 @@ public class AppleVideoDecoder: Tx<CodedMediaSample, PictureSample> {
     }
     private var output: [PictureSample]
     private var session: VTDecompressionSession?
+    private var formatDesc: CMVideoFormatDescription?
     private let clock: Clock
     private let sampleQueue: DispatchQueue
     private let decodeQueue: DispatchQueue
+}
+
+private func videoFormatDescription(_ sample: CodedMediaSample) throws -> CMVideoFormatDescription? {
+    switch(sample.mediaFormat()) {
+    case .avc:
+        guard let dcr = sample.sideData()["config"] else {
+            throw MediaDescriptionError.invalidMetadata
+        }
+        let paramSets = parameterSetsFromAVCC(dcr)
+        return try videoFormatFromAVCParameterSets(paramSets)
+    case .vp9:
+        return try videoFormatFromVP9(sample)
+    default:
+        throw DecodeError.unsupportedCodec
+    }
+}
+
+private func videoFormatFromVP9(_ sample: CodedMediaSample) throws -> CMVideoFormatDescription? {
+    let desc = try basicMediaDescription(sample)
+    guard case .video(let videoDesc) = desc else {
+        return nil
+    }
+    var formatDesc: CMVideoFormatDescription?
+    let extensions = [
+        kCMFormatDescriptionExtension_FullRangeVideo as String: videoDesc.fullRangeColor
+    ] as CFDictionary
+    _ = CMVideoFormatDescriptionCreate(allocator: kCFAllocatorDefault,
+          codecType: kCMVideoCodecType_VP9,
+          width: Int32(videoDesc.size.x),
+          height: Int32(videoDesc.size.y),
+          extensions: extensions,
+          formatDescriptionOut: &formatDesc)
+    return formatDesc
 }
 
 private func videoFormatFromAVCParameterSets( _ paramSets: [[UInt8]]) throws -> CMVideoFormatDescription? {

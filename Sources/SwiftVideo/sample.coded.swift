@@ -51,6 +51,10 @@ public enum EncoderSpecificSettings {
 
 public struct BasicVideoDescription {
     public let size: Vector2
+    public let colorSpace: ColorSpace = .bt601
+    public let subSampling: PixelFormat = .y420p // valid values: y420p, y422p, y444p, RGBA
+    public let bitDepth: Int = 8
+    public let fullRangeColor: Bool = false
 }
 
 public struct BasicAudioDescription {
@@ -197,6 +201,7 @@ extension CodedMediaSample: Event {
 enum MediaDescriptionError: Error {
     case unsupported
     case invalidMetadata
+    case needsKeyframe
 }
 
 func basicMediaDescription(_ sample: CodedMediaSample) throws -> BasicMediaDescription {
@@ -224,6 +229,8 @@ func basicMediaDescription(_ sample: CodedMediaSample) throws -> BasicMediaDescr
         return .audio(BasicAudioDescription(sampleRate: Float(sampleRate),
                                             channelCount: Int(channels),
                                             samplesPerPacket: Int(samplesPerPacket)))
+    case .vp9:
+        return try mediaDescriptionVP9(sample)
     default:
         throw MediaDescriptionError.unsupported
     }
@@ -238,6 +245,8 @@ public func isKeyframe(_ sample: CodedMediaSample) -> Bool {
         return isKeyframeAVC(sample)
     case .hevc:
         return false
+    case .vp9:
+        return isKeyframeVP9(sample)
     default:
         return false
     }
@@ -249,6 +258,30 @@ private func isKeyframeAVC(_ sample: CodedMediaSample) -> Bool {
         return false
     }
     return sample.data()[4] & 0x1f == 5
+}
+
+private func isKeyframeVP9(_ sample: CodedMediaSample) -> Bool {
+    guard sample.data().count >= 1 else {
+        return false
+    }
+    return sample.data().withUnsafeBytes {
+        var isKeyframe: Int32 = 0
+        vp9_is_keyframe($0.baseAddress, Int64($0.count), &isKeyframe)
+        return isKeyframe == 1
+    }
+}
+
+private func mediaDescriptionVP9(_ sample: CodedMediaSample) throws -> BasicMediaDescription {
+    guard isKeyframe(sample) else {
+        throw MediaDescriptionError.needsKeyframe
+    }
+    let props: VP9FrameProperties = sample.data().withUnsafeBytes {
+        var props = VP9FrameProperties()
+        vp9_frame_properties($0.baseAddress, Int64($0.count), &props)
+        return props
+    }
+    // TODO: Fill out rest of video description
+    return .video(BasicVideoDescription(size: Vector2(Float(props.width), Float(props.height))))
 }
 
 private func spsFromAVCDCR(_ sample: CodedMediaSample) throws -> Data {

@@ -33,7 +33,7 @@ let onConnection: LiveOnConnection = { pub, sub in
         // to it. Releasing the reference will close the connection an end the stream.
         // You can create more sophisticated graphs with decoders, buses, and other components.
         subs[sub.assetId()] = src >>> Tx { sample in
-            print("got sample \(sample.pts().toString()) type = \(sample.mediaType())")
+            print("got sample \(sample.pts().toString()) type = \(sample.mediaType()) size = \(sample.data().count)")
             return .nothing(nil)
         }
     }

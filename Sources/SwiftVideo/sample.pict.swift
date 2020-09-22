@@ -32,6 +32,15 @@ public enum PixelFormat {
     case invalid
 }
 
+public enum ColorSpace {
+    case bt601
+    case bt709
+    case bt2020
+    case smpte170
+    case smpte240
+    case sRGB
+}
+
 // swiftlint:disable identifier_name
 public enum Component {
     case r

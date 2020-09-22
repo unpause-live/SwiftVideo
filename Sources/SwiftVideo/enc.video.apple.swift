@@ -26,13 +26,24 @@ public class AppleVideoEncoder: Tx<PictureSample, [CodedMediaSample]> {
     }
 
     public init(format: MediaFormat, frame: CGSize, bitrate: Int = 500000) {
-        assert(format == .avc || format == .hevc, "AppleVideoEncoder only supports AVC and HEVC")
+        //assert(format == .avc || format == .hevc, "AppleVideoEncoder only supports AVC and HEVC")
         self.queue = DispatchQueue.init(label: "cezium.encode.video")
-
-        VTCompressionSessionCreate(allocator: kCFAllocatorDefault,
+        let codecType = { () -> CMVideoCodecType in
+            switch format {
+            case .avc:
+                return kCMVideoCodecType_H264
+            case .hevc:
+                return kCMVideoCodecType_HEVC
+            case .vp9:
+                return kCMVideoCodecType_VP9
+            default:
+                return kCMVideoCodecType_H264
+            }
+        }()
+        let result = VTCompressionSessionCreate(allocator: kCFAllocatorDefault,
            width: Int32(frame.width),
            height: Int32(frame.height),
-           codecType: format == .avc ? kCMVideoCodecType_H264 : kCMVideoCodecType_HEVC,
+           codecType: codecType,
            encoderSpecification: [kVTCompressionPropertyKey_ExpectedFrameRate: 30] as CFDictionary,
            imageBufferAttributes: pixelBufferOptions(frame),
            compressedDataAllocator: nil,

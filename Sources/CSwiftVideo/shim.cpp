@@ -113,6 +113,11 @@ public:
         ptr = (uint8_t*)(base + (pos / 8));
         return accumulator;
     }
+
+    int64_t alignment() const {
+        return pos % 8;
+    }
+
 private:
     int64_t zeroes() {
         uint8_t* p = ptr;
@@ -268,6 +273,92 @@ extern "C" {
             *height = int((2 - (frame_mbs_only_flag && *frame_mbs_only_flag)) * ((pic_height_in_map_units_minus1 + 1) * 16) - (frame_crop_top_offset*2 + frame_crop_bottom_offset*2) );
         }
         return 1;
+    }
+
+    static int vp9_bitdepth_colorspace_sampling(ExpGolomb& decoder, VP9FrameProperties* props) {
+        props->bitDepth = 8;
+        if(props->profile >= 2) {
+            props->bitDepth = *decoder.get_bits(1) ? 12 : 10;
+        }
+        props->colorSpace = static_cast<VP9ColorSpace>(*decoder.get_bits(3));
+        if(props->colorSpace != VP9ColorSpace_SRGB) {
+            props->fullSwingColor = *decoder.get_bits(1); // movie = 0, full = 1
+            if(props->profile == 1 || props->profile == 3) {
+                props->subSamplingX = *decoder.get_bits(1);
+                props->subSamplingY = *decoder.get_bits(1);
+                decoder.get_bits(1); // reserved 0
+            } else {
+                props->subSamplingX = props->subSamplingY = 1;
+            }
+        } else {
+            props->subSamplingX = props->subSamplingY = 0;
+            decoder.get_bits(1); // reserved 0
+            if(props->profile != 1 && props->profile != 3) {
+                return 0;
+            }
+        }
+        return 1;
+    }
+    static int vp9_frame_size(ExpGolomb& decoder, VP9FrameProperties* props) {
+        props->width = *decoder.get_bits(16) + 1;
+        props->height = *decoder.get_bits(16) + 1;
+        auto has_scaling = decoder.get_bits(1);
+        if(has_scaling && *has_scaling) {
+            props->displayWidth = *decoder.get_bits(16) + 1;
+            props->displayHeight = *decoder.get_bits(16) + 1;
+        } else {
+            props->displayWidth = props->width;
+            props->displayHeight = props->height;
+        }
+        return 1;
+    }
+    int vp9_is_keyframe(const void* data, int64_t size, int* is_keyframe) {
+        auto decoder = ExpGolomb((uint8_t*)data, size);
+        if(*decoder.get_bits(2) != 0b10) {
+            return 0;
+        }
+        auto version = *decoder.get_bits(1);
+        auto high = *decoder.get_bits(1);
+        auto profile = (high << 1) + version;
+        if(profile == 3) {
+            decoder.get_bits(1); // reserved
+        }
+        if(*decoder.get_bits(1)) { // show_existing_frame - not a new frame
+            return 0;
+        }
+        *is_keyframe = !(*decoder.get_bits(1));
+        return 1;
+    }
+
+    int vp9_frame_properties(const void* data, int64_t size, VP9FrameProperties* props) {
+        auto decoder = ExpGolomb((uint8_t*)data, size);
+        if(*decoder.get_bits(2) != 0b10) {
+            return 0;
+        }
+        auto version = *decoder.get_bits(1);
+        auto high = *decoder.get_bits(1);
+        props->profile = (high << 1) + version;
+        if(props->profile == 3) {
+            decoder.get_bits(1); // reserved
+        }
+        if(*decoder.get_bits(1)) { // show_existing_frame - not a new frame
+            return 0;
+        }
+        auto frame_type = *decoder.get_bits(1);
+        if(frame_type != 0) {
+            return 0;
+        }
+        decoder.get_bits(1); // show_frame
+        decoder.get_bits(1); // error_resilient_mode
+        auto sync_code = *decoder.get_bits(24);
+        if(sync_code == 0x498342 && vp9_bitdepth_colorspace_sampling(decoder, props)) {
+            if(decoder.alignment() > 0) {
+                decoder.get_bits(8 - decoder.alignment());
+            }
+            vp9_frame_size(decoder, props);
+            return 1;
+        }
+        return 0;
     }
 
     uint64_t test_golomb_dec() {
